@@ -1,0 +1,84 @@
+Table Categories_outils {
+  id integer [primary key]
+  Nom varchar
+  Detail varchar
+  Niveau varchar
+}
+
+Table Detail_documents {
+  id integer [primary key]
+  ref_document integer [ref: > Document_a_etudier_espace_metier.id]
+  Date date
+  Espace single_choice
+  Note varchar
+  Nom_espace_metier varchar
+}
+
+Table Document_a_etudier_espace_metier {
+  id integer [primary key]
+  id2 varchar
+  nom varchar
+  owner varchar
+  Reunion_ajout integer [ref: > Reunion.id]
+  Suivi_document_Espace "formula[default]"
+}
+
+Table Documentation_technique_espace_metier {
+  id integer [primary key]
+  Document_lie integer [ref: > Document_a_etudier_espace_metier.id]
+  Creation varchar
+  RGPD_ varchar
+  Description_solution_ varchar
+  Nombre_d_utilisateurs integer
+  Droits_utilisateurs_dans_le_document_ varchar
+  Nombre_de_tables integer
+  Durabilite_visee single_choice
+  Detail_RGPD_sante varchar
+  Formules_dans_le_document_ varchar
+  Code_python_dans_le_document_ varchar
+  Detail_code_python varchar
+  Detail_formules varchar
+  Widgets_utilises_ varchar
+  Liste_widgets_utilises multiple_choice
+  Widgets_personnalises_ varchar
+  Tables_liees_ varchar
+  Date_de_la_demande date
+  Statut_de_la_doc_technique single_choice
+  Projet_lie "formula[integer]" [ref: > Suivi_projets.id]
+  id_document "formula[varchar]"
+  Proprietaire_du_document "formula[varchar]"
+  Documents_associes "formula[file]"
+  Detail_widgets_personnalises "formula[varchar]"
+  Niveau_outil "formula[integer]" [ref: > Categories_outils.id]
+  Schema_table "formula[file]"
+  Date_de_passage_en_certifie "formula[date]"
+  Sauvegarde_a_vide "formula[varchar]"
+  SANTE_ "formula[varchar]"
+  Projet_lie_Direction "formula[varchar]"
+  Projet_lie_Delegation "formula[varchar]"
+}
+
+Table Reunion {
+  id integer [primary key]
+  Date date
+  Note_reunion varchar
+  a_eu_lieu varchar
+  Nbr_Document_ajoute "formula[default]"
+}
+
+Table Suivi_projets {
+  id integer [primary key]
+  Nom_du_projet varchar
+  Origine single_choice
+  Porteurs multiple_choice
+  Statut single_choice
+  Date_de_debut date
+  Date_de_fin date
+  Document_lie integer [ref: > Document_a_etudier_espace_metier.id]
+  Type_accompagnement multiple_choice
+  Commentaires_de_suivi varchar
+  Direction single_choice
+  Delegation single_choice
+  Documents_supplementaires "formula[file]"
+  Duree_projet "formula[numeric]"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "grist-widget-dbml",
+  "version": "1.0.0",
+  "description": "Widget Grist (DSFR) : structure du document en DBML",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/converter.test.mjs",
+    "test:ui": "node tests/ui/run-ui.mjs",
+    "build:icons": "node scripts/build-icons.mjs"
+  },
+  "license": "MIT"
+}

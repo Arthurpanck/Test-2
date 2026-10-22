@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Structure en DBML",
+    "url": "https://arthurpanck.github.io/Test-2/",
+    "widgetId": "@arthurpanck/grist-dbml",
+    "published": true,
+    "accessLevel": "full",
+    "renderAfterReady": true,
+    "description": "Convertit la structure du document en DBML (dbdiagram.io), avec analyse et schéma entité-relation. Interface DSFR.",
+    "authors": [{ "name": "Arthur Panckoucke" }],
+    "isGristLabsMaintained": false,
+    "lastUpdatedAt": "2026-10-22"
+  }
+]
