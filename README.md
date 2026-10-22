@@ -21,7 +21,7 @@ Il reprend exactement le traitement du tableau Grist **Conversion-DBML** (formul
 
 3. Accordez l'accès **« Accès complet au document »** (nécessaire pour lire la structure).
 
-Les réglages (mode strict, source, code collé) sont enregistrés avec le widget dans le document.
+Le widget mémorise ses réglages (mode strict, source, code collé) dans le document : comme pour tout widget, Grist affiche alors **Enregistrer** dans l'en-tête du widget ; cliquez dessus pour les conserver.
 
 ### Reproduire l'usage du tableau Conversion-DBML
 

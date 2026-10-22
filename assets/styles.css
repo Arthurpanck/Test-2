@@ -246,3 +246,14 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .code .ln.is-target, .tbl.is-target { transition: background-color .6s ease, box-shadow .6s ease; }
 }
+
+/* ---------- Panneau Grist peu haut : on rend la place au contenu ---------- */
+@media (max-height: 42em) {
+  .app__lead, .app__footer { display: none; }
+  .app__header { padding: .5rem 1rem; }
+  .source { gap: .75rem; padding: .75rem 1rem; }
+  .result { gap: .5rem; padding: .75rem 1rem; }
+  .tabs__panel { padding: .75rem; }
+}
+.findings .fr-callout { padding: 1rem 1.25rem; margin: 0; }
+.findings .fr-callout .fr-callout__text { font-size: .875rem; line-height: 1.5rem; }

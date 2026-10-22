@@ -1,0 +1,62 @@
+Table Agents {
+  id integer [primary key]
+  Nom varchar
+  Service integer [ref: > Services.id]
+  En_poste varchar
+  Arrivee date
+  Competences multiple_choice
+  Cree_par varchar
+  Nb_interventions "formula[integer]"
+}
+
+Table Conversion {
+  id integer [primary key]
+  Code_Grist varchar
+  DBML varchar
+}
+
+Table Dates_cles {
+  id integer [primary key]
+  Libelle varchar
+  Jour date
+}
+
+Table Interventions {
+  id integer [primary key]
+  Objet varchar
+  Agent integer [ref: > Agents.id]
+  Echeance date
+  Statut single_choice
+  Duree_h numeric
+  Pieces file
+  Service "formula[varchar]"
+  Resume "formula[varchar]"
+  court "formula[default]"
+  Sans_type "formula[default]"
+}
+
+Table Interventions_Summary {
+  id integer [primary key]
+  group "formula[integer]"
+  count "formula[integer]"
+  Duree_h "formula[numeric]"
+}
+
+Table Rapports {
+  id integer [primary key]
+  Titre varchar
+  Interventions_couvertes integer
+  Publie_le date
+}
+
+Table Services {
+  id integer [primary key]
+  Nom varchar
+}
+
+Table Table1 {
+  id integer [primary key]
+  A "formula[default]"
+  B "formula[default]"
+  C "formula[default]"
+}

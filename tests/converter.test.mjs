@@ -219,6 +219,15 @@ test('mode « Ce document » : la Vue du code reconstituée donne le même DBML 
   assert.deepEqual(structural(view), structural(code));
 });
 
+test('document Grist réel : Vue du code identique à celle affichée par Grist (v1.7.20)', () => {
+  // Métadonnées lues dans un document de test (_grist_Tables, _grist_Tables_column) ;
+  // document-test-grist.code.py est le texte affiché par la Vue du code de Grist pour ce document.
+  const meta = JSON.parse(fixture('document-test-grist.metadata.json'));
+  const view = generateCodeView(schemaFromMetadata(meta.tables, meta.columns));
+  assert.equal(view, fixture('document-test-grist.code.py'));
+  assert.equal(convertCodeStrict(view).dbml, fixture('document-test-grist.expected.dbml'));
+});
+
 test('moteur corrigé ≡ moteur strict sur des schémas aléatoires, hors corrections documentées', () => {
   const r = rng(7);
   for (let i = 0; i < 400; i++) {
