@@ -98,6 +98,10 @@ tests/                tests du convertisseur et de l'interface
 npm test       # convertisseur : comparaison avec la formule Python d'origine (Python 3 requis)
 npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé
 npm run test:erd -- captures/  # visualiseur de schéma : disposition, relations, glisser, zoom, exports
+npm run test:deployed -- <url du widget> captures/  # version publiée, métadonnées réelles d'un document
+
+# Aperçu d'une branche avant fusion (ne pas utiliser en production) :
+# https://raw.githack.com/Arthurpanck/Test-2/<branche>/index.html
 ```
 
 Le test différentiel exécute la formule d'origine (`tests/reference/grist_dbml_reference.py`, copiée du document) sur plus de 3 000 entrées — fixtures, cas limites et Vues du code générées aléatoirement — et vérifie que le portage JavaScript produit exactement la même sortie ou la même erreur.
