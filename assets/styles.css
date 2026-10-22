@@ -89,7 +89,8 @@ body {
 /* Onglets : apparence DSFR, comportement géré par le widget (contenu dynamique). */
 .tabs { display: flex; flex-direction: column; min-width: 0; }
 .tabs__list { order: 0; margin: 0 0 -1px; padding: 0 .25rem; position: relative; flex-shrink: 0; }
-.tabs__list .fr-tabs__tab { margin-bottom: 0; }
+.tabs__list .fr-tabs__tab { margin: 0 .125rem; padding: .5rem .75rem; }
+.tabs__list { scrollbar-width: thin; }
 .tabs__count {
   display: inline-block;
   margin-left: .5rem;

@@ -1,7 +1,7 @@
 import {
   convertAll, analyze, computeStats, toMermaid, schemaFromMetadata,
-} from './converter.js?v=1.1.0';
-import { EXAMPLE_CODE } from './example.js?v=1.1.0';
+} from './converter.js?v=1.1.1';
+import { EXAMPLE_CODE } from './example.js?v=1.1.1';
 
 const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs';
 const MAX_SAVED_CODE = 200_000;
