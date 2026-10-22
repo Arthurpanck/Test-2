@@ -3,16 +3,20 @@
  *
  * - Tables en cartes HTML (lisibles, accessibles au clavier), relations en SVG de colonne à colonne
  *   avec symboles de cardinalité (patte d'oie = plusieurs, barre = un).
- * - Disposition automatique par ELK (Eclipse Layout Kernel, EPL-2.0), chargé à la demande.
+ * - Disposition automatique par ELK (Eclipse Layout Kernel, EPL-2.0), chargé à la demande dans un Web Worker.
  * - Glisser les tables, déplacer la vue, zoomer (molette, boutons, clavier), mini-carte.
  * - Survol ou sélection d'une table ou d'une colonne : ses relations sont mises en évidence.
  * - Export SVG et PNG.
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=1.2.0';
+} from './erd-geometry.js?v=1.2.1';
 
-const ELK_URL = 'https://cdn.jsdelivr.net/npm/elkjs@0.12.0/lib/elk.bundled.js';
+const ELK_VERSION = '0.12.0';
+const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
+const ELK_WORKER_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-worker.min.js`; // moteur, 1,6 Mo
+const ELK_BUNDLED_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk.bundled.js`; // repli
+const LAYOUT_TIMEOUT = 20000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.5;
@@ -26,19 +30,49 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const icon = (d, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
 const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`chargement impossible : ${url}`));
+    document.head.append(script);
+  });
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })])
+    .finally(() => clearTimeout(timer));
+}
+
 let elkPromise = null;
-/** Charge ELK (script UMD exposant `window.ELK`) une seule fois. */
-export function loadElk(url = ELK_URL) {
-  if (window.ELK) return Promise.resolve(window.ELK);
+/**
+ * Instance ELK partagée. Le moteur tourne dans un Web Worker (créé depuis une URL blob qui
+ * importe le script du CDN) pour ne jamais bloquer l'interface ; à défaut, il tourne sur le fil
+ * principal.
+ */
+export function getElk() {
   if (!elkPromise) {
-    elkPromise = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = url;
-      script.async = true;
-      script.onload = () => (window.ELK ? resolve(window.ELK) : reject(new Error('bibliothèque ELK introuvable')));
-      script.onerror = () => { elkPromise = null; reject(new Error('chargement de la bibliothèque ELK impossible')); };
-      document.head.append(script);
-    });
+    elkPromise = (async () => {
+      try {
+        if (!window.ELK) await loadScript(ELK_API_URL);
+        const source = `importScripts(${JSON.stringify(ELK_WORKER_URL)});`;
+        const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+        const elk = new window.ELK({ workerUrl: ELK_WORKER_URL, workerFactory: () => new Worker(blobUrl) });
+        await withTimeout(elk.layout({ id: 'test', children: [{ id: 'a', width: 10, height: 10 }], edges: [] }),
+          LAYOUT_TIMEOUT, 'le moteur de disposition ne répond pas');
+        elk.mode = 'worker';
+        return elk;
+      } catch (err) {
+        console.warn('ELK en Web Worker indisponible, repli sur le fil principal :', err);
+        await loadScript(ELK_BUNDLED_URL);
+        const elk = new window.ELK();
+        elk.mode = 'main';
+        return elk;
+      }
+    })().catch((err) => { elkPromise = null; throw err; });
   }
   return elkPromise;
 }
@@ -244,8 +278,8 @@ export class ErdViewer {
       let computed;
       try {
         this.status('Calcul de la disposition…');
-        const ELK = await loadElk();
-        const elk = new ELK();
+        const elk = await getElk();
+        this.root.dataset.layoutEngine = elk.mode; // diagnostic : « worker » ou « main »
         const vw = this.viewport.clientWidth || 1200;
         const vh = this.viewport.clientHeight || 700;
         const graph = buildElkGraph(
@@ -261,7 +295,7 @@ export class ErdViewer {
             p.y = n.rowY.get(col) ?? n.headY;
           }
         }
-        const res = await elk.layout(graph);
+        const res = await withTimeout(elk.layout(graph), LAYOUT_TIMEOUT, 'délai de calcul dépassé');
         computed = new Map(res.children.map((c) => [c.id, { x: c.x, y: c.y }]));
         this.status('');
       } catch (err) {

@@ -80,6 +80,8 @@ const readGeometry = (page) => page.evaluate(() => {
   const geo = await readGeometry(page);
   const ids = Object.keys(geo.nodes);
   check(ids.length === 6, `6 tables dessinées (${ids.length})`);
+  const engine = await page.locator('.erd').getAttribute('data-layout-engine');
+  check(engine === 'worker', `disposition calculée dans un Web Worker (${engine})`);
   check(geo.edges.length === 6, `6 relations dessinées (${geo.edges.length})`);
 
   // Aucune table ne se chevauche

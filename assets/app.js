@@ -1,8 +1,8 @@
 import {
   convertAll, analyze, computeStats, schemaFromMetadata,
-} from './converter.js?v=1.2.0';
-import { EXAMPLE_CODE } from './example.js?v=1.2.0';
-import { ErdViewer } from './erd.js?v=1.2.0';
+} from './converter.js?v=1.2.1';
+import { EXAMPLE_CODE } from './example.js?v=1.2.1';
+import { ErdViewer } from './erd.js?v=1.2.1';
 
 const MAX_SAVED_CODE = 200_000;
 const DIFF_CODES = new Set(['lost-relation', 'phantom-column', 'phantom-table', 'missing-column',
