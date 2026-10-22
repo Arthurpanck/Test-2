@@ -1,7 +1,7 @@
 import {
   convertAll, analyze, computeStats, toMermaid, schemaFromMetadata,
-} from './converter.js';
-import { EXAMPLE_CODE } from './example.js';
+} from './converter.js?v=1.1.0';
+import { EXAMPLE_CODE } from './example.js?v=1.1.0';
 
 const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs';
 const MAX_SAVED_CODE = 200_000;
@@ -582,7 +582,9 @@ function fitScale() {
   if (!state.diagramWidth) return 1;
   const byWidth = (body.clientWidth - 32) / state.diagramWidth;
   const byHeight = state.diagramHeight ? (body.clientHeight - 32) / state.diagramHeight : byWidth;
-  const scale = Math.min(byWidth, byHeight > 0 ? byHeight : byWidth);
+  // Priorité à la largeur ; on réduit pour tenir en hauteur sans passer sous un seuil lisible.
+  let scale = Math.min(1, byWidth);
+  if (byHeight > 0 && byHeight < scale) scale = Math.max(byHeight, Math.min(scale, 0.6));
   return Math.min(1, Math.max(0.1, scale));
 }
 

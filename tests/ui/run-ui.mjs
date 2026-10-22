@@ -123,6 +123,22 @@ for (const [name, viewport, dark] of [['06-etroit', { width: 420, height: 900 },
   await context.close();
 }
 
+// Panneau Grist peu haut (cas observé dans un vrai document) : schéma lisible, page défilante.
+{
+  const { context, page, errors } = await newPage({ width: 1100, height: 430 });
+  await page.goto(`${base}/index.html`, { waitUntil: 'networkidle' });
+  await page.locator('[data-action="example"]').first().click();
+  await page.locator('#tab-schema').click();
+  await page.waitForSelector('#schema-body svg', { timeout: 30000 }).catch(() => {});
+  await page.locator('#schema-body').scrollIntoViewIfNeeded();
+  const zoom = parseInt(await page.locator('#zoom-value').textContent(), 10);
+  check(zoom >= 40, `panneau bas : schéma lisible (zoom ${zoom} %)`);
+  check(!(await page.locator('.app__lead').isVisible()), 'panneau bas : en-tête compact');
+  await page.screenshot({ path: path.join(outDir, '10-panneau-bas.png') });
+  check(errors.length === 0, `panneau bas : aucune erreur console (${errors.join(' | ')})`);
+  await context.close();
+}
+
 // ---------------------------------------------------------------------------
 // 3. Dans Grist (API simulée)
 // ---------------------------------------------------------------------------
