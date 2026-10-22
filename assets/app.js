@@ -1,9 +1,9 @@
 import {
-  convertAll, analyze, computeStats, toMermaid, schemaFromMetadata,
-} from './converter.js?v=1.1.1';
-import { EXAMPLE_CODE } from './example.js?v=1.1.1';
+  convertAll, analyze, computeStats, schemaFromMetadata,
+} from './converter.js?v=1.2.0';
+import { EXAMPLE_CODE } from './example.js?v=1.2.0';
+import { ErdViewer } from './erd.js?v=1.2.0';
 
-const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs';
 const MAX_SAVED_CODE = 200_000;
 const DIFF_CODES = new Set(['lost-relation', 'phantom-column', 'phantom-table', 'missing-column',
   'missing-table', 'wrong-type', 'type-leak', 'bool', 'datetime']);
@@ -16,7 +16,8 @@ const els = {};
 for (const id of ['standalone-notice', 'source-doc', 'source-code', 'panel-doc', 'panel-code', 'doc-status', 'doc-alert',
   'btn-refresh', 'btn-edit-code', 'code-input', 'row-info', 'btn-example', 'btn-clear', 'strict-toggle', 'summary',
   'btn-copy', 'btn-download', 'btn-open', 'btn-save', 'dbml-body', 'filter-input', 'tables-body', 'schema-body',
-  'btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'zoom-value', 'btn-svg', 'analysis-body', 'analysis-count',
+  'btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'zoom-value', 'btn-svg', 'btn-png', 'btn-relayout', 'find-table',
+  'find-table-list', 'detail-all', 'detail-keys', 'detail-tables', 'analysis-body', 'analysis-count',
   'toast', 'live']) {
   els[id] = $(id);
 }
@@ -36,10 +37,8 @@ const state = {
   record: null,
   mappings: null,
   filter: '',
-  zoom: null, // null = ajusté à la largeur
   diagramKey: null,
-  diagramWidth: 0,
-  diagramHeight: 0,
+  diagram: { detail: 'all', positions: null }, // mémorisé dans les options du widget
   lines: { table: new Map(), column: new Map() },
   optionsApplied: false,
 };
@@ -185,6 +184,13 @@ function applyOptions(options) {
   let changed = false;
   if (typeof options.strict === 'boolean' && options.strict !== state.strict) { state.strict = options.strict; changed = true; }
   if ((options.source === 'doc' || options.source === 'code') && options.source !== state.source) { state.source = options.source; changed = true; }
+  if (options.diagram && typeof options.diagram === 'object') {
+    const d = options.diagram;
+    state.diagram = {
+      detail: ['all', 'keys', 'tables'].includes(d.detail) ? d.detail : 'all',
+      positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
+    };
+  }
   if (typeof options.code === 'string' && !state.mappings?.code && options.code !== state.code && document.activeElement !== els['code-input']) {
     state.code = options.code;
     changed = true;
@@ -424,7 +430,10 @@ function renderTables() {
         <h3 class="tbl__name">${esc(t.name)}</h3>
         ${t.kind === 'summary' ? '<p class="fr-tag fr-tag--sm">Synthèse</p>' : ''}
         <span class="tbl__meta">${esc(plural(t.columns.length, 'colonne', 'colonnes'))}</span>
-        ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" data-goto-line="${line}">Voir le DBML</button>` : ''}
+        <span class="tbl__actions">
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" data-goto-schema="${esc(t.name)}">Schéma</button>
+          ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" data-goto-line="${line}">DBML</button>` : ''}
+        </span>
       </header>
       <table class="tbl__cols">
         <caption class="fr-sr-only">Colonnes de ${esc(t.name)}</caption>
@@ -495,113 +504,64 @@ function renderAnalysis() {
 }
 
 // ---------------------------------------------------------------------------
-// Schéma (Mermaid, chargé à la demande)
+// Schéma (visualiseur maison + disposition ELK, chargée à la demande)
 // ---------------------------------------------------------------------------
 
-let mermaidPromise = null;
-let diagramSeq = 0;
-function loadMermaid() {
-  if (!mermaidPromise) {
-    mermaidPromise = import(MERMAID_URL).then((m) => m.default).catch((err) => { mermaidPromise = null; throw err; });
-  }
-  return mermaidPromise;
+let viewer = null;
+let diagramReady = Promise.resolve();
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'btn-png', 'find-table',
+  'detail-all', 'detail-keys', 'detail-tables'];
+
+const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
+
+function ensureViewer() {
+  if (viewer) return viewer;
+  els['schema-body'].innerHTML = '';
+  viewer = new ErdViewer(els['schema-body'], {
+    onViewChange: (view) => { els['zoom-value'].textContent = `${Math.round(view.k * 100)} %`; },
+    onLayoutChange: (positions) => {
+      state.diagram = { ...state.diagram, positions };
+      saveDiagramSoon();
+    },
+  });
+  return viewer;
 }
 
-function cssVar(name, fallback) {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
+function updateZoomControls(enabled) {
+  for (const id of DIAGRAM_CONTROLS) els[id].disabled = !enabled;
 }
 
 async function renderDiagram() {
   const out = shown();
   const body = els['schema-body'];
+  for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
   if (!out || (state.strict && state.result.strict.error) || !out.tables.length) {
+    viewer?.destroy();
+    viewer = null;
     state.diagramKey = null;
     body.innerHTML = state.result ? emptyState('<p>Aucune table à dessiner.</p>') : sourceEmptyMessage();
     updateZoomControls(false);
     return;
   }
-  const text = toMermaid(out.tables);
-  const theme = document.documentElement.getAttribute('data-fr-theme');
-  const key = theme + '\n' + text;
-  if (key === state.diagramKey) { applyZoom(); return; }
+  const key = JSON.stringify(out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]));
+  if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
-  body.innerHTML = emptyState('<p>Dessin du schéma…</p>');
-  updateZoomControls(false);
-  try {
-    const mermaid = await loadMermaid();
-    const font = 'Marianne, arial, sans-serif';
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: 'base',
-      maxTextSize: 2_000_000,
-      maxEdges: 5000,
-      fontFamily: font,
-      er: { useMaxWidth: false, layoutDirection: 'LR', diagramPadding: 16 },
-      themeVariables: {
-        fontFamily: font,
-        fontSize: '14px',
-        background: cssVar('--background-alt-grey', '#f6f6f6'),
-        primaryColor: cssVar('--background-action-low-blue-france', '#e3e3fd'),
-        primaryTextColor: cssVar('--text-title-grey', '#161616'),
-        primaryBorderColor: cssVar('--border-action-high-blue-france', '#000091'),
-        secondaryColor: cssVar('--background-alt-blue-france', '#f5f5fe'),
-        tertiaryColor: cssVar('--background-default-grey', '#ffffff'),
-        lineColor: cssVar('--text-mention-grey', '#666666'),
-        textColor: cssVar('--text-default-grey', '#3a3a3a'),
-        mainBkg: cssVar('--background-action-low-blue-france', '#e3e3fd'),
-        attributeBackgroundColorOdd: cssVar('--background-default-grey', '#ffffff'),
-        attributeBackgroundColorEven: cssVar('--background-alt-grey', '#f6f6f6'),
-      },
-    });
-    const { svg } = await mermaid.render(`erd-${++diagramSeq}`, text);
-    if (state.diagramKey !== key) return; // un rendu plus récent a pris le relais
-    body.innerHTML = `<div class="diagram__canvas">${svg}</div>`;
-    const el = body.querySelector('svg');
-    el.removeAttribute('height');
-    el.setAttribute('role', 'img');
-    el.setAttribute('aria-label', `Schéma entité-relation : ${plural(out.tables.length, 'table', 'tables')}`);
-    state.diagramWidth = el.viewBox?.baseVal?.width || el.getBoundingClientRect().width;
-    state.diagramHeight = el.viewBox?.baseVal?.height || el.getBoundingClientRect().height;
-    applyZoom();
-  } catch (err) {
-    if (state.diagramKey !== key) return;
-    state.diagramKey = null;
-    body.innerHTML = `<div class="fr-alert fr-alert--warning fr-alert--sm fr-m-2w"><p>Le schéma n'a pas pu être dessiné : ${esc(err.message || err)}. Le DBML reste utilisable dans dbdiagram.io.</p></div>`;
-  }
-}
-
-function updateZoomControls(enabled) {
-  for (const id of ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-svg']) els[id].disabled = !enabled;
-}
-
-/** Échelle qui fait tenir tout le schéma dans la zone visible (sans agrandir au-delà de 100 %). */
-function fitScale() {
-  const body = els['schema-body'];
-  if (!state.diagramWidth) return 1;
-  const byWidth = (body.clientWidth - 32) / state.diagramWidth;
-  const byHeight = state.diagramHeight ? (body.clientHeight - 32) / state.diagramHeight : byWidth;
-  // Priorité à la largeur ; on réduit pour tenir en hauteur sans passer sous un seuil lisible.
-  let scale = Math.min(1, byWidth);
-  if (byHeight > 0 && byHeight < scale) scale = Math.max(byHeight, Math.min(scale, 0.6));
-  return Math.min(1, Math.max(0.1, scale));
-}
-
-function applyZoom() {
-  const svg = els['schema-body'].querySelector('svg');
-  if (!svg) { updateZoomControls(false); return; }
+  const v = ensureViewer();
   updateZoomControls(true);
-  const scale = state.zoom ?? fitScale();
-  svg.style.width = `${Math.round(state.diagramWidth * scale)}px`;
-  els['zoom-value'].textContent = `${Math.round(scale * 100)} %`;
-  els['btn-zoom-fit'].disabled = state.zoom === null;
+  els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
+  diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail })
+    .catch((err) => {
+      console.error(err);
+      toast(`Le schéma n'a pas pu être dessiné : ${err.message || err}`, 'error');
+    });
+  return diagramReady;
 }
 
-function zoomBy(factor) {
-  const current = state.zoom ?? fitScale();
-  state.zoom = Math.min(3, Math.max(0.1, Math.round(current * factor * 100) / 100));
-  applyZoom();
+/** Ouvre l'onglet Schéma centré sur une table. */
+async function showOnDiagram(name) {
+  selectTab('schema');
+  await renderDiagram();
+  viewer?.focusTable(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -752,18 +712,44 @@ function bindEvents() {
     renderTables();
   }, 120));
 
-  els['btn-zoom-in'].addEventListener('click', () => zoomBy(1.25));
-  els['btn-zoom-out'].addEventListener('click', () => zoomBy(0.8));
-  els['btn-zoom-fit'].addEventListener('click', () => { state.zoom = null; applyZoom(); });
-  els['btn-svg'].addEventListener('click', () => {
-    const svg = els['schema-body'].querySelector('svg');
-    if (!svg) return;
-    const clone = svg.cloneNode(true);
-    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    clone.style.width = `${Math.round(state.diagramWidth)}px`;
-    downloadFile(`${fileBaseName()}.svg`, new XMLSerializer().serializeToString(clone), 'image/svg+xml');
+  els['btn-zoom-in'].addEventListener('click', () => viewer?.zoomAt(1.25));
+  els['btn-zoom-out'].addEventListener('click', () => viewer?.zoomAt(0.8));
+  els['btn-zoom-fit'].addEventListener('click', () => viewer?.fit());
+  els['btn-relayout'].addEventListener('click', async () => {
+    if (!viewer) return;
+    await viewer.layout({ relayout: true });
+    state.diagram = { ...state.diagram, positions: null };
+    saveDiagramSoon();
+    toast('Disposition recalculée.', 'info');
   });
-  window.addEventListener('resize', debounce(() => { if (state.tab === 'schema' && state.zoom === null) applyZoom(); }, 150));
+  for (const id of ['detail-all', 'detail-keys', 'detail-tables']) {
+    els[id].addEventListener('change', () => {
+      if (!els[id].checked) return;
+      state.diagram = { ...state.diagram, detail: els[id].value };
+      viewer?.setDetail(els[id].value);
+      saveDiagramSoon();
+    });
+  }
+  const findTable = () => {
+    const name = els['find-table'].value.trim();
+    if (!viewer || !name) return;
+    const match = [...viewer.nodes.keys()].find((id) => id.toLowerCase() === name.toLowerCase());
+    if (match) { viewer.focusTable(match); els['find-table'].value = ''; }
+  };
+  els['find-table'].addEventListener('change', findTable);
+  els['find-table'].addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); findTable(); } });
+  els['btn-svg'].addEventListener('click', () => {
+    if (viewer) downloadFile(`${fileBaseName()}.svg`, viewer.toSvg(), 'image/svg+xml');
+  });
+  els['btn-png'].addEventListener('click', async () => {
+    if (!viewer) return;
+    try {
+      const blob = await viewer.toPng();
+      downloadFile(`${fileBaseName()}.png`, blob, 'image/png');
+    } catch (err) {
+      toast(`Export PNG impossible : ${err.message || err}. Utilisez le SVG.`, 'error');
+    }
+  });
 
   // Onglets : clic et clavier (flèches, Début, Fin)
   for (const t of tabs) {
@@ -782,9 +768,10 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-code],[data-goto-tab],[data-action]');
+    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-code],[data-goto-tab],[data-goto-schema],[data-action]');
     if (!target) return;
-    if (target.dataset.gotoLine) { ev.preventDefault(); gotoDbmlLine(Number(target.dataset.gotoLine)); }
+    if (target.dataset.gotoSchema) { ev.preventDefault(); showOnDiagram(target.dataset.gotoSchema); }
+    else if (target.dataset.gotoLine) { ev.preventDefault(); gotoDbmlLine(Number(target.dataset.gotoLine)); }
     else if (target.dataset.gotoTable) { ev.preventDefault(); gotoTable(target.dataset.gotoTable); }
     else if (target.dataset.gotoCode) { ev.preventDefault(); gotoCodeLine(Number(target.dataset.gotoCode)); }
     else if (target.dataset.gotoTab) { ev.preventDefault(); selectTab(target.dataset.gotoTab, { focus: true }); }

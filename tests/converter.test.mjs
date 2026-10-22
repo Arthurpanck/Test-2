@@ -10,7 +10,7 @@ import path from 'node:path';
 import {
   convertCodeStrict, parseGristCodeStrict, PythonFormulaError, parseGristCodeCorrected,
   convertModelCorrected, schemaFromMetadata, generateCodeView, modelFromSchema, convertAll,
-  analyze, toMermaid, computeStats, convertTypeStrict, getGristTypeCode,
+  analyze, computeStats, convertTypeStrict, getGristTypeCode,
 } from '../assets/converter.js';
 import { metadataFromModel } from './helpers.mjs';
 
@@ -278,12 +278,7 @@ test('analyse des cas limites', () => {
     ['Agents', 'Dates_cles', 'Interventions', 'Interventions_Summary', 'Services', 'Vide']);
 });
 
-test('statistiques et schéma Mermaid', () => {
+test('statistiques', () => {
   const result = convertAll({ code: fixture('document-exemple.code.py') });
-  const stats = computeStats(result.strict.tables);
-  assert.deepEqual(stats, { tables: 6, columns: 61, relations: 6, formulas: 16 });
-  const mermaid = toMermaid(result.strict.tables);
-  assert.match(mermaid, /^erDiagram/);
-  assert.match(mermaid, /Detail_documents }o--\|\| Document_a_etudier_espace_metier : "ref_document"/);
-  assert.ok(!/\[|\]/.test(mermaid.replace(/"[^"]*"/g, '')), 'pas de crochets hors chaînes');
+  assert.deepEqual(computeStats(result.strict.tables), { tables: 6, columns: 61, relations: 6, formulas: 16 });
 });

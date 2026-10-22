@@ -667,7 +667,7 @@ export function convertAll(source) {
 }
 
 // ---------------------------------------------------------------------------
-// Statistiques, analyse et schéma Mermaid
+// Statistiques et analyse
 // ---------------------------------------------------------------------------
 
 export function computeStats(tables) {
@@ -817,34 +817,4 @@ export function analyze(result, mode) {
       'Chaque côté d\'une référence bidirectionnelle produit sa propre relation : elles apparaissent en double sur le schéma.');
   }
   return findings;
-}
-
-function mermaidId(name) {
-  const s = String(name).replace(/[^A-Za-z0-9_]/g, '_');
-  return /^[A-Za-z_]/.test(s) ? s : '_' + s;
-}
-
-/** Schéma entité-relation Mermaid à partir des tables de sortie. */
-export function toMermaid(tables, direction = 'LR') {
-  const lines = ['erDiagram', `  direction ${direction}`];
-  for (const t of tables) {
-    const id = mermaidId(t.name);
-    lines.push(`  ${id} {`);
-    lines.push('    integer id PK');
-    for (const c of t.columns) {
-      const type = mermaidId(c.base || 'varchar');
-      const keys = c.ref ? ' FK' : '';
-      const comment = c.isFormula ? ' "formule"' : '';
-      lines.push(`    ${type} ${mermaidId(c.name)}${keys}${comment}`);
-    }
-    lines.push('  }');
-  }
-  for (const t of tables) {
-    for (const c of t.columns) {
-      if (!c.ref) continue;
-      const card = c.ref.kind === '<>' ? '}o--o{' : '}o--||';
-      lines.push(`  ${mermaidId(t.name)} ${card} ${mermaidId(c.ref.table)} : "${String(c.name).replace(/"/g, "'")}"`);
-    }
-  }
-  return lines.join('\n');
 }

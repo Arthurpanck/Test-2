@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=1.1.1">
-  <link rel="stylesheet" href="assets/styles.css?v=1.1.1">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=1.2.0">
+  <link rel="stylesheet" href="assets/styles.css?v=1.2.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=1.1.1"></script>
+  <script type="module" src="assets/app.js?v=1.2.0"></script>
 </head>
 <body>
   <div class="app">
@@ -131,12 +131,41 @@
           <div class="tabs__panel tabs__panel--flush" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema" tabindex="0" hidden>
             <div class="toolbar toolbar--diagram">
               <div class="zoom" role="group" aria-label="Zoom du schéma">
-                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire">Réduire</button>
-                <output class="zoom__value" id="zoom-value" aria-live="polite">100 %</output>
-                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir">Agrandir</button>
+                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
+                <output class="zoom__value" id="zoom-value" aria-live="off">100 %</output>
+                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
               </div>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button">Ajuster</button>
-              <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button">Télécharger le SVG</button>
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-relayout" type="button"
+                title="Recalcule la disposition automatique et oublie les positions mémorisées">Réorganiser</button>
+              <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__detail">
+                <legend class="fr-segmented__legend">Détail affiché</legend>
+                <div class="fr-segmented__elements">
+                  <div class="fr-segmented__element">
+                    <input value="all" type="radio" id="detail-all" name="detail" checked>
+                    <label class="fr-label" for="detail-all">Colonnes</label>
+                  </div>
+                  <div class="fr-segmented__element">
+                    <input value="keys" type="radio" id="detail-keys" name="detail">
+                    <label class="fr-label" for="detail-keys">Relations</label>
+                  </div>
+                  <div class="fr-segmented__element">
+                    <input value="tables" type="radio" id="detail-tables" name="detail">
+                    <label class="fr-label" for="detail-tables">Tables</label>
+                  </div>
+                </div>
+              </fieldset>
+              <div class="toolbar__find">
+                <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
+                <div class="fr-input-wrap fr-icon-focus-3-line">
+                  <input class="fr-input" id="find-table" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
+                </div>
+                <datalist id="find-table-list"></datalist>
+              </div>
+              <div class="toolbar__exports" role="group" aria-label="Télécharger le schéma">
+                <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button" title="Télécharger le schéma en SVG">SVG</button>
+                <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en PNG">PNG</button>
+              </div>
             </div>
             <div class="diagram" id="schema-body"></div>
           </div>

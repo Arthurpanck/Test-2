@@ -96,8 +96,10 @@ async function newPage(viewport, { dark = false } = {}) {
   check(corrected.includes('Conversion corrigée'), 'bascule : conversion corrigée');
 
   await page.locator('#tab-schema').click();
-  await page.waitForSelector('#schema-body svg', { timeout: 30000 }).catch(() => {});
-  check(await page.locator('#schema-body svg').count() === 1, 'schéma : SVG Mermaid rendu');
+  await page.waitForSelector('.erd-node', { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  check(await page.locator('.erd-node').count() === 5, 'schéma : 5 tables dessinées');
+  check(await page.locator('.erd-edge').count() === 5, 'schéma : 5 relations dessinées');
   await page.screenshot({ path: path.join(outDir, '05-schema.png') });
 
   await page.locator('#tab-dbml').click();
@@ -129,10 +131,10 @@ for (const [name, viewport, dark] of [['06-etroit', { width: 420, height: 900 },
   await page.goto(`${base}/index.html`, { waitUntil: 'networkidle' });
   await page.locator('[data-action="example"]').first().click();
   await page.locator('#tab-schema').click();
-  await page.waitForSelector('#schema-body svg', { timeout: 30000 }).catch(() => {});
+  await page.waitForSelector('.erd-node', { timeout: 30000 }).catch(() => {});
   await page.locator('#schema-body').scrollIntoViewIfNeeded();
-  const zoom = parseInt(await page.locator('#zoom-value').textContent(), 10);
-  check(zoom >= 40, `panneau bas : schéma lisible (zoom ${zoom} %)`);
+  const vpHeight = await page.locator('.erd__viewport').evaluate((el) => el.clientHeight);
+  check(vpHeight >= 300, `panneau bas : zone du schéma exploitable (${vpHeight}px)`);
   check(!(await page.locator('.app__lead').isVisible()), 'panneau bas : en-tête compact');
   await page.screenshot({ path: path.join(outDir, '10-panneau-bas.png') });
   check(errors.length === 0, `panneau bas : aucune erreur console (${errors.join(' | ')})`);
