@@ -10,7 +10,8 @@
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=2.0.0';
+} from './erd-geometry.js?v=2.1.0';
+import { readTheme } from './report.js?v=2.1.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -227,7 +228,7 @@ export class ErdViewer {
             `${c.name} : ${c.base}${c.isFormula ? ' (formule)' : ''}`,
             c.ref ? `${c.ref.kind === '<>' ? 'plusieurs' : 'une'} ligne${c.ref.kind === '<>' ? 's' : ''} de ${c.ref.table}` : '',
           ].filter(Boolean).join(' – ');
-          return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.base)}</span></li>`;
+          return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.base === 'default' ? 'sans type' : c.base)}</span></li>`;
         }),
         hidden && this.detail === 'keys' ? `<li class="erd-row erd-row--more">${esc(plural(hidden, 'autre colonne', 'autres colonnes'))}</li>` : '',
       ].join('');
@@ -644,14 +645,16 @@ export class ErdViewer {
     const b = this.bounds();
     const pad = 32;
     // Couleurs du thème clair DSFR, quel que soit le thème affiché (document destiné à être partagé).
+    // Couleurs du document (variables --doc-*), identiques à celles du rapport Word.
+    const t = readTheme();
     const c = {
-      bg: '#ffffff', border: '#dddddd', head: '#000091', headText: '#f5f5fe', summary: '#6e445a',
-      ghost: '#eeeeee', text: '#161616', mention: '#666666', type: '#18753c', formula: '#a558a0', line: '#929292',
+      bg: '#ffffff', border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
+      ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
     };
-    const font = "Marianne, 'Segoe UI', Arial, sans-serif";
+    const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const mono = "ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace";
     const parts = [];
-    parts.push(`<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + 2 * pad}" height="${b.h + 2 * pad}" fill="#f6f6f6"/>`);
+    parts.push(`<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + 2 * pad}" height="${b.h + 2 * pad}" fill="${t.surface}"/>`);
     for (const e of this.edges) {
       if (!e.geometry) continue;
       parts.push(`<path d="${e.geometry.path}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
@@ -673,7 +676,7 @@ export class ErdViewer {
         const isFk = row.classList.contains('erd-row--fk');
         const isFx = row.classList.contains('erd-row--formula');
         parts.push(`<line x1="0" x2="${n.w}" y1="${row.offsetTop}" y2="${row.offsetTop}" stroke="#eeeeee"/>`);
-        if (isPk || isFk) parts.push(`<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? '#b34000' : c.head}"/>`);
+        if (isPk || isFk) parts.push(`<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? c.key : c.head}"/>`);
         if (isFx && !isFk) parts.push(`<text x="17" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="${c.formula}">ƒ</text>`);
         parts.push(`<text x="30" y="${y}" dominant-baseline="central" font-family="${font}" font-size="13" font-weight="${isPk ? 700 : 400}" fill="${row.classList.contains('erd-row--more') ? c.mention : c.text}">${esc(name)}</text>`);
         if (type) parts.push(`<text x="${n.w - 10}" y="${y}" dominant-baseline="central" text-anchor="end" font-family="${mono}" font-size="11.5" fill="${isFx ? c.formula : c.type}">${esc(type)}</text>`);

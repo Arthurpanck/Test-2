@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.0.0">
-  <link rel="stylesheet" href="assets/styles.css?v=2.0.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.1.0">
+  <link rel="stylesheet" href="assets/styles.css?v=2.1.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=2.0.0"></script>
+  <script type="module" src="assets/app.js?v=2.1.0"></script>
 </head>
 <body>
   <div class="app">
@@ -25,7 +25,7 @@
       </div>
       <div class="app__status">
         <span class="app__read-at" id="read-at" aria-live="polite"></span>
-        <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" id="btn-refresh" type="button"
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" id="btn-refresh" type="button"
           title="Relit les tables et colonnes du document">Relire le document</button>
       </div>
     </header>
@@ -42,6 +42,8 @@
           role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="pages__count" id="analysis-count" hidden></span></button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-code-s-slash-line" id="tab-dbml" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-dbml" tabindex="-1">DBML</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-file-text-line" id="tab-report" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-report" tabindex="-1">Rapport</button></li>
       </ul>
     </div>
 
@@ -49,16 +51,16 @@
     <section class="page" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema">
       <div class="toolbar" role="toolbar" aria-label="Outils du schéma">
         <div class="toolbar__group">
-          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
           <output class="toolbar__zoom" id="zoom-value">100 %</output>
-          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-relayout" type="button"
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-relayout" type="button"
             title="Recalcule la disposition automatique et oublie les positions mémorisées">Réorganiser</button>
         </div>
         <span class="toolbar__sep" aria-hidden="true"></span>
         <div class="toolbar__group">
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Détail affiché</legend>
             <div class="fr-segmented__elements">
               <div class="fr-segmented__element"><input value="all" type="radio" id="detail-all" name="detail" checked><label class="fr-label" for="detail-all">Colonnes</label></div>
@@ -66,7 +68,7 @@
               <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--tertiary fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true" title="Afficher ou masquer la mini-carte">Mini-carte</button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true" title="Afficher ou masquer la mini-carte">Mini-carte</button>
           <div class="fr-input-wrap fr-icon-focus-3-line toolbar__find">
             <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
             <input class="fr-input" id="find-table" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
@@ -74,8 +76,7 @@
           </div>
         </div>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button" title="Télécharger le schéma en SVG">SVG</button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en PNG">PNG</button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button" title="Télécharger le schéma en SVG">SVG</button>
         </div>
       </div>
       <div class="page__body page__body--flush diagram" id="schema-body"></div>
@@ -89,7 +90,7 @@
             <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
             <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et les colonnes" autocomplete="off">
           </div>
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Colonnes affichées</legend>
             <div class="fr-segmented__elements">
               <div class="fr-segmented__element"><input value="all" type="radio" id="cols-all" name="cols" checked><label class="fr-label" for="cols-all">Toutes les colonnes</label></div>
@@ -99,7 +100,7 @@
           </fieldset>
         </div>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-csv" type="button">Liste des colonnes (CSV)</button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-csv" type="button">Liste des colonnes (CSV)</button>
         </div>
       </div>
       <div class="page__body" id="tables-body"></div>
@@ -109,17 +110,18 @@
     <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
       <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
         <div class="toolbar__group">
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Points affichés</legend>
             <div class="fr-segmented__elements">
               <div class="fr-segmented__element"><input value="all" type="radio" id="level-all" name="level" checked><label class="fr-label" for="level-all" id="level-all-label">Tout</label></div>
-              <div class="fr-segmented__element"><input value="error" type="radio" id="level-error" name="level"><label class="fr-label fr-icon-error-warning-line" for="level-error" id="level-error-label">À corriger</label></div>
-              <div class="fr-segmented__element"><input value="info" type="radio" id="level-info" name="level"><label class="fr-label fr-icon-information-line" for="level-info" id="level-info-label">Pour information</label></div>
+              <div class="fr-segmented__element"><input value="blocking" type="radio" id="level-blocking" name="level"><label class="fr-label fr-icon-error-warning-line" for="level-blocking" id="level-blocking-label">À corriger</label></div>
+              <div class="fr-segmented__element"><input value="check" type="radio" id="level-check" name="level"><label class="fr-label fr-icon-warning-line" for="level-check" id="level-check-label">À vérifier</label></div>
+              <div class="fr-segmented__element"><input value="info" type="radio" id="level-info" name="level"><label class="fr-label fr-icon-information-line" for="level-info" id="level-info-label">Bon à savoir</label></div>
             </div>
           </fieldset>
         </div>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-clipboard-line" id="btn-report" type="button">Copier le rapport</button>
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-file-text-line" id="btn-goto-report" type="button">Rapport Word</button>
         </div>
       </div>
       <div class="page__body" id="analysis-body"></div>
@@ -129,16 +131,22 @@
     <section class="page" id="tabpanel-dbml" role="tabpanel" aria-labelledby="tab-dbml" hidden>
       <div class="toolbar" role="toolbar" aria-label="Outils du DBML">
         <div class="toolbar__group">
-          <button class="fr-btn fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger .dbml</button>
-          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-save-line" id="btn-save" type="button" hidden>Enregistrer dans la ligne</button>
-        </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="toolbar__group">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-align-left toolbar__toggle" id="btn-wrap" type="button" aria-pressed="false">Retour à la ligne</button>
+          <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger .dbml</button>
         </div>
       </div>
       <div class="page__body" id="dbml-body"></div>
+    </section>
+
+    <!-- Rapport -->
+    <section class="page" id="tabpanel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
+        <div class="toolbar__group" role="group" aria-label="Sections incluses" id="report-sections"></div>
+        <div class="toolbar__group toolbar__end">
+          <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">Télécharger le rapport Word</button>
+        </div>
+      </div>
+      <div class="page__body report" id="report-body"></div>
     </section>
   </div>
 

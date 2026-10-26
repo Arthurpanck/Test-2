@@ -169,10 +169,17 @@ const readGeometry = (page) => page.evaluate(() => {
   const svg = await readFile(await svgDl.path(), 'utf8');
   check(svg.startsWith('<svg') && svg.includes('Documentation_technique_espace_metier') && (svg.match(/<path d="M/g) || []).length >= 12,
     `export SVG (${svgDl.suggestedFilename()}, ${svg.length} octets)`);
-  const [pngDl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-png').click()]);
-  await pngDl.saveAs(path.join(outDir, 'erd-export.png'));
-  const png = await readFile(await pngDl.path());
-  check(png.subarray(1, 4).toString() === 'PNG' && png.length > 20000, `export PNG (${pngDl.suggestedFilename()}, ${png.length} octets)`);
+  check(await page.locator('#btn-png').count() === 0, 'plus de bouton PNG dans la barre d\'outils');
+  // Le PNG sert encore à l'image du rapport Word : on vérifie le rendu directement.
+  await page.locator('#tab-report').click();
+  await page.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
+  const pngSize = await page.evaluate(async () => {
+    const blob = await (await fetch(document.querySelector('.doc__figure img').src)).blob();
+    const head = new Uint8Array(await blob.slice(1, 4).arrayBuffer());
+    return { sig: String.fromCharCode(...head), size: blob.size };
+  });
+  await page.locator('#tab-schema').click();
+  check(pngSize.sig === 'PNG' && pngSize.size > 20000, `rendu PNG pour le rapport (${pngSize.size} octets)`);
 
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
   await context.close();

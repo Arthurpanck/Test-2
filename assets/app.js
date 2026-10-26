@@ -1,7 +1,9 @@
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.1.0';
+import { ErdViewer } from './erd.js?v=2.1.0';
+import { buildInsights, SEVERITIES, targetLabel, typeLabel } from './insights.js?v=2.1.0';
 import {
-  convertAll, analyzeDocument, computeStats, schemaFromMetadata,
-} from './converter.js?v=2.0.0';
-import { ErdViewer } from './erd.js?v=2.0.0';
+  REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx,
+} from './report.js?v=2.1.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -13,13 +15,14 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'btn-png', 'schema-body',
+  'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
-  'level-all', 'level-error', 'level-info', 'level-all-label', 'level-error-label', 'level-info-label', 'btn-report', 'analysis-body',
-  'btn-copy', 'btn-download', 'btn-save', 'btn-wrap', 'dbml-body', 'toast', 'live']) {
+  'level-all', 'level-blocking', 'level-check', 'level-info', 'level-all-label', 'level-blocking-label', 'level-check-label',
+  'level-info-label', 'btn-goto-report', 'analysis-body',
+  'btn-copy', 'btn-download', 'dbml-body', 'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['schema', 'tables', 'analysis', 'dbml'];
+const tabs = ['schema', 'tables', 'analysis', 'dbml', 'report'];
 
 const state = {
   schema: null,
@@ -27,15 +30,15 @@ const state = {
   schemaError: null,
   schemaLoading: false,
   out: null, // { tables, dbml }
-  findings: [],
+  insights: null,
+  docName: '',
   tab: 'schema',
-  record: null,
-  mappings: null,
   filter: '',
   cols: 'all',
   level: 'all',
-  wrap: false,
   minimap: true,
+  reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
+  snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
   diagram: { detail: 'all', positions: null }, // mémorisé dans les options du widget
   lines: { table: new Map(), column: new Map() },
@@ -119,7 +122,7 @@ darkQuery?.addEventListener?.('change', syncTheme);
 
 function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
-  state.findings = state.out ? analyzeDocument(state.out) : [];
+  state.insights = state.out ? buildInsights(state.out.tables) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -179,6 +182,7 @@ function render() {
   renderTables();
   renderAnalysis();
   if (state.tab === 'schema') renderDiagram();
+  if (state.tab === 'report') renderReport();
 }
 
 function emptyState(html) {
@@ -264,10 +268,6 @@ function renderDbml() {
   const usable = Boolean(out && out.dbml);
   els['btn-copy'].disabled = !usable;
   els['btn-download'].disabled = !usable;
-  els['btn-save'].hidden = !(inGrist && state.mappings?.dbml);
-  els['btn-save'].disabled = !usable || !state.record;
-  if (state.mappings?.dbml) els['btn-save'].textContent = `Enregistrer dans « ${state.mappings.dbml} »`;
-  els['btn-wrap'].setAttribute('aria-pressed', String(state.wrap));
   if (!out) {
     state.lines = { table: new Map(), column: new Map() };
     els['dbml-body'].innerHTML = unavailableMessage();
@@ -280,7 +280,7 @@ function renderDbml() {
   }
   const { html, table, column } = highlightDbml(out.dbml);
   state.lines = { table, column };
-  els['dbml-body'].innerHTML = `<pre class="code${state.wrap ? ' code--wrap' : ''}" aria-label="Code DBML"><code>${html}</code></pre>`;
+  els['dbml-body'].innerHTML = `<pre class="code" aria-label="Code DBML"><code>${html}</code></pre>`;
 }
 
 function slug(name) {
@@ -322,7 +322,7 @@ function renderTables() {
       const cls = [c.isFormula ? 'is-formula' : '', matches(c.name) ? 'is-match' : ''].filter(Boolean).join(' ');
       return `<tr${cls ? ` class="${cls}"` : ''}>
         <th scope="row">${esc(c.name)}</th>
-        <td class="tbl__type"><code>${esc(c.base)}</code>${c.isFormula ? ' <span class="col-flag">formule</span>' : ''}</td>
+        <td class="tbl__type"><code>${esc(typeLabel(c.base))}</code>${c.isFormula ? ' <span class="col-flag">formule</span>' : ''}</td>
         <td class="tbl__rel">${rel}</td></tr>`;
     }).join('');
     const refs = incoming.get(t.name) || [];
@@ -364,64 +364,158 @@ function columnsCsv() {
   return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
 }
 
-const CHECKS = [
-  { codes: ['unknown-ref'], label: 'Relations vers des tables existantes' },
-  { codes: ['bad-table-name', 'bad-column-name'], label: 'Noms de tables et de colonnes valides en DBML' },
-  { codes: ['duplicate-column'], label: 'Aucune colonne en double' },
-];
+const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', check: 'fr-icon-warning-line', info: 'fr-icon-information-line' };
 
 function renderAnalysis() {
   const count = els['analysis-count'];
-  if (!state.out) {
+  const ins = state.insights;
+  if (!ins) {
     count.hidden = true;
     els['analysis-body'].innerHTML = unavailableMessage();
     return;
   }
-  const errors = state.findings.filter((f) => f.level === 'error');
-  const infos = state.findings.filter((f) => f.level !== 'error');
-  count.hidden = !errors.length;
-  count.textContent = String(errors.length);
-  count.setAttribute('aria-label', plural(errors.length, 'point à corriger', 'points à corriger'));
-  els['level-all-label'].textContent = `Tout (${state.findings.length})`;
-  els['level-error-label'].textContent = `À corriger (${errors.length})`;
-  els['level-info-label'].textContent = `Pour information (${infos.length})`;
+  count.hidden = !ins.counts.blocking;
+  count.textContent = String(ins.counts.blocking);
+  count.setAttribute('aria-label', plural(ins.counts.blocking, 'point à corriger', 'points à corriger'));
+  els['level-all-label'].textContent = `Tout (${ins.items.length})`;
+  for (const lvl of ['blocking', 'check', 'info']) els[`level-${lvl}-label`].textContent = `${SEVERITIES[lvl].label} (${ins.counts[lvl]})`;
 
-  const item = (f) => {
-    const line = f.column ? state.lines.column.get(`${f.table}.${f.column}`) : f.table ? state.lines.table.get(f.table) : null;
+  const known = new Set(state.out.tables.map((t) => t.name));
+  const card = (it) => {
+    const chips = it.targets.map((t) => (known.has(t.table)
+      ? `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}</button></li>`
+      : `<li><p class="fr-tag fr-tag--sm">${esc(targetLabel(t))}</p></li>`)).join('');
+    const steps = it.steps.length
+      ? `<div class="insight__fix"><p class="insight__label">Comment corriger dans Grist</p><ol>${it.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>`
+      : '';
     const actions = [];
-    if (f.table && state.out.tables.some((t) => t.name === f.table)) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-schema="${esc(f.table)}">Voir sur le schéma</button>`);
-    if (f.tables?.length) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-schema="${esc(f.tables[0])}">Voir sur le schéma</button>`);
-    if (line) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-line="${line}">Voir dans le DBML</button>`);
-    return `<div class="fr-alert fr-alert--${f.level === 'error' ? 'error' : 'info'} fr-alert--sm finding">
-      <p class="finding__title">${esc(f.title)}</p>
-      <p>${esc(f.detail)}</p>
-      ${actions.length ? `<p class="finding__actions">${actions.join('')}</p>` : ''}
-    </div>`;
+    if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
+    if (it.steps.length) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
+    return `<article class="insight insight--${it.severity}">
+      <div class="insight__icon ${SEVERITY_ICON[it.severity]}" aria-hidden="true"></div>
+      <div class="insight__main">
+        <p class="insight__severity">${esc(SEVERITIES[it.severity].label)}</p>
+        <h3 class="insight__title">${esc(it.title)}</h3>
+        <p class="insight__text">${esc(it.summary)}</p>
+        <p class="insight__why">${esc(it.why)}</p>
+        <p class="insight__label">Concerné</p>
+        <ul class="fr-tags-group insight__targets">${chips}</ul>
+        ${steps}
+        ${actions.length ? `<div class="insight__actions">${actions.join('')}</div>` : ''}
+      </div>
+    </article>`;
   };
-  const show = (lvl) => state.level === 'all' || state.level === lvl;
-  const parts = [];
-  if (show('error')) {
-    parts.push(errors.length
-      ? `<section class="findings__group"><h3>À corriger avant l'import (${errors.length})</h3><p>Ces points font échouer l'import dans dbdiagram.io et les autres outils DBML.</p><div class="findings__list">${errors.map(item).join('')}</div></section>`
-      : '<div class="fr-alert fr-alert--success fr-alert--sm"><p class="finding__title">Le DBML s\'importe sans erreur</p><p>Toutes les relations pointent vers une table existante et tous les noms sont valides.</p></div>');
-  }
-  if (show('info') && infos.length) {
-    parts.push(`<section class="findings__group"><h3>Pour information (${infos.length})</h3><div class="findings__list">${infos.map(item).join('')}</div></section>`);
-  }
-  if (!parts.length) parts.push(emptyState('<p>Rien à afficher pour ce filtre.</p>'));
-  const failed = new Set(errors.map((f) => f.code));
-  const checks = CHECKS.map((c) => `<li class="${c.codes.some((k) => failed.has(k)) ? 'is-ko' : ''}">${esc(c.label)}</li>`).join('');
-  els['analysis-body'].innerHTML = `<div class="analysis">
-    <div class="findings">${parts.join('')}</div>
-    <aside class="checks" aria-label="Contrôles effectués"><h3>Contrôles effectués</h3><ul>${checks}</ul></aside>
-  </div>`;
+  const shown = ins.items.filter((it) => state.level === 'all' || it.severity === state.level);
+  const verdict = `<section class="verdict verdict--${ins.verdict.level}">
+      <div class="verdict__icon ${ins.verdict.level === 'blocking' ? 'fr-icon-error-warning-line' : 'fr-icon-checkbox-circle-line'}" aria-hidden="true"></div>
+      <div><h2 class="verdict__title">${esc(ins.verdict.title)}</h2><p class="verdict__text">${esc(ins.verdict.text)}</p></div>
+      <dl class="verdict__counts">
+        ${['blocking', 'check', 'info'].map((l) => `<div class="verdict__count verdict__count--${l}"><dt>${esc(SEVERITIES[l].label)}</dt><dd>${ins.counts[l]}</dd></div>`).join('')}
+      </dl>
+    </section>`;
+  const list = shown.length
+    ? shown.map(card).join('')
+    : emptyState(`<p>${state.level === 'all' ? 'Rien à signaler.' : `Aucun point « ${esc(SEVERITIES[state.level].label)} ».`}</p>`);
+  const checks = ins.checks.map((c) => `<li class="${c.ok ? '' : 'is-ko'}">${esc(c.label)}</li>`).join('');
+  els['analysis-body'].innerHTML = `${verdict}
+    <div class="analysis">
+      <div class="insights">${list}</div>
+      <aside class="checks" aria-label="Ce qui a été vérifié"><h3>Ce qui a été vérifié</h3><ul>${checks}</ul></aside>
+    </div>`;
 }
 
-function reportText() {
-  const lines = ['Analyse de la structure du document (widget Structure en DBML)', ''];
-  if (!state.findings.some((f) => f.level === 'error')) lines.push('Le DBML s\'importe sans erreur.', '');
-  for (const f of state.findings) lines.push(`- [${f.level === 'error' ? 'À corriger' : 'Info'}] ${f.title} : ${f.detail}`);
-  return lines.join('\n');
+// ---------------------------------------------------------------------------
+// Rapport Word
+// ---------------------------------------------------------------------------
+
+function renderReportSections() {
+  els['report-sections'].innerHTML = REPORT_SECTIONS.map((r) => `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left ${state.reportSections.has(r.id) ? 'fr-icon-check-line' : 'fr-icon-close-line'} toolbar__toggle report__toggle"
+    type="button" aria-pressed="${state.reportSections.has(r.id)}" data-section="${r.id}" title="${esc(r.description)}">${esc(r.title)}</button>`).join('');
+  els['btn-docx'].disabled = !state.out || !state.reportSections.size;
+}
+
+/** Image du schéma pour le rapport, dessinée hors écran avec la disposition actuelle. */
+async function schemaSnapshot() {
+  const out = state.out;
+  const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
+  const key = JSON.stringify([state.diagramKey || out.dbml, positions, state.diagram.detail]);
+  if (state.snapshot?.key === key) return state.snapshot;
+  const host = document.createElement('div');
+  host.className = 'snapshot-host';
+  host.setAttribute('aria-hidden', 'true');
+  document.body.append(host);
+  const v = new ErdViewer(host);
+  try {
+    await v.setData(out.tables, { positions, detail: state.diagram.detail });
+    const blob = await v.toPng(2);
+    const b = v.bounds();
+    const png = new Uint8Array(await blob.arrayBuffer());
+    if (state.snapshot?.url) URL.revokeObjectURL(state.snapshot.url);
+    state.snapshot = { key, png, width: Math.ceil(b.w + 64), height: Math.ceil(b.h + 64), url: URL.createObjectURL(blob) };
+    return state.snapshot;
+  } finally {
+    v.destroy();
+    host.remove();
+  }
+}
+
+function reportContext(schema) {
+  return {
+    docName: state.docName,
+    date: new Date(),
+    stats: computeStats(state.out.tables),
+    tables: state.out.tables,
+    insights: state.insights,
+    dbml: state.out.dbml,
+    schema,
+  };
+}
+
+let reportSeq = 0;
+async function renderReport() {
+  renderReportSections();
+  if (!state.out) { els['report-body'].innerHTML = unavailableMessage(); return; }
+  if (!state.reportSections.size) { els['report-body'].innerHTML = emptyState('<p>Choisissez au moins une section à inclure.</p>'); return; }
+  const seq = ++reportSeq;
+  const draw = (schema) => {
+    const blocks = buildReport(reportContext(schema), [...state.reportSections]);
+    els['report-body'].innerHTML = `<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => schema?.url || '' })}</article>`;
+  };
+  const needsSchema = state.reportSections.has('schema');
+  draw(needsSchema ? state.snapshot : null);
+  if (needsSchema) {
+    try {
+      const snap = await schemaSnapshot();
+      if (seq === reportSeq) draw(snap);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
+async function downloadReport() {
+  if (!state.out) return;
+  const btn = els['btn-docx'];
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Préparation du rapport…';
+  try {
+    const [d, schema] = await Promise.all([
+      loadDocx(),
+      state.reportSections.has('schema') ? schemaSnapshot().catch(() => null) : Promise.resolve(null),
+    ]);
+    const blocks = buildReport(reportContext(schema), [...state.reportSections]);
+    const blob = await d.Packer.toBlob(renderDocx(blocks, readTheme(), d));
+    const base = (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+    downloadFile(`structure-${base || 'document'}.docx`, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    toast('Rapport Word téléchargé.');
+  } catch (err) {
+    console.error(err);
+    toast(`Le rapport n'a pas pu être généré : ${err.message || err}`, 'error');
+  } finally {
+    btn.textContent = label;
+    btn.disabled = false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -430,7 +524,7 @@ function reportText() {
 
 let viewer = null;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'btn-png', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables', 'btn-minimap'];
 
 function ensureViewer() {
@@ -499,6 +593,7 @@ function selectTab(name, { focus = false } = {}) {
   }
   if (focus) $(`tab-${name}`).focus();
   if (name === 'schema') renderDiagram();
+  if (name === 'report') renderReport();
 }
 
 function flash(el) {
@@ -533,17 +628,6 @@ function gotoTable(name) {
 // Actions
 // ---------------------------------------------------------------------------
 
-async function saveToRow() {
-  const col = state.mappings?.dbml;
-  if (!col || !state.record || !state.out) return;
-  try {
-    await gristApi.selectedTable.update({ id: state.record.id, fields: { [col]: state.out.dbml } });
-    toast(`DBML enregistré dans la colonne « ${col} ».`);
-  } catch (err) {
-    toast(`Enregistrement impossible dans « ${col} » : ${err.message || err}. Choisissez une colonne de données (pas une formule).`, 'error');
-  }
-}
-
 function bindEvents() {
   els['btn-refresh'].addEventListener('click', () => loadSchema({ manual: true }));
 
@@ -556,8 +640,6 @@ function bindEvents() {
   els['btn-download'].addEventListener('click', () => {
     if (state.out) downloadFile('schema-document.dbml', state.out.dbml, 'text/plain;charset=utf-8');
   });
-  els['btn-save'].addEventListener('click', saveToRow);
-  els['btn-wrap'].addEventListener('click', () => { state.wrap = !state.wrap; renderDbml(); });
 
   // Tables
   els['filter-input'].addEventListener('input', debounce(() => { state.filter = els['filter-input'].value; renderTables(); }, 120));
@@ -569,14 +651,20 @@ function bindEvents() {
   });
 
   // Analyse
-  for (const id of ['level-all', 'level-error', 'level-info']) {
+  for (const id of ['level-all', 'level-blocking', 'level-check', 'level-info']) {
     els[id].addEventListener('change', () => { if (els[id].checked) { state.level = els[id].value; renderAnalysis(); } });
   }
-  els['btn-report'].addEventListener('click', async () => {
-    if (!state.out) return;
-    if (await copyText(reportText())) buttonFeedback(els['btn-report'], 'Rapport copié');
-    else toast('La copie a été refusée par le navigateur.', 'error');
+  els['btn-goto-report'].addEventListener('click', () => selectTab('report', { focus: true }));
+
+  // Rapport
+  els['report-sections'].addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-section]');
+    if (!btn) return;
+    const id = btn.dataset.section;
+    if (state.reportSections.has(id)) state.reportSections.delete(id); else state.reportSections.add(id);
+    renderReport();
   });
+  els['btn-docx'].addEventListener('click', downloadReport);
 
   // Schéma
   els['btn-zoom-in'].addEventListener('click', () => viewer?.zoomAt(1.25));
@@ -613,14 +701,6 @@ function bindEvents() {
   els['btn-svg'].addEventListener('click', () => {
     if (viewer) downloadFile('schema-document.svg', viewer.toSvg(), 'image/svg+xml');
   });
-  els['btn-png'].addEventListener('click', async () => {
-    if (!viewer) return;
-    try {
-      downloadFile('schema-document.png', await viewer.toPng(), 'image/png');
-    } catch (err) {
-      toast(`Export PNG impossible : ${err.message || err}. Utilisez le SVG.`, 'error');
-    }
-  });
 
   // Onglets : clic et clavier (flèches, Début, Fin)
   for (const t of tabs) {
@@ -639,10 +719,11 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema]');
+    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema],[data-action]');
     if (!target) return;
     ev.preventDefault();
-    if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
+    if (target.dataset.action === 'refresh') loadSchema({ manual: true });
+    else if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
     else if (target.dataset.gotoLine) gotoDbmlLine(Number(target.dataset.gotoLine));
     else if (target.dataset.gotoTable) gotoTable(target.dataset.gotoTable);
   });
@@ -653,29 +734,15 @@ function bindEvents() {
 // ---------------------------------------------------------------------------
 
 function connectGrist() {
-  gristApi.ready({
-    requiredAccess: 'full',
-    allowSelectBy: false,
-    columns: [
-      {
-        name: 'dbml',
-        title: 'DBML (destination)',
-        optional: true,
-        type: 'Text',
-        description: 'Colonne de données où le bouton « Enregistrer » écrit le DBML produit.',
-      },
-    ],
-  });
+  gristApi.ready({ requiredAccess: 'full', allowSelectBy: false });
   gristApi.onOptions((options) => {
     applyOptions(options);
     if (state.tab === 'schema' && state.out && !viewer) renderDiagram();
   });
-  gristApi.onRecord((record, mappings) => {
-    state.record = record || null;
-    state.mappings = mappings || null;
-    renderDbml();
-  });
   gristApi.onRecords(() => loadSchemaSoon());
+  Promise.resolve(gristApi.docApi.getDocName?.()).then((name) => {
+    if (typeof name === 'string') { state.docName = name; if (state.tab === 'report') renderReport(); }
+  }).catch(() => {});
   loadSchema();
 }
 

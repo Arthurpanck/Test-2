@@ -2,12 +2,13 @@
 
 Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui montre la structure du document où il est installé et la convertit en [DBML](https://dbml.dbdiagram.io/docs/).
 
-Quatre pages, en plein écran, avec leur barre d'outils juste sous les onglets :
+Cinq pages, en plein écran, avec leur barre d'outils juste sous les onglets :
 
-- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », exports SVG et PNG ;
+- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », export SVG ;
 - **Tables** : chaque table avec ses colonnes, ses types et ses liens, filtres (relations, formules), export CSV ;
-- **Analyse** : ce qui bloquerait l'import DBML (relation vers une table absente, nom invalide, colonne en double) et des informations utiles (tables isolées, formules sans type, tables de synthèse) ;
-- **DBML** : le code, à copier, télécharger ou enregistrer dans une colonne du document.
+- **Analyse** : un verdict (« Prêt pour l'import » ou « Le DBML ne s'importera pas encore »), puis chaque constat classé *À corriger*, *À vérifier* ou *Bon à savoir*, avec les éléments concernés, pourquoi c'est important et les étapes pour corriger dans Grist ;
+- **DBML** : le code, à copier ou télécharger ;
+- **Rapport** : un rapport Word (.docx) qui reprend le résumé, l'image du schéma, les tables et colonnes, l'analyse et le code DBML, avec un aperçu et le choix des sections.
 
 La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
 
@@ -24,10 +25,6 @@ La conversion lit la structure réelle du document : les relations, booléens, d
 
 Le widget mémorise la disposition du schéma dans le document : comme pour tout widget, Grist affiche alors **Enregistrer** dans l'en-tête du widget ; cliquez dessus pour la conserver.
 
-### Enregistrer le DBML dans une cellule
-
-Facultatif : liez la colonne **DBML (destination)** du widget à une colonne de **données** de la table ; le bouton « Enregistrer dans … » de la page DBML y écrit le code de la ligne sélectionnée.
-
 ## Utilisation
 
 La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`) à l'ouverture, puis à chaque modification de la table du widget ; **Relire le document** la relit à la demande (après l'ajout d'une colonne dans une autre table, par exemple).
@@ -43,7 +40,7 @@ L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
 - **survol ou clic** sur une table, une colonne ou une relation : ses liens sont mis en évidence, le reste s'estompe ;
 - **zoom** (molette, boutons, touches `+` `-` `0`), **mini-carte** pour les grands schémas, **Aller à une table** ;
 - trois niveaux de détail : **Colonnes**, **Relations** (clés seulement), **Tables** ;
-- **export SVG et PNG** (thème clair, prêt pour une documentation).
+- **export SVG** (thème clair, prêt pour une documentation) ; l'image PNG du schéma est intégrée au rapport Word.
 
 ### Pourquoi ce choix technique
 
@@ -55,6 +52,14 @@ L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
 | dbml-renderer (Graphviz) | MIT | Image statique, sans interaction |
 | ChartDB, drawDB, Liam ERD, Azimutt | AGPL-3.0, Apache-2.0, MIT | Applications complètes, non intégrables dans un widget |
 | **Rendu maison + ELK.js** | EPL-2.0 (ELK) | **Retenu** : sans compilation, rendu DSFR maîtrisé, disposition de qualité grâce aux ports |
+
+## Rapport Word adaptatif
+
+Le rapport est décrit une seule fois, puis rendu deux fois : en aperçu HTML dans la page Rapport et en fichier Word (bibliothèque [docx](https://docx.js.org/), chargée à la demande).
+
+- **Sections** : `REPORT_SECTIONS` dans `assets/report.js`. Chaque section renvoie des blocs neutres (titre, paragraphe, chiffres clés, encadré, tableau, image, liste, code). Ajouter, retirer ou réordonner une section met à jour à la fois le bouton de sélection, l'aperçu et le Word.
+- **Contenu** : les constats viennent de `assets/insights.js`, la même source que la page Analyse ; l'image est le schéma tel qu'il est disposé à l'écran.
+- **Charte** : couleurs et polices sont lues dans les variables CSS `--doc-*` de `assets/styles.css` (police, couleur principale, couleurs des types, des clés, des niveaux…). Modifier ces variables change l'aperçu, le fichier Word et l'export SVG du schéma, sans toucher au code.
 
 ## Défauts de l'ancienne formule, corrigés par le widget
 
@@ -75,7 +80,9 @@ Le moteur « strict », qui reproduit cette formule à l'identique, n'est plus p
 Aucune étape de compilation : `index.html` et les modules de `assets/` sont servis tels quels.
 
 ```
-assets/converter.js   conversion (moteurs strict et corrigé), analyse — sans dépendance
+assets/converter.js   conversion (moteurs strict et corrigé) — sans dépendance
+assets/insights.js    constats de la page Analyse et du rapport (libellés, étapes de correction)
+assets/report.js      rapport : sections, aperçu HTML, rendu Word, charte (--doc-*)
 assets/erd.js         visualiseur de schéma (tables, relations, interactions, exports)
 assets/erd-geometry.js géométrie du visualiseur (tracés, cardinalités, graphe ELK) — testée sous Node
 assets/app.js         interface et intégration Grist (grist-plugin-api)
@@ -87,7 +94,8 @@ tests/                tests du convertisseur et de l'interface
 ### Tests
 
 ```sh
-npm test       # convertisseur : comparaison avec la formule Python d'origine (Python 3 requis)
+npm ci         # dépendances de test (docx, jszip)
+npm test       # convertisseur (comparaison avec la formule Python d'origine, Python 3 requis), géométrie, rapport Word
 npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé
 npm run test:erd -- captures/  # visualiseur de schéma : disposition, relations, glisser, zoom, exports
 npm run test:deployed -- <url du widget> captures/  # version publiée, métadonnées réelles d'un document
@@ -103,3 +111,4 @@ Le test différentiel exécute la formule d'origine (`tests/reference/grist_dbml
 - Formule de conversion : [grist-db-parser](https://github.com/arnaud-robin/grist-db-parser) (Arnaud Robin), adaptée dans le document Conversion-DBML.
 - [DSFR](https://www.systeme-de-design.gouv.fr/) v1.15.4 — usage réservé aux services de l'État (voir ses conditions d'utilisation).
 - [ELK.js](https://github.com/kieler/elkjs) (Eclipse Layout Kernel, EPL-2.0) pour la disposition automatique du schéma, chargé à la demande.
+- [docx](https://github.com/dolanmiu/docx) (MIT) pour le rapport Word, chargé à la demande.

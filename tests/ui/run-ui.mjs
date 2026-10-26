@@ -2,7 +2,10 @@
 // Usage : node tests/ui/run-ui.mjs <dossier des captures>
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { start, metadata } from './harness.mjs';
+
+const JSZip = createRequire(import.meta.url)('jszip');
 
 const outDir = path.resolve(process.argv[2] || 'captures');
 const h = await start(outDir);
@@ -12,15 +15,15 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 // 1. Ouverture : page Schéma par défaut, structure lue, plus aucune option de source
 {
   const meta = await metadata('document-test-grist.metadata.json');
-  const { context, page, frame, errors } = await h.openWidget({ meta, mappings: { dbml: 'DBML' } });
+  const { context, page, frame, errors } = await h.openWidget({ meta });
   await h.waitDiagram(frame);
   check(await frame.evaluate(() => window.__ready?.requiredAccess) === 'full', 'accès complet demandé');
-  const cols = await frame.evaluate(() => window.__ready?.columns?.map((c) => c.name));
-  check(JSON.stringify(cols) === '["dbml"]', `seule la colonne de destination est proposée (${cols})`);
+  const cols = await frame.evaluate(() => window.__ready?.columns);
+  check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Analyse,DBML', `ordre des onglets (${tabs.join(', ')})`);
+  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Analyse,DBML,Rapport', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
-  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open']) {
+  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
   }
   check(await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count() === 0, 'pas de bouton dbdiagram.io');
@@ -31,6 +34,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const tabsBox = await frame.locator('.pages').boundingBox();
   const barBox = await frame.locator('#tabpanel-schema .toolbar').boundingBox();
   check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, 'barre d\'outils collée sous les onglets');
+  check(barBox.height < 56, `barre d'outils du schéma sur une seule ligne (${Math.round(barBox.height)} px)`);
   check(await frame.locator('.erd-node').count() === 8, 'schéma : 8 tables');
   await shot(page, '01-schema.png');
 
@@ -43,12 +47,6 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(!dbml.includes('court '), 'DBML : pas de colonne fantôme');
   await frame.locator('#btn-copy').click();
   check((await frame.evaluate(() => navigator.clipboard.readText())).startsWith('Table Agents {'), 'copie du DBML');
-  await frame.locator('#btn-save').click();
-  await page.waitForTimeout(100);
-  const up = await frame.evaluate(() => window.__updates);
-  check(up.length === 1 && up[0].fields.DBML.startsWith('Table Agents'), 'enregistrement dans la colonne DBML');
-  await frame.locator('#btn-wrap').click();
-  check(await frame.locator('.code--wrap').count() === 1, 'retour à la ligne');
   await shot(page, '02-dbml.png');
 
   // Tables
@@ -73,16 +71,38 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('s\'importe sans erreur'), 'analyse : import sans erreur');
-  check(analysis.includes('2 tables sans aucune relation') && analysis.includes('4 formules sans type'), 'analyse : tables isolées et formules sans type');
-  check(!analysis.includes('formule d\'origine'), 'analyse : plus de comparaison avec la formule d\'origine');
-  await frame.locator('label[for="level-error"]').click();
-  check(!(await frame.locator('#analysis-body').textContent()).includes('Pour information'), 'filtre À corriger');
+  check(analysis.includes('Prêt pour l\'import'), 'analyse : verdict « Prêt pour l\'import »');
+  check(await frame.locator('.insight').count() === 3, `analyse : 3 constats (${await frame.locator('.insight').count()})`);
+  check(analysis.includes('Comment corriger dans Grist') && analysis.includes('Type de colonne'), 'analyse : étapes de correction');
+  check(!/formula\[default\]|formule d'origine/.test(analysis), 'analyse : sans jargon ni référence à l\'ancienne formule');
+  await frame.locator('label[for="level-check"]').click();
+  check(await frame.locator('.insight').count() === 2, 'filtre « À vérifier »');
   await frame.locator('label[for="level-all"]').click();
   await shot(page, '04-analyse.png');
+  await frame.locator('.insight .fr-tag', { hasText: 'Table1' }).first().click();
+  check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'clic sur un élément concerné → schéma');
 
-  await frame.locator('#tab-analysis').press('ArrowRight');
-  check(await frame.locator('#tab-dbml').getAttribute('aria-selected') === 'true', 'clavier : flèche droite');
+  // Rapport
+  await frame.locator('#tab-report').click();
+  await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
+  const preview = await frame.locator('.doc').textContent();
+  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Analyse', 'Code DBML'].every((t) => preview.includes(t)), 'rapport : aperçu des 5 sections');
+  await shot(page, '05-rapport.png');
+  await frame.locator('[data-section="dbml"]').click();
+  check(!(await frame.locator('.doc').textContent()).includes('Code DBML'), 'rapport : section retirée de l\'aperçu');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
+  await dl.saveAs(path.join(outDir, 'rapport.docx'));
+  const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport.docx')));
+  const xml = await zip.file('word/document.xml').async('string');
+  check(dl.suggestedFilename().endsWith('.docx') && xml.includes('>Tables et colonnes<') && !xml.includes('>Code DBML<'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
+  const media = Object.keys(zip.files).filter((f) => f.startsWith('word/media/') && !zip.files[f].dir);
+  const img = media.length ? await zip.file(media[0]).async('uint8array') : new Uint8Array();
+  check(img.length > 20000, `rapport Word : image du schéma intégrée (${img.length} octets)`);
+  await frame.locator('[data-section="dbml"]').click();
+
+  await frame.locator('#tab-report').focus();
+  await frame.locator('#tab-report').press('ArrowLeft');
+  check(await frame.locator('#tab-dbml').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -92,7 +112,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const { context, page, frame, errors } = await h.openWidget({ meta: { tables: {}, cols: {} }, fail: true });
   await frame.waitForSelector('#doc-alert .fr-alert');
   check((await frame.locator('#doc-alert').textContent()).includes('Accès complet requis'), 'accès refusé : explication');
-  await shot(page, '05-acces.png');
+  await shot(page, '06-acces.png');
   check(errors.length === 0, `accès refusé : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -106,7 +126,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 }
 
 // 4. Petit format, thème sombre
-for (const [name, viewport, dark] of [['06-etroit', { width: 420, height: 860 }, false], ['07-sombre', { width: 1200, height: 760 }, true]]) {
+for (const [name, viewport, dark] of [['07-etroit', { width: 420, height: 860 }, false], ['08-sombre', { width: 1200, height: 760 }, true]]) {
   const meta = await metadata('document-exemple.code.py');
   const { context, page, frame, errors } = await h.openWidget({ meta, viewport, dark });
   await h.waitDiagram(frame);

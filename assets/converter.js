@@ -818,38 +818,3 @@ export function analyze(result, mode) {
   }
   return findings;
 }
-
-/**
- * Analyse de la conversion corrigée seule (sans comparaison avec la formule d'origine) :
- * erreurs qui bloqueraient l'import, puis informations utiles sur le schéma.
- */
-export function analyzeDocument(corrected) {
-  const findings = analyze({ strict: corrected, corrected }, 'corrected');
-  const linked = new Set();
-  for (const t of corrected.tables) {
-    for (const c of t.columns) {
-      if (c.ref) { linked.add(t.name); linked.add(c.ref.table); }
-    }
-  }
-  const isolated = corrected.tables.filter((t) => !linked.has(t.name)).map((t) => t.name);
-  if (isolated.length) {
-    findings.push({
-      level: 'info', code: 'isolated',
-      title: `${isolated.length} table${isolated.length > 1 ? 's' : ''} sans aucune relation`,
-      detail: `${isolated.join(', ')} : ${isolated.length > 1 ? 'elles apparaissent isolées' : 'elle apparaît isolée'} sur le schéma.`,
-      tables: isolated,
-    });
-  }
-  const untyped = [];
-  for (const t of corrected.tables) {
-    for (const c of t.columns) if (c.isFormula && c.base === 'default') untyped.push(`${t.name}.${c.name}`);
-  }
-  if (untyped.length) {
-    findings.push({
-      level: 'info', code: 'untyped-formula',
-      title: `${untyped.length} formule${untyped.length > 1 ? 's' : ''} sans type`,
-      detail: `${untyped.slice(0, 6).join(', ')}${untyped.length > 6 ? '…' : ''} : exportée${untyped.length > 1 ? 's' : ''} en « formula[default] ». Donnez un type de colonne dans Grist pour un schéma plus précis.`,
-    });
-  }
-  return findings;
-}
