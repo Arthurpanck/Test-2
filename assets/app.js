@@ -1,11 +1,12 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.2.0';
-import { ErdViewer } from './erd.js?v=2.2.0';
-import { buildInsights, SEVERITIES, AREAS, targetLabel } from './insights.js?v=2.2.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.2.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.2.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.3.0';
+import { ErdViewer } from './erd.js?v=2.3.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.3.0';
+import { profileTables } from './datacheck.js?v=2.3.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.3.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.3.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.2.0';
+} from './report.js?v=2.3.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -20,12 +21,12 @@ for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-coun
   'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-details', 'btn-csv', 'tables-body',
   'access-filter', 'access-rules', 'access-all', 'btn-access-csv', 'access-body',
-  'level-all', 'level-blocking', 'level-check', 'level-info', 'level-all-label', 'level-blocking-label', 'level-check-label',
-  'level-info-label', 'btn-goto-report', 'analysis-body',
+  'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-info',
+  'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-info-label', 'analysis-body',
   'btn-copy', 'btn-download', 'dbml-body', 'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['schema', 'tables', 'analysis', 'dbml', 'access', 'report'];
+const tabs = ['schema', 'tables', 'access', 'analysis', 'report', 'dbml'];
 
 const state = {
   schema: null,
@@ -36,6 +37,9 @@ const state = {
   insights: null,
   acl: null, // { resources, rules } lus dans le document, ou null si illisibles
   access: null, // buildAccess()
+  profiles: null, // profileTables() : données lues, pour les constats sur les données
+  profileKey: null,
+  accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
   details: false,
   accessFilter: '',
   accessView: 'rules',
@@ -131,7 +135,7 @@ darkQuery?.addEventListener?.('change', syncTheme);
 function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted }) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -154,6 +158,7 @@ async function loadSchema({ manual = false } = {}) {
     ]);
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
+    await loadData({ force: manual });
     state.schemaError = null;
     state.schemaAt = new Date();
   } catch (err) {
@@ -166,6 +171,27 @@ async function loadSchema({ manual = false } = {}) {
 }
 const loadSchemaSoon = debounce(() => loadSchema(), 1200);
 
+/**
+ * Lit les données des tables (pas des synthèses) pour les constats sur les données.
+ * Relu à l'ouverture, sur « Relire le document », ou quand la liste des tables ou colonnes change.
+ */
+async function loadData({ force = false } = {}) {
+  const ids = [...state.schema.values()].filter((t) => !t.summarySourceTable && !t.tableId.startsWith('_grist_')).map((t) => t.tableId);
+  const key = JSON.stringify(ids.map((id) => [id, [...state.schema.get(id).columns.keys()]]));
+  if (!force && key === state.profileKey && state.profiles) return;
+  const data = {};
+  const queue = ids.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const id = queue.shift();
+      try { data[id] = await gristApi.docApi.fetchTable(id); } catch { /* table illisible pour cette personne */ }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  state.profiles = profileTables(data);
+  state.profileKey = key;
+}
+
 // ---------------------------------------------------------------------------
 // Options du widget (enregistrées dans le document Grist)
 // ---------------------------------------------------------------------------
@@ -177,6 +203,7 @@ function saveOption(key, value) {
 const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
 
 function applyOptions(options) {
+  if (Array.isArray(options?.accepted)) state.accepted = new Set(options.accepted.map(String));
   const d = options?.diagram;
   if (d && typeof d === 'object') {
     state.diagram = {
@@ -351,7 +378,6 @@ function renderTables() {
     const inc = refs.length
       ? `<p class="tbl__incoming">Référencée par ${refs.map((r) => `<a href="#${slug(r.table)}" data-goto-table="${esc(r.table)}">${esc(r.table)}.${esc(r.column)}</a>`).join(', ')}</p>`
       : '';
-    const line = state.lines.table.get(t.name);
     const pk = state.cols === 'all'
       ? `<tr><th scope="row">id</th><td class="tbl__type">${ID_TYPE_LABEL} <span class="col-pk">clé</span></td><td class="tbl__rel"></td></tr>`
       : '';
@@ -359,10 +385,9 @@ function renderTables() {
       <header class="tbl__head">
         <h3 class="tbl__name">${esc(t.name)}</h3>
         ${t.kind === 'summary' ? '<p class="fr-tag fr-tag--sm">Synthèse</p>' : ''}
-        <span class="tbl__meta">${esc(plural(t.columns.length + 1, 'colonne', 'colonnes'))}</span>
+        <span class="tbl__meta">${esc(plural(t.columns.length + 1, 'colonne', 'colonnes'))}${state.profiles?.has(t.name) ? ` · ${esc(plural(state.profiles.get(t.name).rows, 'ligne', 'lignes'))}` : ''}</span>
         <span class="tbl__actions">
           <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(t.name)}">Schéma</button>
-          ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-code-s-slash-line" type="button" data-goto-line="${line}">DBML</button>` : ''}
         </span>
       </header>
       ${t.description ? `<p class="tbl__desc">${esc(t.description)}</p>` : ''}
@@ -403,7 +428,7 @@ function columnsCsv() {
   return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
 }
 
-const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', check: 'fr-icon-warning-line', info: 'fr-icon-information-line' };
+const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', improve: 'fr-icon-warning-line', choice: 'fr-icon-question-line', info: 'fr-icon-information-line' };
 
 function renderAnalysis() {
   const count = els['analysis-count'];
@@ -417,33 +442,40 @@ function renderAnalysis() {
   count.textContent = String(ins.counts.blocking);
   count.setAttribute('aria-label', plural(ins.counts.blocking, 'point à corriger', 'points à corriger'));
   els['level-all-label'].textContent = `Tout (${ins.items.length})`;
-  for (const lvl of ['blocking', 'check', 'info']) els[`level-${lvl}-label`].textContent = `${SEVERITIES[lvl].label} (${ins.counts[lvl]})`;
+  for (const lvl of LEVELS) els[`level-${lvl}-label`].textContent = `${SEVERITIES[lvl].label} (${ins.counts[lvl]})`;
 
   const known = new Set(state.out.tables.map((t) => t.name));
   const aclTables = new Set((state.access?.tables || []).map((t) => t.tableId));
-  const card = (it) => {
-    const chips = it.targets.map((t) => {
+  const MAX_CHIPS = 14;
+  const card = (it, { accepted = false } = {}) => {
+    const chips = it.targets.slice(0, MAX_CHIPS).map((t) => {
       const text = `${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}`;
       if (it.area === 'access' && aclTables.has(t.table)) return `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-access="${esc(t.table)}" title="Voir ses règles d'accès">${text}</button></li>`;
       if (known.has(t.table)) return `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${text}</button></li>`;
       return `<li><p class="fr-tag fr-tag--sm">${text}</p></li>`;
-    }).join('');
+    }).join('') + (it.targets.length > MAX_CHIPS ? `<li><p class="fr-tag fr-tag--sm insight__more">et ${it.targets.length - MAX_CHIPS} autres</p></li>` : '');
+    const intended = it.intended ? `<div class="insight__intended"><p class="insight__label">Si c'est voulu</p><p>${esc(it.intended)}</p></div>` : '';
     const steps = it.steps.length
-      ? `<div class="insight__fix"><p class="insight__label">Comment corriger dans Grist</p><ol>${it.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>`
+      ? `<div class="insight__fix"><p class="insight__label">${it.intended ? 'Sinon, dans Grist' : 'Comment corriger dans Grist'}</p><ol>${stepsAfterIntended(it).map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>`
       : '';
     const actions = [];
     if (it.area === 'access') actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-lock-line" type="button" data-goto-access="${esc(aclTables.has(it.targets[0]?.table) ? it.targets[0].table : '*')}">Voir les droits d'accès</button>`);
     else if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
-    if (it.steps.length) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
-    return `<article class="insight insight--${it.severity}">
+    if (it.severity === 'choice') {
+      actions.unshift(accepted
+        ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-close-line" type="button" data-action="unaccept" data-key="${esc(insightKey(it))}">Ne plus considérer comme voulu</button>`
+        : `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-check-line" type="button" data-action="accept" data-key="${esc(insightKey(it))}">C'est voulu</button>`);
+    }
+    if (it.steps.length && !accepted) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
+    return `<article class="insight insight--${it.severity}${accepted ? ' insight--accepted' : ''}">
       <div class="insight__icon ${SEVERITY_ICON[it.severity]}" aria-hidden="true"></div>
       <div class="insight__main">
         <p class="insight__severity">${esc(SEVERITIES[it.severity].label)}<span class="insight__area">${esc(AREAS[it.area] || '')}</span></p>
         <h3 class="insight__title">${esc(it.title)}</h3>
         <p class="insight__text">${esc(it.summary)}</p>
         <p class="insight__why">${esc(it.why)}</p>
-        ${chips ? `<p class="insight__label">Concerné</p><ul class="fr-tags-group insight__targets">${chips}</ul>` : ''}
-        ${steps}
+        ${chips ? `<p class="insight__label">Concerné</p><ul class="insight__targets">${chips}</ul>` : ''}
+        ${accepted ? '' : intended + steps}
         ${actions.length ? `<div class="insight__actions">${actions.join('')}</div>` : ''}
       </div>
     </article>`;
@@ -453,16 +485,19 @@ function renderAnalysis() {
       <div class="verdict__icon ${ins.verdict.level === 'blocking' ? 'fr-icon-error-warning-line' : 'fr-icon-checkbox-circle-line'}" aria-hidden="true"></div>
       <div><h2 class="verdict__title">${esc(ins.verdict.title)}</h2><p class="verdict__text">${esc(ins.verdict.text)}</p></div>
       <dl class="verdict__counts">
-        ${['blocking', 'check', 'info'].map((l) => `<div class="verdict__count verdict__count--${l}"><dt>${esc(SEVERITIES[l].label)}</dt><dd>${ins.counts[l]}</dd></div>`).join('')}
+        ${LEVELS.map((l) => `<div class="verdict__count verdict__count--${l}"><dt>${esc(SEVERITIES[l].label)}</dt><dd>${ins.counts[l]}</dd></div>`).join('')}
       </dl>
     </section>`;
   const list = shown.length
     ? shown.map(card).join('')
     : emptyState(`<p>${state.level === 'all' ? 'Rien à signaler.' : `Aucun point « ${esc(SEVERITIES[state.level].label)} ».`}</p>`);
   const checks = ins.checks.map((c) => `<li class="${c.ok ? '' : 'is-ko'}">${esc(c.label)}</li>`).join('');
+  const acceptedHtml = ins.accepted.length && (state.level === 'all' || state.level === 'choice')
+    ? `<details class="insights__accepted"><summary>${esc(plural(ins.accepted.length, 'choix confirmé', 'choix confirmés'))} (« C'est voulu »)</summary>${ins.accepted.map((it) => card(it, { accepted: true })).join('')}</details>`
+    : '';
   els['analysis-body'].innerHTML = `${verdict}
     <div class="analysis">
-      <div class="insights">${list}</div>
+      <div class="insights">${list}${acceptedHtml}</div>
       <aside class="checks" aria-label="Ce qui a été vérifié"><h3>Ce qui a été vérifié</h3><ul>${checks}</ul></aside>
     </div>`;
 }
@@ -660,6 +695,7 @@ function reportContext(schema) {
     tables: state.out.tables,
     insights: state.insights,
     access: state.access,
+    profiles: state.profiles,
     dbml: state.out.dbml,
     schema,
   };
@@ -868,10 +904,9 @@ function bindEvents() {
   });
 
   // Analyse
-  for (const id of ['level-all', 'level-blocking', 'level-check', 'level-info']) {
+  for (const id of ['level-all', ...LEVELS.map((l) => `level-${l}`)]) {
     els[id].addEventListener('change', () => { if (els[id].checked) { state.level = els[id].value; renderAnalysis(); } });
   }
-  els['btn-goto-report'].addEventListener('click', () => selectTab('report', { focus: true }));
 
   // Rapport
   els['report-sections'].addEventListener('click', (ev) => {
@@ -940,6 +975,12 @@ function bindEvents() {
     if (!target) return;
     ev.preventDefault();
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
+    else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {
+      if (target.dataset.action === 'accept') state.accepted.add(target.dataset.key); else state.accepted.delete(target.dataset.key);
+      saveOption('accepted', [...state.accepted]);
+      recompute();
+      toast(target.dataset.action === 'accept' ? 'Noté comme voulu : ce point ne sera plus compté.' : 'Ce point est de nouveau à confirmer.', 'info');
+    }
     else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
     else if (target.dataset.gotoAnalysis) selectTab('analysis', { focus: true });
     else if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);

@@ -21,9 +21,9 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const cols = await frame.evaluate(() => window.__ready?.columns);
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Analyse,DBML,Accès,Rapport', `ordre des onglets (${tabs.join(', ')})`);
+  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Analyse,Rapport,DBML', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
-  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png']) {
+  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png', '#btn-goto-report', '[data-goto-line]']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
   }
   check(await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count() === 0, 'pas de bouton dbdiagram.io');
@@ -85,12 +85,15 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
   check(analysis.includes('Aucun point bloquant'), 'analyse : verdict « Aucun point bloquant »');
-  check(await frame.locator('.insight').count() === 5, `analyse : 5 constats (${await frame.locator('.insight').count()})`);
-  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('colonnes vides'), 'analyse : droits d\'accès et colonnes vides');
+  check(await frame.locator('.insight').count() === 6, `analyse : 6 constats (${await frame.locator('.insight').count()})`);
+  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('jamais utilisée'), 'analyse : droits d\'accès et colonnes vides');
+  check(!/DBML/.test(analysis), 'analyse : ne parle pas du DBML');
+  const gap = await frame.locator('.insight__targets').first().evaluate((el) => getComputedStyle(el).columnGap);
+  check(parseFloat(gap) >= 6, `analyse : étiquettes « Concerné » séparées (${gap})`);
   check(analysis.includes('Comment corriger dans Grist') && analysis.includes('Type de colonne'), 'analyse : étapes de correction');
   check(!/formula\[default\]|formule d'origine/.test(analysis), 'analyse : sans jargon ni référence à l\'ancienne formule');
-  await frame.locator('label[for="level-check"]').click();
-  check(await frame.locator('.insight').count() === 3, `filtre « À vérifier » (${await frame.locator('.insight').count()})`);
+  await frame.locator('label[for="level-choice"]').click();
+  check(await frame.locator('.insight').count() === 2, `filtre « Choix à confirmer » (${await frame.locator('.insight').count()})`);
   await frame.locator('label[for="level-all"]').click();
   await shot(page, '04-analyse.png');
   await frame.locator('.insight .fr-tag', { hasText: 'Table1' }).first().click();
@@ -117,7 +120,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   await frame.locator('#tab-report').focus();
   await frame.locator('#tab-report').press('ArrowLeft');
-  check(await frame.locator('#tab-access').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
+  check(await frame.locator('#tab-analysis').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -193,6 +196,35 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const xml = await zip.file('word/document.xml').async('string');
   check(xml.includes('user.Habilitation') && xml.includes('Formule d'), 'rapport complexe : droits d\'accès et formules');
   check(errors.length === 0, `complexe : aucune erreur console (${errors.join(' | ')})`);
+  await context.close();
+}
+
+// 1 quater. Document mal structuré : données lues, défauts repérés, « C'est voulu »
+{
+  const meta = await metadata('mal-structure.mjs');
+  const { context, page, frame, errors } = await h.openWidget({ meta, viewport: { width: 1280, height: 860 } });
+  await h.waitDiagram(frame);
+  await frame.locator('#tab-tables').click();
+  check((await frame.locator('#tbl-Commandes .tbl__meta').textContent()).includes('24 lignes'), 'mal structuré : nombre de lignes affiché');
+  await frame.locator('#tab-analysis').click();
+  const text = await frame.locator('#analysis-body').textContent();
+  for (const t of ['liens écrits à la main', 'saisies en texte', 'listes de choix', 'copie de table protégée', 'noms laissés par défaut', 'tables sans aucune ligne']) {
+    check(text.includes(t), `mal structuré : « ${t} »`);
+  }
+  check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');
+  await page.waitForTimeout(600);
+  await shot(page, '16-mal-structure-analyse.png');
+  await frame.locator('label[for="level-choice"]').click();
+  const before = Number((await frame.locator('#level-choice-label').textContent()).match(/\((\d+)\)/)[1]);
+  check(await frame.locator('.insight--choice .insight__intended').count() === before, 'choix : « Si c\'est voulu » sur chaque carte');
+  await frame.locator('.insight--choice [data-action="accept"]').first().click();
+  await page.waitForTimeout(200);
+  const after = Number((await frame.locator('#level-choice-label').textContent()).match(/\((\d+)\)/)[1]);
+  check(after === before - 1, `« C'est voulu » : ${before} → ${after} choix à confirmer`);
+  check(Array.isArray((await frame.evaluate(() => window.__options.accepted))) && (await frame.evaluate(() => window.__options.accepted.length)) === 1, '« C\'est voulu » mémorisé dans les options du widget');
+  check(await frame.locator('.insights__accepted').count() === 1, 'choix confirmés listés à part');
+  await shot(page, '17-choix.png');
+  check(errors.length === 0, `mal structuré : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
 

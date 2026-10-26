@@ -9,7 +9,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.2.0';
+import { columnarToRows } from './converter.js?v=2.3.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -236,7 +236,7 @@ export function accessInsights(access) {
   const brokenAttr = access.attributes.filter((a) => a.problems.length);
   if (brokenAttr.length) {
     push({
-      id: 'acl-attribute', severity: 'check',
+      id: 'acl-attribute', severity: 'improve',
       title: brokenAttr.length > 1 ? `${brokenAttr.length} attributs utilisateur cherchent dans une table introuvable` : 'Un attribut utilisateur cherche dans une table introuvable',
       summary: 'La table ou la colonne où l\'attribut cherche la personne connectée n\'apparaît pas au widget : supprimée, ou masquée pour vous par les règles.',
       why: 'Si elle a été supprimée, les règles qui utilisent l\'attribut ne trouvent plus personne et ne donnent plus les droits prévus.',
@@ -273,13 +273,14 @@ export function accessInsights(access) {
   }
   if (missingCols.length) {
     push({
-      id: 'acl-hidden', severity: 'check',
+      id: 'acl-hidden', severity: 'choice',
+      intended: 'Même les propriétaires ne doivent pas lire ces données : rien à faire.',
       title: missingCols.length > 1 ? `${missingCols.length} éléments protégés que vous ne voyez pas` : 'Un élément protégé que vous ne voyez pas',
       summary: 'Des règles visent ces tables ou colonnes, mais Grist ne les montre pas au widget : elles vous sont masquées par les règles (ou ont été supprimées).',
       why: 'Elles manquent alors au schéma, aux tables, au DBML et au rapport. Attention : une règle de colonne passe avant les règles de la table, propriétaires compris.',
       steps: [
         OPEN_RULES,
-        'Si les propriétaires doivent les voir : dans les règles de ces colonnes, ajoutez en premier une règle « user.Access in [OWNER] » avec Lire autorisé.',
+        'Sinon, si les propriétaires doivent les voir : dans les règles de ces colonnes, ajoutez en premier une règle « user.Access in [OWNER] » avec Lire autorisé.',
         'Si elles ont été supprimées : retirez-les des règles.',
         REFRESH_STEP,
       ],
@@ -289,7 +290,7 @@ export function accessInsights(access) {
 
   if (access.restrictsRead && !access.structureRestricted) {
     push({
-      id: 'acl-bypass', severity: 'check',
+      id: 'acl-bypass', severity: 'improve',
       title: 'Les éditeurs peuvent contourner les restrictions de lecture',
       summary: 'Des données sont cachées par des règles, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
       why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
@@ -305,11 +306,12 @@ export function accessInsights(access) {
   const copies = access.special.find((s) => s.id === 'FullCopies');
   if (copies && copies.allowedForAll && access.restrictsRead) {
     push({
-      id: 'acl-full-copies', severity: 'check',
+      id: 'acl-full-copies', severity: 'choice',
+      intended: 'Document de démonstration ou modèle à partager : rien à faire.',
       title: 'Tout le monde peut copier le document complet',
       summary: 'Le réglage « Copier le document entier » est accordé à tous, alors que certaines données sont protégées.',
       why: 'Une copie complète contient toutes les données, y compris celles que les règles cachent.',
-      steps: [OPEN_RULES, 'Dans les règles spéciales, décochez l\'autorisation de copier le document entier.', REFRESH_STEP],
+      steps: [OPEN_RULES, 'Sinon : dans les règles spéciales, décochez l\'autorisation de copier le document entier.', REFRESH_STEP],
       targets: [],
     });
   }
@@ -317,7 +319,7 @@ export function accessInsights(access) {
   forEachRule((r, table) => { if (r.emails.length) withEmails.push({ table: table === '*' ? 'Règles par défaut' : table, note: r.emails.join(', ') }); });
   if (withEmails.length) {
     push({
-      id: 'acl-emails', severity: 'check',
+      id: 'acl-emails', severity: 'improve',
       title: withEmails.length > 1 ? `${withEmails.length} règles citent des adresses e-mail` : 'Une règle cite des adresses e-mail',
       summary: 'Des personnes sont désignées directement par leur adresse dans la condition.',
       why: 'À chaque arrivée ou départ, il faut modifier les règles. Une table des habilitations et un attribut utilisateur sont plus simples à tenir à jour.',
@@ -344,11 +346,12 @@ export function accessInsights(access) {
   }
   if (access.uncovered.length && access.tables.length) {
     push({
-      id: 'acl-uncovered', severity: 'info',
+      id: 'acl-uncovered', severity: 'choice',
+      intended: 'Tables sans donnée sensible : rien à faire.',
       title: access.uncovered.length > 1 ? `${access.uncovered.length} tables sans règle propre` : 'Une table sans règle propre',
       summary: 'Ces tables suivent seulement les règles par défaut et les rôles de partage.',
-      why: 'C\'est normal pour des tables sans données sensibles. À vérifier si elles contiennent des informations à protéger.',
-      steps: [],
+      why: 'Toute personne invitée les voit et les modifie selon son rôle de partage.',
+      steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],
       targets: access.uncovered.map((t) => ({ table: t })),
     });
   }

@@ -12,9 +12,9 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel } from './insights.js?v=2.2.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.2.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.2.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.3.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.3.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.3.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -27,7 +27,7 @@ export const THEME_KEYS = {
   primary: '#000091', onPrimary: '#ffffff', summary: '#6e445a',
   text: '#161616', muted: '#666666', border: '#dddddd', surface: '#f6f6f6',
   type: '#18753c', formula: '#a558a0', key: '#b34000',
-  blocking: '#ce0500', check: '#b34000', info: '#0063cb', ready: '#18753c',
+  blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
 };
 
 const toKebab = (k) => k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -106,7 +106,7 @@ export function ruleTable(rules, bits) {
 
 /**
  * Sections du rapport, dans l'ordre des pages du widget. Chacune renvoie des blocs.
- * `ctx` : { docName, date, stats, tables, insights, access, dbml, schema: { png, width, height } | null }
+ * `ctx` : { docName, date, stats, tables, insights, access, profiles, dbml, schema: { png, width, height } | null }
  */
 export const REPORT_SECTIONS = [
   {
@@ -126,10 +126,11 @@ export const REPORT_SECTIONS = [
         ] },
         { type: 'callout', level: ctx.insights.verdict.level, title: ctx.insights.verdict.title, text: ctx.insights.verdict.text },
         { type: 'heading', level: 2, text: 'Tables du document' },
-        { type: 'table', columns: [{ label: 'Table', width: 40 }, { label: 'Colonnes', width: 15 }, { label: 'Liens sortants', width: 20 }, { label: 'Référencée par', width: 25 }],
+        { type: 'table', columns: [{ label: 'Table', width: 36 }, { label: 'Colonnes', width: 14 }, { label: 'Lignes', width: 14 }, { label: 'Liens sortants', width: 18 }, { label: 'Référencée par', width: 18 }],
           rows: ctx.tables.map((t) => [
             { text: t.name, bold: true, color: t.kind === 'summary' ? 'summary' : undefined },
             String(t.columns.length + 1),
+            ctx.profiles?.has(t.name) ? String(ctx.profiles.get(t.name).rows) : '',
             String(t.columns.filter((c) => c.ref).length),
             String(incoming.get(t.name) || 0),
           ]) },
@@ -181,17 +182,26 @@ export const REPORT_SECTIONS = [
     description: 'Ce qui bloque l\'import, ce qui est à vérifier et comment corriger',
     build(ctx) {
       const { verdict, items, checks } = ctx.insights;
+      const accepted = ctx.insights.accepted || [];
       const blocks = [{ type: 'callout', level: verdict.level, title: verdict.title, text: verdict.text }];
+      const counts = ctx.insights.counts;
+      blocks.push({ type: 'stats', items: Object.keys(SEVERITIES).map((l) => ({ value: counts[l] || 0, label: SEVERITIES[l].label })) });
       for (const it of items) {
         blocks.push({ type: 'heading', level: 2, text: it.title, badge: { level: it.severity, text: SEVERITIES[it.severity].label } });
         if (it.area) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: AREAS[it.area] });
         blocks.push({ type: 'paragraph', text: it.summary });
         blocks.push({ type: 'paragraph', runs: [{ text: 'Pourquoi c\'est important : ', bold: true }, { text: it.why }] });
         if (it.targets.length) blocks.push({ type: 'paragraph', runs: [{ text: 'Concerné : ', bold: true }, { text: it.targets.map((t) => targetLabel(t) + (t.note ? ` (${t.note})` : '')).join(', ') }] });
+        if (it.intended) blocks.push({ type: 'paragraph', runs: [{ text: 'Si c\'est voulu : ', bold: true }, { text: it.intended }] });
         if (it.steps.length) {
-          blocks.push({ type: 'paragraph', runs: [{ text: 'Comment corriger dans Grist', bold: true }] });
-          blocks.push({ type: 'list', ordered: true, items: it.steps });
+          blocks.push({ type: 'paragraph', runs: [{ text: it.intended ? 'Sinon, dans Grist' : 'Comment corriger dans Grist', bold: true }] });
+          blocks.push({ type: 'list', ordered: true, items: stepsAfterIntended(it) });
         }
+      }
+      if (accepted.length) {
+        blocks.push({ type: 'heading', level: 2, text: 'Choix confirmés' });
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Points marqués « C\'est voulu » dans le widget.' });
+        blocks.push({ type: 'list', items: accepted.map((it) => `${it.title} — ${it.targets.map((t) => targetLabel(t)).join(', ')}`) });
       }
       blocks.push({ type: 'heading', level: 2, text: 'Ce qui a été vérifié' });
       blocks.push({ type: 'list', plain: true, items: checks.map((c) => `${c.ok ? '✓' : '✗'}  ${c.label}`) });

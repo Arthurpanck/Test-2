@@ -72,10 +72,10 @@ test('table, colonne ou table d\'attribut absentes des métadonnées (supprimée
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
   const hidden = items.find((i) => i.id === 'acl-hidden');
-  assert.equal(hidden.severity, 'check', 'pas bloquant : peut-être seulement masqué pour la personne connectée');
+  assert.equal(hidden.severity, 'choice', 'pas bloquant : peut-être seulement masqué pour la personne connectée');
   assert.ok(hidden.targets.some((t) => t.table === 'Conges') && hidden.targets.some((t) => t.column === 'Quotite'));
   const attr = items.find((i) => i.id === 'acl-attribute');
-  assert.ok(attr.severity === 'check' && attr.targets.some((t) => /Habilitation/.test(t.note)));
+  assert.ok(attr.severity === 'improve' && attr.targets.some((t) => /Habilitation/.test(t.note)));
 });
 
 test('document sans règle : un seul constat informatif', () => {

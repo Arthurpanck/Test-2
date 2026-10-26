@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.2.0">
-  <link rel="stylesheet" href="assets/styles.css?v=2.2.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.3.0">
+  <link rel="stylesheet" href="assets/styles.css?v=2.3.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=2.2.0"></script>
+  <script type="module" src="assets/app.js?v=2.3.0"></script>
 </head>
 <body>
   <div class="app">
@@ -25,14 +25,14 @@
           role="tab" aria-selected="true" aria-controls="tabpanel-schema" tabindex="0">Schéma</button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-table-line" id="tab-tables" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button></li>
-        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lightbulb-line" id="tab-analysis" type="button"
-          role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="pages__count" id="analysis-count" hidden></span></button></li>
-        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-code-s-slash-line" id="tab-dbml" type="button"
-          role="tab" aria-selected="false" aria-controls="tabpanel-dbml" tabindex="-1">DBML</button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lock-line" id="tab-access" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-access" tabindex="-1">Accès</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lightbulb-line" id="tab-analysis" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="pages__count" id="analysis-count" hidden></span></button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-file-text-line" id="tab-report" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-report" tabindex="-1">Rapport</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-code-s-slash-line" id="tab-dbml" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-dbml" tabindex="-1">DBML</button></li>
       </ul>
       <div class="pages__status">
         <p class="pages__meta"><span id="stats"></span><span id="read-at" aria-live="polite"></span></p>
@@ -64,10 +64,11 @@
               <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true" title="Afficher ou masquer la mini-carte">Mini-carte</button>
-          <div class="fr-input-wrap fr-icon-focus-3-line toolbar__find">
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true"
+            title="Mini-carte : petite vue de tout le schéma en bas à droite ; le cadre bleu montre la partie affichée, cliquez dans la mini-carte pour vous y déplacer">Mini-carte</button>
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
             <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
-            <input class="fr-input" id="find-table" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
+            <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
             <datalist id="find-table-list"></datalist>
           </div>
         </div>
@@ -82,9 +83,9 @@
     <section class="page" id="tabpanel-tables" role="tabpanel" aria-labelledby="tab-tables" hidden>
       <div class="toolbar" role="toolbar" aria-label="Outils des tables">
         <div class="toolbar__group">
-          <div class="fr-input-wrap fr-icon-search-line toolbar__filter">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
             <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
-            <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et les colonnes" autocomplete="off">
+            <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables" autocomplete="off">
           </div>
           <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Colonnes affichées</legend>
@@ -104,45 +105,13 @@
       <div class="page__body" id="tables-body"></div>
     </section>
 
-    <!-- Analyse -->
-    <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
-        <div class="toolbar__group">
-          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Points affichés</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="all" type="radio" id="level-all" name="level" checked><label class="fr-label" for="level-all" id="level-all-label">Tout</label></div>
-              <div class="fr-segmented__element"><input value="blocking" type="radio" id="level-blocking" name="level"><label class="fr-label fr-icon-error-warning-line" for="level-blocking" id="level-blocking-label">À corriger</label></div>
-              <div class="fr-segmented__element"><input value="check" type="radio" id="level-check" name="level"><label class="fr-label fr-icon-warning-line" for="level-check" id="level-check-label">À vérifier</label></div>
-              <div class="fr-segmented__element"><input value="info" type="radio" id="level-info" name="level"><label class="fr-label fr-icon-information-line" for="level-info" id="level-info-label">Bon à savoir</label></div>
-            </div>
-          </fieldset>
-        </div>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-file-text-line" id="btn-goto-report" type="button">Rapport Word</button>
-        </div>
-      </div>
-      <div class="page__body" id="analysis-body"></div>
-    </section>
-
-    <!-- DBML -->
-    <section class="page" id="tabpanel-dbml" role="tabpanel" aria-labelledby="tab-dbml" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils du DBML">
-        <div class="toolbar__group">
-          <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
-          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger .dbml</button>
-        </div>
-      </div>
-      <div class="page__body" id="dbml-body"></div>
-    </section>
-
     <!-- Accès -->
     <section class="page" id="tabpanel-access" role="tabpanel" aria-labelledby="tab-access" hidden>
       <div class="toolbar" role="toolbar" aria-label="Outils des droits d'accès">
         <div class="toolbar__group">
-          <div class="fr-input-wrap fr-icon-search-line toolbar__filter">
-            <label class="fr-label fr-sr-only" for="access-filter">Filtrer les règles</label>
-            <input class="fr-input" id="access-filter" type="search" placeholder="Filtrer : table, colonne, condition" autocomplete="off">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
+            <label class="fr-label fr-sr-only" for="access-filter">Filtrer les règles par table, colonne ou condition</label>
+            <input class="fr-input" id="access-filter" type="search" placeholder="Filtrer les règles" autocomplete="off">
           </div>
           <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Tables affichées</legend>
@@ -159,6 +128,25 @@
       <div class="page__body" id="access-body"></div>
     </section>
 
+    <!-- Analyse -->
+    <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
+        <div class="toolbar__group">
+          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
+            <legend class="fr-segmented__legend">Points affichés</legend>
+            <div class="fr-segmented__elements">
+              <div class="fr-segmented__element"><input value="all" type="radio" id="level-all" name="level" checked><label class="fr-label" for="level-all" id="level-all-label">Tout</label></div>
+              <div class="fr-segmented__element"><input value="blocking" type="radio" id="level-blocking" name="level"><label class="fr-label fr-icon-error-warning-line" for="level-blocking" id="level-blocking-label">À corriger</label></div>
+              <div class="fr-segmented__element"><input value="improve" type="radio" id="level-improve" name="level"><label class="fr-label fr-icon-warning-line" for="level-improve" id="level-improve-label">À améliorer</label></div>
+              <div class="fr-segmented__element"><input value="choice" type="radio" id="level-choice" name="level"><label class="fr-label fr-icon-question-line" for="level-choice" id="level-choice-label">Choix à confirmer</label></div>
+              <div class="fr-segmented__element"><input value="info" type="radio" id="level-info" name="level"><label class="fr-label fr-icon-information-line" for="level-info" id="level-info-label">Bon à savoir</label></div>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="page__body" id="analysis-body"></div>
+    </section>
+
     <!-- Rapport -->
     <section class="page" id="tabpanel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
       <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
@@ -169,6 +157,18 @@
       </div>
       <div class="page__body report" id="report-body"></div>
     </section>
+
+    <!-- DBML -->
+    <section class="page" id="tabpanel-dbml" role="tabpanel" aria-labelledby="tab-dbml" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils du DBML">
+        <div class="toolbar__group">
+          <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
+          <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger .dbml</button>
+        </div>
+      </div>
+      <div class="page__body" id="dbml-body"></div>
+    </section>
+
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

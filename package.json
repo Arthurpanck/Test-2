@@ -1,11 +1,11 @@
 {
   "name": "grist-widget-dbml",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Widget Grist (DSFR) : structure du document en DBML",
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test tests/converter.test.mjs tests/erd-geometry.test.mjs tests/report.test.mjs tests/access.test.mjs",
+    "test": "node --test tests/converter.test.mjs tests/erd-geometry.test.mjs tests/report.test.mjs tests/access.test.mjs tests/datacheck.test.mjs",
     "test:ui": "node tests/ui/run-ui.mjs",
     "test:erd": "node tests/ui/run-erd.mjs",
     "build:icons": "node scripts/build-icons.mjs",

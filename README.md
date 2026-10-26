@@ -2,14 +2,20 @@
 
 Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui audite le document où il est installé : structure, formules, droits d'accès, conversion en [DBML](https://dbml.dbdiagram.io/docs/) et rapport Word.
 
-Six pages, en plein écran. Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
+Six pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès), le diagnostiquer (Analyse), produire (Rapport, DBML). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
 
-- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », export SVG ;
-- **Tables** : chaque table avec ses colonnes, leur type (libellés de Grist : Texte, Numérique, Référence multiple…) et leurs liens ; bouton **Détails** pour les formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
-- **Analyse** : un verdict, puis chaque constat (structure ou droits d'accès) classé *À corriger*, *À vérifier* ou *Bon à savoir*, avec les éléments concernés, pourquoi c'est important et les étapes pour corriger dans Grist ;
-- **DBML** : le code, à copier ou télécharger ;
+- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, **mini-carte** (vue d'ensemble en bas à droite : le cadre bleu montre la partie affichée, un clic s'y déplace), « Aller à une table », export SVG ;
+- **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; bouton **Détails** pour les formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
 - **Accès** : les règles d'accès avancées en clair — réglages généraux, attributs utilisateur, règles par défaut, puis les règles de chaque table et de ses colonnes, avec « Autorisé / Refusé » par permission et les messages de refus ; filtre et export CSV ;
-- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un aperçu et le choix des sections.
+- **Analyse** : un verdict, puis les constats sur la structure, les données et les droits d'accès, en quatre niveaux :
+  - *À corriger* — ne fonctionne pas comme prévu (lien vers une table introuvable, condition sur un attribut inexistant, copie non protégée d'une table protégée…) ;
+  - *À améliorer* — fonctionne, mais une bonne pratique éviterait des erreurs (liens écrits à la main au lieu d'une référence, nombres / dates / oui-non saisis en texte, valeurs répétées sans liste de choix, valeurs hors liste, noms par défaut, e-mails écrits dans les règles…) ;
+  - *Choix à confirmer* — souvent volontaire (formule « Non défini », table isolée, table vide, colonne jamais remplie, table très large, tables en double, table sans règle propre…) : chaque carte dit « Si c'est voulu » et « Sinon, dans Grist » ; le bouton **C'est voulu** retire le point des comptes (mémorisé dans le widget) ;
+  - *Bon à savoir*.
+- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un aperçu et le choix des sections ;
+- **DBML** : le code, à copier ou télécharger.
+
+Les constats sur les données lisent les lignes des tables (pas des synthèses) à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir.
 
 La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
 
@@ -103,6 +109,7 @@ assets/converter.js   conversion (moteurs strict et corrigé) — sans dépendan
 assets/insights.js    constats de la page Analyse et du rapport (libellés, étapes de correction)
 assets/access.js      droits d'accès : lecture des règles, conditions en clair, contrôles
 assets/types.js       libellés français des types de colonnes, détails (formules, choix…)
+assets/datacheck.js   profil des données et défauts d'un document mal structuré
 assets/report.js      rapport : sections, aperçu HTML, rendu Word, charte (--doc-*)
 assets/erd.js         visualiseur de schéma (tables, relations, interactions, exports)
 assets/erd-geometry.js géométrie du visualiseur (tracés, cardinalités, graphe ELK) — testée sous Node
@@ -117,7 +124,7 @@ tests/                tests du convertisseur et de l'interface
 ```sh
 npm ci         # dépendances de test (docx, jszip)
 npm test       # convertisseur (comparaison avec la formule Python d'origine, Python 3 requis), géométrie, rapport Word
-npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé, dont un document de 22 tables avec règles d'accès
+npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé : document de 22 tables avec règles d'accès, et document « mal structuré » de 26 tables avec données (tests/fixtures/mal-structure.mjs)
 npm run test:erd -- captures/  # visualiseur de schéma : disposition, relations, glisser, zoom, exports
 npm run test:deployed -- <url du widget> captures/  # version publiée, métadonnées réelles d'un document
 

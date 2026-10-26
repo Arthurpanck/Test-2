@@ -16,6 +16,10 @@ export const fixture = (name) => readFile(path.join(root, 'tests/fixtures', name
 
 /** Métadonnées au format docApi.fetchTable, depuis une Vue du code ou un export JSON. */
 export async function metadata(name) {
+  if (name.endsWith('.mjs')) {
+    const mod = await import(path.join(root, 'tests/fixtures', name));
+    return mod.metadataFromDefinition(mod.definition);
+  }
   if (name.endsWith('.json')) {
     const m = JSON.parse(await fixture(name));
     const cols = m.columns.id ? m.columns : m.columns.map((c) => ({
@@ -86,7 +90,10 @@ export async function start(outDir) {
             if (cfg.fail) throw new Error('Access denied');
             const extra = { _grist_Views_section: cfg.meta.sections, _grist_ACLResources: cfg.meta.aclResources, _grist_ACLRules: cfg.meta.aclRules };
             if (t in extra) return extra[t] || [];
-            return t === '_grist_Tables' ? cfg.meta.tables : cfg.meta.cols;
+            if (t === '_grist_Tables') return cfg.meta.tables;
+            if (t === '_grist_Tables_column') return cfg.meta.cols;
+            if (cfg.meta.records && cfg.meta.records[t]) return cfg.meta.records[t];
+            throw new Error(`Table ${t} illisible`);
           },
         },
         selectedTable: { update: async (rec) => { window.__updates.push(rec); } },

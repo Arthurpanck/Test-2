@@ -381,7 +381,8 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
   --doc-formula: #a558a0;
   --doc-key: #b34000;
   --doc-blocking: #ce0500;
-  --doc-check: #b34000;
+  --doc-improve: #b34000;
+  --doc-choice: #a558a0;
   --doc-info: #0063cb;
   --doc-ready: #18753c;
 }
@@ -523,7 +524,8 @@ html, body { overflow: hidden; }
 .pages__list .fr-tabs__tab { padding: .5rem .75rem; font-size: .9375rem; line-height: 1.5rem; min-height: 2.5rem; }
 .pages__list .fr-tabs__tab[class*=" fr-icon-"]::before { --icon-size: 1rem; margin-right: .375rem; }
 @media (max-width: 76em) { #stats { display: none; } }
-@media (max-width: 62em) {
+@media (max-width: 66em) { .pages__meta { display: none; } }
+@media (max-width: 36em) {
   .pages__meta { display: none; }
   .pages__status .fr-btn { font-size: 0; padding-left: .5rem; padding-right: .5rem; }
   .pages__status .fr-btn::before { margin: 0; --icon-size: 1rem; }
@@ -613,3 +615,48 @@ html, body { overflow: hidden; }
 .doc__ready { color: var(--doc-ready); }
 .doc--ready { color: var(--doc-ready); }
 .doc--blocking { color: var(--doc-blocking); }
+
+/* ===================================================================
+   Version 2.3
+   =================================================================== */
+
+/* Champs de recherche : un seul modèle dans toutes les barres d'outils */
+.toolbar__search { width: 13rem; }
+.toolbar__search .fr-input { margin: 0; }
+.toolbar .fr-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.toolbar .fr-input::-webkit-calendar-picker-indicator { display: none !important; }
+.toolbar .fr-input::placeholder { font-style: normal; }
+@media (max-width: 48em) { .toolbar__search { width: 100%; } }
+
+/* « Concerné » : étiquettes bien séparées */
+.insight__targets { display: flex; flex-wrap: wrap; gap: .375rem .5rem; list-style: none; margin: 0 0 .75rem; padding: 0; }
+.insight__targets li { margin: 0; padding: 0; }
+.insight__targets li::before { content: none; }
+.insight__targets .fr-tag { margin: 0; }
+.insight__more { background: var(--background-contrast-grey); color: var(--text-mention-grey); }
+
+/* Niveaux : À améliorer (orange), Choix à confirmer (violet) */
+.insight--improve .insight__icon { background: var(--background-flat-warning); color: var(--text-inverted-warning); }
+.insight--improve .insight__severity { color: var(--text-default-warning); }
+.insight--choice .insight__icon { background: var(--background-flat-purple-glycine); color: var(--text-inverted-purple-glycine); }
+.insight--choice .insight__severity { color: var(--text-label-purple-glycine); }
+.verdict__count--improve dd { color: var(--text-default-warning); }
+.verdict__count--choice dd { color: var(--text-label-purple-glycine); }
+.verdict__counts { flex-wrap: wrap; }
+.verdict__count { min-width: 6rem; }
+.insight__intended { margin-top: .5rem; padding: .625rem 1rem; border-left: 3px solid var(--border-plain-purple-glycine, #a558a0); background: var(--background-alt-purple-glycine, #fbf5f9); }
+.insight__intended p { margin: 0; font-size: .875rem; }
+.insight__intended .insight__label { margin-bottom: .125rem; }
+.insight--accepted { opacity: .75; }
+.insights__accepted { border: 1px dashed var(--border-default-grey); padding: .5rem .75rem; }
+.insights__accepted > summary { cursor: pointer; font-size: .875rem; font-weight: 700; color: var(--text-mention-grey); }
+.insights__accepted[open] > summary { margin-bottom: .75rem; }
+.insights__accepted .insight { margin-top: .5rem; }
+.doc__badge--improve { background: var(--doc-improve); }
+.doc__badge--choice { background: var(--doc-choice); }
+#tabpanel-schema .toolbar__search { width: 9.5rem; }
+@media (max-width: 70em) {
+  .toolbar__sep { display: none; }
+  .toolbar { padding-left: 1rem; padding-right: 1rem; column-gap: .5rem; }
+  .toolbar__zoom { min-width: 2.5rem; padding: 0 .25rem; }
+}
