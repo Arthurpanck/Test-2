@@ -62,8 +62,6 @@
               <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true"
-            title="Mini-carte : petite vue de tout le schéma en bas à droite ; le cadre bleu montre la partie affichée, cliquez dans la mini-carte pour vous y déplacer">Mini-carte</button>
           <div class="fr-input-wrap fr-icon-search-line toolbar__search">
             <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
             <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
@@ -93,8 +91,6 @@
               <div class="fr-segmented__element"><input value="formulas" type="radio" id="cols-formulas" name="cols"><label class="fr-label" for="cols-formulas">Formules</label></div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-list-unordered toolbar__toggle" id="btn-details" type="button" aria-pressed="false"
-            title="Afficher les formules, formules d'initialisation, choix, listes filtrées et descriptions">Détails</button>
         </div>
         <div class="toolbar__group toolbar__end">
           <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-download-line" id="btn-csv" type="button">Colonnes (CSV)</button>
@@ -111,13 +107,6 @@
             <label class="fr-label fr-sr-only" for="access-filter">Filtrer les règles par table, colonne ou condition</label>
             <input class="fr-input" id="access-filter" type="search" placeholder="Filtrer les règles" autocomplete="off">
           </div>
-          <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Tables affichées</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="rules" type="radio" id="access-rules" name="access-view" checked><label class="fr-label" for="access-rules">Tables avec règles</label></div>
-              <div class="fr-segmented__element"><input value="all" type="radio" id="access-all" name="access-view"><label class="fr-label" for="access-all">Toutes les tables</label></div>
-            </div>
-          </fieldset>
         </div>
         <div class="toolbar__group toolbar__end">
           <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-download-line" id="btn-access-csv" type="button">Règles (CSV)</button>

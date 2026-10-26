@@ -58,7 +58,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#tab-tables').click();
   check(await frame.locator('.tbl').count() === 8, 'tables : 8 cartes');
   await frame.locator('label[for="cols-refs"]').click();
-  const refRows = await frame.locator('.tbl__cols tbody tr').count();
+  const refRows = await frame.locator('.tbl__cols tbody tr:not(.tbl__detail)').count();
   check(refRows === 5 && await frame.locator('.tbl').count() === 4, `filtre Relations : ${refRows} colonnes dans ${await frame.locator('.tbl').count()} tables`);
   await frame.locator('label[for="cols-all"]').click();
   await frame.locator('#filter-input').fill('service');
@@ -137,7 +137,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   // Tables : détails
   await frame.locator('#tab-tables').click();
-  await frame.locator('#btn-details').click();
+  check(await frame.locator('#btn-details').count() === 0 && await frame.locator('#btn-minimap').count() === 0, 'plus de boutons Détails ni Mini-carte');
   const agents = await frame.locator('#tbl-Agents').textContent();
   check(agents.includes('Formule d\'initialisation') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'), 'complexe : formule d\'initialisation et déclenchement');
   check(agents.includes('Catégorie A') && agents.includes('Une ligne par agent'), 'complexe : choix et description de table');
@@ -157,7 +157,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Accès
   const access = await frame.locator('#access-body').textContent();
   check(access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Règles par défaut'), 'accès : sections principales');
-  check(await frame.locator('.acl-table').count() === 8, `accès : 8 tables avec règles (${await frame.locator('.acl-table').count()})`);
+  check(await frame.locator('.acl-table').count() === 8 + 11, `accès : toutes les tables affichées (${await frame.locator('.acl-table').count()})`);
   check(access.includes('Personnes dont « Habilitation.Role » vaut « RH »') && access.includes('Fiches réservées au service RH.'), 'accès : conditions en clair et messages');
   check(await frame.locator('#acl-Agents .perm--deny').count() >= 4 && await frame.locator('#acl-Agents .perm--allow').count() >= 4, 'accès : permissions Autorisé / Refusé');
   check(access.includes('« user.Profil » n\'est défini nulle part'), 'accès : attribut inexistant signalé sur la règle');
@@ -172,8 +172,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(await frame.locator('.acl-table').count() === 2, `accès : filtre « Email » (${await frame.locator('.acl-table').count()} tables)`);
   await frame.locator('#access-filter').fill('');
   await page.waitForTimeout(250);
-  await frame.locator('label[for="access-all"]').click();
-  check(await frame.locator('.acl-table').count() === 8 + 11, `accès : toutes les tables (${await frame.locator('.acl-table').count()})`);
+  check(await frame.locator('#access-all').count() === 0, 'accès : plus de choix « Tables avec règles / Toutes »');
   const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
   const csvText = await readFile(await csv.path(), 'utf8');
   check(csvText.includes('Agents;*;4;Tous les autres;;refusé;refusé;refusé;refusé;;-CRUD;Fiches réservées au service RH.'), 'accès : export CSV des règles');

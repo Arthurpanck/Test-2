@@ -18,9 +18,9 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'schema-body',
-  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-details', 'btn-csv', 'tables-body',
-  'access-filter', 'access-rules', 'access-all', 'btn-access-csv', 'access-body',
+  'find-table', 'find-table-list', 'btn-svg', 'schema-body',
+  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
+  'access-filter', 'btn-access-csv', 'access-body',
   'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-info',
   'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-info-label', 'analysis-body',
   'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
@@ -42,13 +42,12 @@ const state = {
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
   details: false,
   accessFilter: '',
-  accessView: 'rules',
+  accessView: 'all', // toutes les tables, toujours
   docName: '',
   tab: 'schema',
   filter: '',
   cols: 'all',
   level: 'all',
-  minimap: true,
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
@@ -308,7 +307,7 @@ function renderTables() {
       const cls = [c.isFormula ? 'is-formula' : '', c.empty ? 'is-empty' : '', matches(c.name) || matches(c.label) ? 'is-match' : ''].filter(Boolean).join(' ');
       const flag = c.isFormula ? ' <span class="col-flag">formule</span>' : c.details?.trigger ? ' <span class="col-flag">initialisée</span>' : '';
       const label = c.label && c.label !== c.name ? `<span class="tbl__label">${esc(c.label)}</span>` : '';
-      const detail = state.details ? columnDetailsHtml(c) : '';
+      const detail = columnDetailsHtml(c);
       return `<tr${cls ? ` class="${cls}"` : ''}>
         <th scope="row">${esc(c.name)}${label}</th>
         <td class="tbl__type">${esc(columnTypeLabel(c))}${flag}</td>
@@ -339,7 +338,7 @@ function renderTables() {
       ${inc}
     </article>`;
   }).join('');
-  els['tables-body'].innerHTML = `<div class="tables__list${state.details ? ' tables__list--details' : ''}">${cards}</div>`;
+  els['tables-body'].innerHTML = `<div class="tables__list tables__list--details">${cards}</div>`;
 }
 
 /** Formules, choix, condition de liste et description d'une colonne (mode « Détails »). */
@@ -583,7 +582,6 @@ function accessCsv() {
 
 function gotoAccess(table) {
   if (state.accessFilter) { state.accessFilter = ''; els['access-filter'].value = ''; }
-  if (table && table !== '*' && !state.access?.tables.some((t) => t.tableId === table)) { state.accessView = 'all'; els['access-all'].checked = true; }
   renderAccess();
   selectTab('access');
   const el = table && table !== '*' ? $(aclSlug(table)) : null;
@@ -695,7 +693,7 @@ async function downloadReport() {
 let viewer = null;
 let diagramReady = Promise.resolve();
 const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'find-table',
-  'detail-all', 'detail-keys', 'detail-tables', 'btn-minimap'];
+  'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
   if (viewer) return viewer;
@@ -718,8 +716,7 @@ function renderDiagram() {
   const out = state.out;
   const body = els['schema-body'];
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
-  els['btn-minimap'].setAttribute('aria-pressed', String(state.minimap));
-  body.classList.toggle('no-minimap', !state.minimap);
+  body.classList.add('no-minimap');
   if (!out || !out.tables.length) {
     viewer?.destroy();
     viewer = null;
@@ -810,17 +807,9 @@ function bindEvents() {
   els['btn-csv'].addEventListener('click', () => {
     if (state.out) downloadFile('colonnes-document.csv', columnsCsv(), 'text/csv;charset=utf-8');
   });
-  els['btn-details'].addEventListener('click', () => {
-    state.details = !state.details;
-    els['btn-details'].setAttribute('aria-pressed', String(state.details));
-    renderTables();
-  });
 
   // Droits d'accès
   els['access-filter'].addEventListener('input', debounce(() => { state.accessFilter = els['access-filter'].value; renderAccess(); }, 120));
-  for (const id of ['access-rules', 'access-all']) {
-    els[id].addEventListener('change', () => { if (els[id].checked) { state.accessView = els[id].value; renderAccess(); } });
-  }
   els['btn-access-csv'].addEventListener('click', () => {
     if (state.access?.hasRules) downloadFile('regles-acces-document.csv', accessCsv(), 'text/csv;charset=utf-8');
   });
@@ -859,11 +848,6 @@ function bindEvents() {
       saveDiagramSoon();
     });
   }
-  els['btn-minimap'].addEventListener('click', () => {
-    state.minimap = !state.minimap;
-    els['btn-minimap'].setAttribute('aria-pressed', String(state.minimap));
-    els['schema-body'].classList.toggle('no-minimap', !state.minimap);
-  });
   const findTable = () => {
     const name = els['find-table'].value.trim();
     if (!viewer || !name) return;

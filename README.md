@@ -4,8 +4,8 @@ Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qu
 
 Cinq pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès), le diagnostiquer (Analyse), produire (Rapport). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
 
-- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, **mini-carte** (vue d'ensemble en bas à droite : le cadre bleu montre la partie affichée, un clic s'y déplace), « Aller à une table », export SVG ;
-- **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; bouton **Détails** pour les formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
+- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, « Aller à une table », export SVG ;
+- **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
 - **Accès** : les règles d'accès avancées en clair — réglages généraux, attributs utilisateur, règles par défaut, puis les règles de chaque table et de ses colonnes, avec « Autorisé / Refusé » par permission et les messages de refus ; filtre et export CSV ;
 - **Analyse** : un verdict, puis les constats sur la structure, les données et les droits d'accès, en quatre niveaux :
   - *À corriger* — ne fonctionne pas comme prévu (lien vers une table introuvable, condition sur un attribut inexistant, copie non protégée d'une table protégée…) ;
