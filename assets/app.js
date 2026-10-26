@@ -23,10 +23,10 @@ for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-coun
   'access-filter', 'access-rules', 'access-all', 'btn-access-csv', 'access-body',
   'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-info',
   'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-info-label', 'analysis-body',
-  'btn-copy', 'btn-download', 'dbml-body', 'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
+  'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['schema', 'tables', 'access', 'analysis', 'report', 'dbml'];
+const tabs = ['schema', 'tables', 'access', 'analysis', 'report'];
 
 const state = {
   schema: null,
@@ -219,7 +219,6 @@ function applyOptions(options) {
 
 function render() {
   renderHeader();
-  renderDbml();
   renderTables();
   renderAnalysis();
   renderAccess();
@@ -264,65 +263,6 @@ function renderHeader() {
   } else {
     els['doc-alert'].innerHTML = '';
   }
-}
-
-function highlightType(rest) {
-  const m = /^("formula\[[^\]]*\]"|\S*)(.*)$/.exec(rest);
-  if (!m) return esc(rest);
-  const cls = m[1].startsWith('"') ? 't-formula' : 't-type';
-  const settings = esc(m[2])
-    .replace(/\[ref: (&lt;&gt;|&gt;) ([^\]]+)\]/g, '<span class="t-ref">[ref: $1 $2]</span>')
-    .replace(/\[primary key\]/g, '<span class="t-pk">[primary key]</span>');
-  return `<span class="${cls}">${esc(m[1])}</span>${settings}`;
-}
-
-function highlightDbml(dbml) {
-  const table = new Map();
-  const column = new Map();
-  let current = null;
-  const html = dbml.split('\n').map((line, i) => {
-    const n = i + 1;
-    let inner;
-    let m;
-    if ((m = /^Table (.+) \{$/.exec(line))) {
-      current = m[1];
-      if (!table.has(current)) table.set(current, n);
-      inner = `<span class="t-kw">Table</span> <span class="t-table">${esc(current)}</span> <span class="t-punct">{</span>`;
-    } else if (line === '}') {
-      current = null;
-      inner = '<span class="t-punct">}</span>';
-    } else if (current !== null && line.startsWith('  ')) {
-      const body = line.slice(2);
-      const sp = body.indexOf(' ');
-      const name = sp < 0 ? body : body.slice(0, sp);
-      if (!column.has(`${current}.${name}`)) column.set(`${current}.${name}`, n);
-      inner = `  <span class="t-col">${esc(name)}</span>${sp < 0 ? '' : ' ' + highlightType(body.slice(sp + 1))}`;
-    } else {
-      inner = esc(line);
-    }
-    return `<span class="ln" data-line="${n}" id="dbml-L${n}">${inner}</span>`;
-  }).join('');
-  return { html, table, column };
-}
-
-function renderDbml() {
-  const out = state.out;
-  const usable = Boolean(out && out.dbml);
-  els['btn-copy'].disabled = !usable;
-  els['btn-download'].disabled = !usable;
-  if (!out) {
-    state.lines = { table: new Map(), column: new Map() };
-    els['dbml-body'].innerHTML = unavailableMessage();
-    return;
-  }
-  if (!out.dbml) {
-    state.lines = { table: new Map(), column: new Map() };
-    els['dbml-body'].innerHTML = emptyState('<p>Ce document ne contient aucune table.</p>');
-    return;
-  }
-  const { html, table, column } = highlightDbml(out.dbml);
-  state.lines = { table, column };
-  els['dbml-body'].innerHTML = `<pre class="code" aria-label="Code DBML"><code>${html}</code></pre>`;
 }
 
 function aclSlug(name) {
@@ -416,12 +356,12 @@ function columnDetailsHtml(c) {
 
 function columnsCsv() {
   const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const rows = [['Table', 'Colonne', 'Libellé', 'Type de colonne', 'Type DBML', 'Formule', 'Relation vers', 'Texte de la formule', 'Choix', 'Description']];
+  const rows = [['Table', 'Colonne', 'Libellé', 'Type de colonne', 'Formule', 'Relation vers', 'Texte de la formule', 'Choix', 'Description']];
   for (const t of state.out.tables) {
-    rows.push([t.name, 'id', '', ID_TYPE_LABEL, 'integer', 'non', '', '', '', '']);
+    rows.push([t.name, 'id', '', ID_TYPE_LABEL, 'non', '', '', '', '']);
     for (const c of t.columns) {
       const d = c.details || {};
-      rows.push([t.name, c.name, c.label || '', columnTypeLabel(c), c.base, c.isFormula ? 'oui' : d.trigger ? 'initialisation' : 'non',
+      rows.push([t.name, c.name, c.label || '', columnTypeLabel(c), c.isFormula ? 'oui' : d.trigger ? 'initialisation' : 'non',
         c.ref ? c.ref.table : '', d.formula || '', (d.choices || []).join(', '), d.description || '']);
     }
   }
@@ -840,14 +780,6 @@ function flash(el) {
   setTimeout(() => el.classList.remove('is-target'), 1800);
 }
 
-function gotoDbmlLine(line) {
-  selectTab('dbml');
-  const el = $(`dbml-L${line}`);
-  if (!el) return;
-  scrollWithin(el, 'center');
-  flash(el);
-}
-
 function gotoTable(name) {
   if (state.filter || state.cols !== 'all') {
     state.filter = '';
@@ -869,16 +801,6 @@ function gotoTable(name) {
 
 function bindEvents() {
   els['btn-refresh'].addEventListener('click', () => loadSchema({ manual: true }));
-
-  // DBML
-  els['btn-copy'].addEventListener('click', async () => {
-    if (!state.out) return;
-    if (await copyText(state.out.dbml)) buttonFeedback(els['btn-copy'], 'Copié');
-    else toast('La copie a été refusée par le navigateur : utilisez « Télécharger ».', 'error');
-  });
-  els['btn-download'].addEventListener('click', () => {
-    if (state.out) downloadFile('schema-document.dbml', state.out.dbml, 'text/plain;charset=utf-8');
-  });
 
   // Tables
   els['filter-input'].addEventListener('input', debounce(() => { state.filter = els['filter-input'].value; renderTables(); }, 120));
@@ -971,7 +893,7 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-action]');
+    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-action]');
     if (!target) return;
     ev.preventDefault();
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
@@ -984,7 +906,6 @@ function bindEvents() {
     else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
     else if (target.dataset.gotoAnalysis) selectTab('analysis', { focus: true });
     else if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
-    else if (target.dataset.gotoLine) gotoDbmlLine(Number(target.dataset.gotoLine));
     else if (target.dataset.gotoTable) gotoTable(target.dataset.gotoTable);
   });
 }

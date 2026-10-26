@@ -21,7 +21,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const cols = await frame.evaluate(() => window.__ready?.columns);
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Analyse,Rapport,DBML', `ordre des onglets (${tabs.join(', ')})`);
+  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Analyse,Rapport', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
   for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png', '#btn-goto-report', '[data-goto-line]']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
@@ -52,15 +52,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await shot(page, '01-schema.png');
 
   // Conversion corrigée : relations et types fidèles
-  await frame.locator('#tab-dbml').click();
-  const dbml = await frame.locator('.code').textContent();
-  check(dbml.includes('Echeance integer [ref: > Dates_cles.id]'), 'DBML : relation Echeance → Dates_cles conservée');
-  check(dbml.includes('Interventions_couvertes integer_list [ref: <> Interventions.id]'), 'DBML : relation multiple conservée');
-  check(dbml.includes('En_poste boolean') && dbml.includes('Arrivee timestamp'), 'DBML : booléen et date-heure');
-  check(!dbml.includes('court '), 'DBML : pas de colonne fantôme');
-  await frame.locator('#btn-copy').click();
-  check((await frame.evaluate(() => navigator.clipboard.readText())).startsWith('Table Agents {'), 'copie du DBML');
-  await shot(page, '02-dbml.png');
+  check(await frame.locator('#tab-dbml').count() === 0, 'plus d\'onglet DBML');
 
   // Tables
   await frame.locator('#tab-tables').click();
@@ -76,7 +68,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await page.waitForTimeout(200);
   const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
   const csvText = await readFile(await csv.path(), 'utf8');
-  check(csvText.includes('Interventions;Echeance;;Référence;integer;non;Dates_cles'), `export CSV des colonnes`);
+  check(csvText.includes('Interventions;Echeance;;Référence;non;Dates_cles'), `export CSV des colonnes`);
   await shot(page, '03-tables.png');
   await frame.locator('.tbl').first().locator('[data-goto-schema]').click();
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'bouton Schéma d\'une carte');
@@ -104,19 +96,19 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
   const preview = await frame.locator('.doc').textContent();
   check(!preview.includes('swd2QJ') && preview.includes('Document Grist'), 'rapport : identifiant interne masqué');
-  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Analyse', 'Code DBML'].every((t) => preview.includes(t)), 'rapport : aperçu des 5 sections');
+  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Analyse'].every((t) => preview.includes(t)) && !preview.includes('Code DBML'), 'rapport : aperçu des sections, sans DBML');
   await shot(page, '05-rapport.png');
-  await frame.locator('[data-section="dbml"]').click();
-  check(!(await frame.locator('.doc').textContent()).includes('Code DBML'), 'rapport : section retirée de l\'aperçu');
+  await frame.locator('[data-section="access"]').click();
+  check(!(await frame.locator('.doc').textContent()).includes('aucune règle d\'accès avancée : chaque'), 'rapport : section retirée de l\'aperçu');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
   await dl.saveAs(path.join(outDir, 'rapport.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport.docx')));
   const xml = await zip.file('word/document.xml').async('string');
-  check(dl.suggestedFilename() === 'structure-document.docx' && xml.includes('>Tables et colonnes<') && !xml.includes('>Code DBML<'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
+  check(dl.suggestedFilename() === 'structure-document.docx' && xml.includes('>Tables et colonnes<') && !xml.includes('aucune règle d\'accès avancée : chaque'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
   const media = Object.keys(zip.files).filter((f) => f.startsWith('word/media/') && !zip.files[f].dir);
   const img = media.length ? await zip.file(media[0]).async('uint8array') : new Uint8Array();
   check(img.length > 20000, `rapport Word : image du schéma intégrée (${img.length} octets)`);
-  await frame.locator('[data-section="dbml"]').click();
+  await frame.locator('[data-section="access"]').click();
 
   await frame.locator('#tab-report').focus();
   await frame.locator('#tab-report').press('ArrowLeft');

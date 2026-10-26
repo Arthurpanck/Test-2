@@ -52,14 +52,14 @@ test('le rapport Word contient toutes les sections et les données du document',
   for (const t of ctx.tables) assert.ok(xml.includes(`>${t.name}<`) || xml.includes(`>${t.name} (synthèse)<`), `table ${t.name}`);
   assert.ok(xml.includes('Aucun point bloquant'), 'verdict');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
-  assert.ok(xml.includes('Echeance integer [ref: &gt; Dates_cles.id]'), 'code DBML');
+  assert.ok(!xml.includes('>Code DBML<'), 'plus de section DBML');
   assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple<') && xml.includes('>Date et Heure<'), 'types de colonnes en français');
   assert.ok(Object.keys(zip.files).some((f) => f.startsWith('word/media/')), 'image du schéma intégrée');
 });
 
 test('le choix des sections est respecté', async () => {
-  const { xml } = await docxXml(buildReport(context(), ['summary', 'dbml']));
-  assert.ok(xml.includes('>Résumé<') && xml.includes('>Code DBML<'));
+  const { xml } = await docxXml(buildReport(context(), ['summary', 'access']));
+  assert.ok(xml.includes('>Résumé<') && (xml.includes('>Droits d&apos;accès<') || xml.includes(">Droits d'accès<")));
   assert.ok(!xml.includes('>Analyse<') && !xml.includes('>Tables et colonnes<'));
 });
 

@@ -2,7 +2,7 @@
 
 Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui audite le document où il est installé : structure, formules, droits d'accès, conversion en [DBML](https://dbml.dbdiagram.io/docs/) et rapport Word.
 
-Six pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès), le diagnostiquer (Analyse), produire (Rapport, DBML). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
+Cinq pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès), le diagnostiquer (Analyse), produire (Rapport). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
 
 - **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, **mini-carte** (vue d'ensemble en bas à droite : le cadre bleu montre la partie affichée, un clic s'y déplace), « Aller à une table », export SVG ;
 - **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; bouton **Détails** pour les formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
@@ -13,7 +13,6 @@ Six pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tabl
   - *Choix à confirmer* — souvent volontaire (formule « Non défini », table isolée, table vide, colonne jamais remplie, table très large, tables en double, table sans règle propre…) : chaque carte dit « Si c'est voulu » et « Sinon, dans Grist » ; le bouton **C'est voulu** retire le point des comptes (mémorisé dans le widget) ;
   - *Bon à savoir*.
 - **Rapport** : un rapport Word (.docx) qui reprend tout, avec un aperçu et le choix des sections ;
-- **DBML** : le code, à copier ou télécharger.
 
 Les constats sur les données lisent les lignes des tables (pas des synthèses) à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir.
 

@@ -250,17 +250,7 @@ export const REPORT_SECTIONS = [
       return blocks;
     },
   },
-  {
-    id: 'dbml',
-    title: 'Code DBML',
-    description: 'Le code complet, à coller dans dbdiagram.io ou un autre outil',
-    build(ctx) {
-      return [
-        { type: 'paragraph', color: 'muted', size: 'small', text: 'À coller dans un éditeur DBML (dbdiagram.io, par exemple) pour retrouver le schéma.' },
-        { type: 'code', lines: ctx.dbml.replace(/\n+$/, '').split('\n') },
-      ];
-    },
-  },
+
 ];
 
 /** Blocs du rapport complet pour les sections choisies. */
