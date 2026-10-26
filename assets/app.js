@@ -733,6 +733,27 @@ function bindEvents() {
 // Démarrage
 // ---------------------------------------------------------------------------
 
+/**
+ * Titre du document. getDocName() renvoie souvent l'identifiant interne (« swd2QJ… ») :
+ * on demande alors le vrai titre à l'API REST du document, avec le jeton du widget.
+ */
+async function readDocTitle(api) {
+  let name = '';
+  try { name = String((await api.docApi.getDocName?.()) || ''); } catch { /* sans nom */ }
+  const looksLikeId = /^[A-Za-z0-9]{16,}$/.test(name);
+  if (name && !looksLikeId) return name;
+  try {
+    const getToken = api.getAccessToken ?? api.docApi.getAccessToken?.bind(api.docApi);
+    const { token, baseUrl } = await getToken({ readOnly: true });
+    const res = await fetch(`${baseUrl}?auth=${encodeURIComponent(token)}`);
+    if (res.ok) {
+      const info = await res.json();
+      if (info && typeof info.name === 'string' && info.name) return info.name;
+    }
+  } catch { /* hors ligne ou API indisponible */ }
+  return looksLikeId ? '' : name;
+}
+
 function connectGrist() {
   gristApi.ready({ requiredAccess: 'full', allowSelectBy: false });
   gristApi.onOptions((options) => {
@@ -740,9 +761,9 @@ function connectGrist() {
     if (state.tab === 'schema' && state.out && !viewer) renderDiagram();
   });
   gristApi.onRecords(() => loadSchemaSoon());
-  Promise.resolve(gristApi.docApi.getDocName?.()).then((name) => {
-    if (typeof name === 'string') { state.docName = name; if (state.tab === 'report') renderReport(); }
-  }).catch(() => {});
+  readDocTitle(gristApi).then((name) => {
+    if (name) { state.docName = name; if (state.tab === 'report') renderReport(); }
+  });
   loadSchema();
 }
 

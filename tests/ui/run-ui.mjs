@@ -85,7 +85,9 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Rapport
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
+  await frame.waitForFunction(() => document.querySelector('.doc')?.textContent.includes('Suivi des interventions'));
   const preview = await frame.locator('.doc').textContent();
+  check(!preview.includes('swd2QJ'), 'rapport : titre du document, pas son identifiant');
   check(['Résumé', 'Schéma', 'Tables et colonnes', 'Analyse', 'Code DBML'].every((t) => preview.includes(t)), 'rapport : aperçu des 5 sections');
   await shot(page, '05-rapport.png');
   await frame.locator('[data-section="dbml"]').click();
@@ -94,7 +96,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await dl.saveAs(path.join(outDir, 'rapport.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport.docx')));
   const xml = await zip.file('word/document.xml').async('string');
-  check(dl.suggestedFilename().endsWith('.docx') && xml.includes('>Tables et colonnes<') && !xml.includes('>Code DBML<'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
+  check(dl.suggestedFilename() === 'structure-suivi-des-interventions.docx' && xml.includes('>Tables et colonnes<') && !xml.includes('>Code DBML<'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
   const media = Object.keys(zip.files).filter((f) => f.startsWith('word/media/') && !zip.files[f].dir);
   const img = media.length ? await zip.file(media[0]).async('uint8array') : new Uint8Array();
   check(img.length > 20000, `rapport Word : image du schéma intégrée (${img.length} octets)`);
