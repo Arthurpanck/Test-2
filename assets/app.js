@@ -566,7 +566,7 @@ function renderAccess() {
       </header>
       <div class="acl-table__body">
         ${rules.length ? rulesTableHtml(rules, BITS.table, `Règles de la table ${t.tableId}`) : ''}
-        ${cols.map((c) => `<p class="acl-table__cols">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))}${c.missing.length ? ` <span class="rules__problem">invisible pour vous (masquée par ces règles, ou supprimée) : ${esc(c.missing.join(', '))}</span>` : ''}</p>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
+        ${cols.map((c) => `<p class="acl-table__cols">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))}${c.missing.length ? ` <span class="rules__problem">${c.missing.length > 1 ? `${esc(c.missing.join(', '))} : invisibles pour vous (masquées par ces règles, ou supprimées)` : `${esc(c.missing[0])} : invisible pour vous (masquée par ces règles, ou supprimée)`}</span>` : ''}</p>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
       </div></article>`);
   }
   const uncovered = a.uncovered.filter((t) => accessMatches(q, t));
