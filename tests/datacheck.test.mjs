@@ -98,3 +98,21 @@ test('aucun texte d\'analyse ne parle du DBML', () => {
   }
   for (const c of ins.checks) assert.ok(!/DBML/i.test(c.label), c.label);
 });
+
+test('vu par le propriétaire : tables entièrement masquées (nom effacé par Grist)', () => {
+  // Grist efface tableId et colId des tables que la personne connectée ne peut pas lire.
+  const m = metadataFromDefinition(definition);
+  const hiddenIds = new Set(m.tables.filter((t) => ['Personnel', 'Factures'].includes(t.tableId)).map((t) => t.id));
+  const tables = m.tables.map((t) => (hiddenIds.has(t.id) ? { ...t, tableId: '' } : t));
+  const cols = m.cols.map((c) => (hiddenIds.has(c.parentId) ? { ...c, colId: '' } : c));
+  const records = { ...m.records };
+  delete records.Personnel; delete records.Factures;
+  const schema = schemaFromMetadata(tables, cols);
+  assert.ok(!schema.has(''), 'aucune table sans nom');
+  const out = convertAll({ schema }).corrected;
+  const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
+  const ins = buildInsights(out.tables, access, { profiles: profileTables(records) });
+  assert.ok(!item(ins, 'bad-name'), 'pas de faux « identifiant invalide »');
+  assert.ok(has(item(ins, 'acl-hidden'), 'Personnel') && has(item(ins, 'acl-hidden'), 'Factures'), 'tables invisibles signalées');
+  assert.ok(has(item(ins, 'acl-copy-leak'), 'Personnel_2024'), 'copie non protégée repérée même sans voir l\'originale');
+});

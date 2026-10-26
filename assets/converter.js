@@ -352,8 +352,11 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
   }
   const schema = new Map();
   for (const t of tables) {
+    // Grist efface le nom des tables et colonnes que la personne connectée ne peut pas lire.
+    if (!t.tableId) continue;
     const columns = new Map();
     for (const c of byTable.get(t.id) || []) {
+      if (!c.colId) continue;
       const deps = refListValue(c.recalcDeps);
       columns.set(c.colId, {
         colId: c.colId,

@@ -244,6 +244,14 @@ export function structureSmells(tables, profiles = null, access = null) {
   const protectedTables = new Set((access?.tables || []).filter((t) => [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.perms.R === 'deny')).map((t) => t.tableId));
   const ruled = new Set((access?.tables || []).map((t) => t.tableId));
   const leaks = dups.filter((d) => protectedTables.has(d.orig) && !ruled.has(d.copy));
+  // Originale invisible pour la personne connectée : on se fie au nom (« Personnel » / « Personnel_2024 »).
+  for (const orig of protectedTables) {
+    if (real.some((t) => t.name === orig)) continue;
+    for (const t of real) {
+      if (ruled.has(t.name) || t.name === orig || leaks.some((l) => l.copy === t.name)) continue;
+      if (baseName(t.name) === baseName(orig)) leaks.push({ orig, copy: t.name, shared: 0 });
+    }
+  }
   if (leaks.length) {
     items.push({
       id: 'acl-copy-leak', severity: 'blocking', area: 'access',

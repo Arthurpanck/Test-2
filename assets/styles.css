@@ -660,3 +660,8 @@ html, body { overflow: hidden; }
   .toolbar { padding-left: 1rem; padding-right: 1rem; column-gap: .5rem; }
   .toolbar__zoom { min-width: 2.5rem; padding: 0 .25rem; }
 }
+@media (max-width: 64em) {
+  #tabpanel-schema .toolbar__zoom { display: none; }
+  #tabpanel-schema .toolbar__search { width: 9rem; }
+  .toolbar { padding-left: .75rem; padding-right: .75rem; }
+}
