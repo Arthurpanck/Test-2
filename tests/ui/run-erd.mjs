@@ -1,59 +1,31 @@
-// Tests du visualiseur de schéma dans Chromium (Playwright).
+// Tests du visualiseur de schéma (Chromium, Grist simulé).
 // Usage : node tests/ui/run-erd.mjs <dossier des captures>
-import http from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
-import { parseGristCodeCorrected, metadataFromModel } from '../helpers.mjs';
+import { start, metadata } from './harness.mjs';
 
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/opt/npm-tools/node_modules/playwright');
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const outDir = path.resolve(process.argv[2] || 'captures');
-await mkdir(outDir, { recursive: true });
-const fixture = (name) => readFile(path.join(root, 'tests/fixtures', name), 'utf8');
+const h = await start(outDir);
+const { check } = h;
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
-  if (url.pathname === '/__harness') {
-    res.writeHead(200, { 'content-type': 'text/html' });
-    res.end('<!doctype html><html><body style="margin:0"><iframe src="/index.html" style="border:0;width:100vw;height:100vh"></iframe></body></html>');
-    return;
-  }
-  try {
-    const file = path.join(root, decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
-    res.end(await readFile(file));
-  } catch { res.writeHead(404); res.end(); }
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}`;
-const args = process.env.HTTPS_PROXY ? [`--proxy-server=${process.env.HTTPS_PROXY}`, '--proxy-bypass-list=127.0.0.1;localhost'] : [];
-const browser = await chromium.launch({ args });
-
-const failures = [];
-const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${cond ? '✓' : '✗'} ${msg}`); };
-
-async function open(viewport = { width: 1400, height: 860 }, { dark = false } = {}) {
-  const context = await browser.newContext({ viewport, colorScheme: dark ? 'dark' : 'light', acceptDownloads: true });
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-  return { context, page, errors };
-}
-
-async function loadSchema(page, code, { corrected = false } = {}) {
-  await page.goto(`${base}/index.html`, { waitUntil: 'networkidle' });
-  await page.locator('#code-input').fill(code);
-  await page.waitForTimeout(300);
-  if (corrected) await page.locator('#strict-toggle').evaluate((el) => el.click());
-  await page.locator('#tab-schema').click();
-  await page.waitForSelector('.erd-node', { timeout: 30000 });
-  await page.waitForFunction(() => !document.querySelector('.erd__status')?.textContent);
+/**
+ * Ouvre le widget dans Grist simulé sur la page Schéma. Renvoie un objet « page » qui agit
+ * dans l'iframe du widget (locator, evaluate…) mais garde la souris, le clavier, les captures
+ * et les téléchargements de la page principale.
+ */
+async function open(fixtureName, { viewport, dark, options } = {}) {
+  const meta = await metadata(fixtureName);
+  const { context, page, frame, errors } = await h.openWidget({ meta, viewport, dark, options });
+  await h.waitDiagram(frame);
+  const fromPage = new Set(['mouse', 'keyboard', 'screenshot', 'waitForEvent', 'waitForTimeout']);
+  const wrapped = new Proxy(frame, {
+    get(target, key) {
+      if (fromPage.has(key)) { const v = page[key]; return typeof v === 'function' ? v.bind(page) : v; }
+      const v = target[key];
+      return typeof v === 'function' ? v.bind(target) : v;
+    },
+  });
+  return { context, page: wrapped, errors };
 }
 
 /** Géométrie en coordonnées du monde : tables et premiers/derniers points des relations. */
@@ -75,8 +47,7 @@ const readGeometry = (page) => page.evaluate(() => {
 // 1. Schéma du document d'origine (Conversion-DBML), conversion corrigée
 // ---------------------------------------------------------------------------
 {
-  const { context, page, errors } = await open();
-  await loadSchema(page, await fixture('document-exemple.code.py'), { corrected: true });
+  const { context, page, errors } = await open('document-exemple.code.py');
   const geo = await readGeometry(page);
   const ids = Object.keys(geo.nodes);
   check(ids.length === 6, `6 tables dessinées (${ids.length})`);
@@ -211,8 +182,7 @@ const readGeometry = (page) => page.evaluate(() => {
 // 2. Tables absentes, thème sombre
 // ---------------------------------------------------------------------------
 {
-  const { context, page, errors } = await open({ width: 1200, height: 760 }, { dark: true });
-  await loadSchema(page, await fixture('cas-limites.code.py'), { corrected: true });
+  const { context, page, errors } = await open('cas-limites.code.py', { viewport: { width: 1200, height: 760 }, dark: true });
   const ghosts = await page.locator('.erd-node--ghost').evaluateAll((els) => els.map((e) => e.dataset.id));
   check(ghosts.includes('Choix_categories') && ghosts.includes('Textes_modeles'), `tables absentes dessinées en pointillés (${ghosts.join(', ')})`);
   const headBg = await page.locator('.erd-node:not(.erd-node--ghost) .erd-node__head').first().evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -226,30 +196,10 @@ const readGeometry = (page) => page.evaluate(() => {
 // 3. Grist simulé : disposition mémorisée dans les options du widget
 // ---------------------------------------------------------------------------
 {
-  const meta = metadataFromModel(parseGristCodeCorrected(await fixture('document-exemple.code.py')));
-  const { context, page, errors } = await open();
-  await context.route('https://docs.getgrist.com/grist-plugin-api.js', (route) => route.fulfill({ contentType: 'text/javascript', body: '' }));
-  await context.addInitScript(({ m }) => {
-    if (window.self === window.top) return;
-    window.__options = {};
-    const saved = { diagram: { detail: 'all', positions: { Reunion: [1500, 40] } } };
-    const handlers = { options: [], record: [], records: [] };
-    window.grist = {
-      ready() { setTimeout(() => { handlers.options.forEach((cb) => cb(saved, {})); handlers.record.forEach((cb) => cb(null, null)); }, 30); },
-      onOptions(cb) { handlers.options.push(cb); },
-      onRecord(cb) { handlers.record.push(cb); },
-      onRecords(cb) { handlers.records.push(cb); },
-      setOption(k, v) { window.__options[k] = JSON.parse(JSON.stringify(v)); return Promise.resolve(); },
-      docApi: { fetchTable: async (t) => (t === '_grist_Tables' ? m.tables : m.cols) },
-      selectedTable: { update: async () => {} },
-    };
-  }, { m: meta });
-  await page.goto(`${base}/__harness`, { waitUntil: 'networkidle' });
-  const frame = page.frames().find((f) => f.url().endsWith('/index.html'));
-  await frame.waitForSelector('.code .ln', { timeout: 10000 });
-  await frame.locator('#tab-schema').click();
-  await frame.waitForSelector('.erd-node', { timeout: 30000 });
-  await frame.waitForFunction(() => !document.querySelector('.erd__status')?.textContent);
+  const { context, page: frame, errors } = await open('document-exemple.code.py', {
+    options: { diagram: { detail: 'all', positions: { Reunion: [1500, 40] } } },
+  });
+  const page = frame;
   const g = await readGeometry(frame);
   check(g.nodes.Reunion && g.nodes.Reunion.x === 1500 && g.nodes.Reunion.y === 40, 'position mémorisée appliquée (Reunion en 1500, 40)');
   const others = Object.entries(g.nodes).filter(([id]) => id !== 'Reunion');
@@ -270,7 +220,5 @@ const readGeometry = (page) => page.evaluate(() => {
   await context.close();
 }
 
-await browser.close();
-server.close();
-if (failures.length) { console.error(`\n${failures.length} échec(s)`); process.exit(1); }
+await h.finish();
 console.log('\nTous les contrôles du visualiseur passent.');

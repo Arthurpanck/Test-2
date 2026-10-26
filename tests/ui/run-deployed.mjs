@@ -51,9 +51,6 @@ page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()
 await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'networkidle' });
 const frame = page.frames().find((f) => f.url().startsWith(widgetUrl.split('?')[0]));
 check(Boolean(frame), `widget chargé depuis ${widgetUrl}`);
-await frame.waitForSelector('.code .ln', { timeout: 20000 });
-await frame.locator('#strict-toggle').evaluate((el) => el.click()); // conversion corrigée : toutes les relations
-await frame.locator('#tab-schema').click();
 const t0 = Date.now();
 await frame.waitForSelector('.erd-node', { timeout: 30000 });
 await frame.waitForFunction(() => !document.querySelector('.erd__status')?.textContent, null, { timeout: 30000 });

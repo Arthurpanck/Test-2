@@ -7,91 +7,34 @@
 [hidden] { display: none !important; }
 
 html, body { height: 100%; }
-body {
-  margin: 0;
-  background: var(--background-default-grey);
-  color: var(--text-default-grey);
-}
+body { margin: 0; background: var(--background-default-grey); color: var(--text-default-grey); }
 
-/* ---------- Mise en page ---------- */
-.app { display: flex; flex-direction: column; min-height: 100%; }
+/* ---------- Mise en page : en-tête, onglets, barre d'outils, contenu ---------- */
+.app { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
 
 .app__header {
-  padding: .75rem 1rem;
-  border-bottom: 1px solid var(--border-default-grey);
-}
-.app__title {
-  margin: 0;
-  font-size: 1.125rem;
-  line-height: 1.5rem;
-  color: var(--text-title-grey);
-}
-.app__lead {
-  margin: .125rem 0 0;
-  font-size: .875rem;
-  line-height: 1.375rem;
-  color: var(--text-mention-grey);
-  max-width: 72ch;
-}
-
-.app__body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
-
-.app__footer {
-  padding: .5rem 1rem;
-  border-top: 1px solid var(--border-default-grey);
-  color: var(--text-mention-grey);
-}
-.app__footer p { margin: 0; font-size: .75rem; line-height: 1.25rem; }
-
-/* ---------- Source ---------- */
-.source {
   display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 1rem;
-  background: var(--background-alt-grey);
-  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  padding: .625rem 1.25rem;
+  border-bottom: 1px solid var(--border-default-grey);
+  flex: none;
 }
-.source > * { margin: 0; flex-shrink: 0; }
-.source__switch .fr-segmented__elements { width: 100%; }
-.source__switch .fr-segmented__element { flex: 1; }
-.source__switch .fr-segmented__element label { width: 100%; justify-content: center; }
-.source__block { display: flex; flex-direction: column; gap: .75rem; }
-.source__block .fr-btns-group { margin: 0; }
-.source__block .fr-input-group { margin: 0; }
-.source__status { margin: 0; font-size: .875rem; color: var(--text-mention-grey); }
-.source__status strong { color: var(--text-default-grey); }
-.source__row-info { margin: 0; }
-.source__options { padding-top: 1rem; border-top: 1px solid var(--border-default-grey); }
-/* Largeur du texte d'état (« Désactivé »), normalement mesurée par le JavaScript du DSFR. */
-.source__options .fr-toggle label { --toggle-status-width: 3.75rem; }
+.app__title { margin: 0; font-size: 1.125rem; line-height: 1.5rem; color: var(--text-title-grey); }
+.app__stats { margin: 0; font-size: .75rem; line-height: 1.25rem; color: var(--text-mention-grey); min-height: 1.25rem; }
+.app__status { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
+.app__read-at { font-size: .8125rem; color: var(--text-mention-grey); }
+.app__status .fr-btn { margin: 0; }
+.app__alert:empty { display: none; }
+.app__alert { padding: .75rem 1.25rem 0; flex: none; }
 
-.code-input {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: .8125rem;
-  line-height: 1.375rem;
-  min-height: 10rem;
-  resize: vertical;
-  white-space: pre;
-  overflow: auto;
-  tab-size: 2;
-}
-
-/* ---------- Résultat ---------- */
-.result { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; min-width: 0; }
-
-.result__summary { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; min-height: 2rem; }
-.result__summary .fr-tags-group { margin: 0; }
-.result__summary .fr-tags-group > li { line-height: 1; }
-.result__summary .fr-badge { margin: 0; }
-.result__summary .fr-link { font-size: .875rem; }
-
-/* Onglets : apparence DSFR, comportement géré par le widget (contenu dynamique). */
-.tabs { display: flex; flex-direction: column; min-width: 0; }
-.tabs__list { order: 0; margin: 0 0 -1px; padding: 0 .25rem; position: relative; flex-shrink: 0; }
-.tabs__list .fr-tabs__tab { margin: 0 .125rem; padding: .5rem .75rem; }
-.tabs__list { scrollbar-width: thin; }
-.tabs__count {
+.pages { flex: none; background: var(--background-alt-grey); border-bottom: 1px solid var(--border-default-grey); }
+.pages__list { --ul-type: none; --li-bottom: 0; list-style: none; margin: 0; padding: .5rem 1.25rem 0; min-height: 0; overflow-x: auto; }
+.pages__list > li { list-style: none; padding: 0; margin: 0; }
+.pages__list > li::before { content: none; }
+.pages__list .fr-tabs__tab { margin: 0 .25rem 0 0; }
+.pages__count {
   display: inline-block;
   margin-left: .5rem;
   padding: 0 .375rem;
@@ -99,22 +42,47 @@ body {
   font-size: .75rem;
   line-height: 1.25rem;
   font-weight: 700;
-  background: var(--background-contrast-warning);
-  color: var(--text-default-warning);
+  background: var(--background-contrast-error);
+  color: var(--text-default-error);
 }
-.tabs__count--error { background: var(--background-contrast-error); color: var(--text-default-error); }
-.tabs__count--info { background: var(--background-contrast-info); color: var(--text-default-info); }
-.tabs__panel {
-  border: 1px solid var(--border-default-grey);
-  background: var(--background-default-grey);
-  padding: 1rem;
-  min-width: 0;
-}
-.tabs__panel[hidden] { display: none; }
-.tabs__panel:focus-visible { outline-offset: -2px; }
 
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.page[hidden] { display: none !important; }
+.page__body { flex: 1; min-height: 0; overflow: auto; padding: 1rem 1.25rem; }
+.page__body--flush { padding: 0; overflow: hidden; display: flex; }
+
+/* Barre d'outils de la page, juste sous les onglets */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+  padding: .625rem 1.25rem;
+  border-bottom: 1px solid var(--border-default-grey);
+  background: var(--background-default-grey);
+  flex: none;
+}
+.toolbar__group { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.toolbar__end { margin-left: auto; }
 .toolbar .fr-btn { margin: 0; }
+.toolbar__sep { width: 1px; height: 1.75rem; background: var(--border-default-grey); }
+.toolbar__zoom { min-width: 3.25rem; text-align: center; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.toolbar__segmented { margin: 0; }
+.toolbar__segmented .fr-segmented__elements { margin: 0; }
+.toolbar__find, .toolbar__filter { width: 14rem; }
+.toolbar__filter { width: 18rem; }
+.toolbar__find .fr-input, .toolbar__filter .fr-input { margin: 0; }
+.toolbar__toggle[aria-pressed="true"] { background-color: var(--background-action-low-blue-france); box-shadow: inset 0 0 0 1px var(--border-action-high-blue-france); }
+
+@media (max-width: 48em) {
+  .toolbar__end { margin-left: 0; }
+  .toolbar__sep { display: none; }
+  .toolbar__find, .toolbar__filter { width: 100%; }
+}
+@media (max-height: 34em) {
+  .app { height: auto; min-height: 100vh; }
+  .page { min-height: 26rem; }
+}
 
 /* ---------- Code DBML ---------- */
 .code {
@@ -197,20 +165,6 @@ body {
 .col-pk { font-size: .6875rem; }
 .tbl__incoming { margin: 0; padding: .5rem .75rem; font-size: .75rem; line-height: 1.25rem; border-top: 1px solid var(--border-default-grey); color: var(--text-mention-grey); }
 
-/* ---------- Schéma ---------- */
-.tabs__panel--flush { padding: 0; display: flex; flex-direction: column; }
-.toolbar--diagram { margin: 0; padding: .5rem .75rem; border-bottom: 1px solid var(--border-default-grey); }
-.zoom { display: inline-flex; align-items: center; gap: .25rem; }
-.zoom__value { min-width: 3.5rem; text-align: center; font-size: .875rem; font-variant-numeric: tabular-nums; }
-.diagram { display: flex; flex-direction: column; min-height: 22rem; background: var(--background-alt-grey); }
-.diagram .empty { padding-top: 3rem; }
-.toolbar--diagram { gap: .5rem .75rem; }
-.toolbar__detail { margin: 0; }
-.toolbar__detail .fr-segmented__elements { margin: 0; }
-.toolbar__find { width: 13rem; }
-.toolbar__find .fr-input { margin-top: 0; padding-top: .25rem; padding-bottom: .25rem; font-size: .875rem; min-height: 2rem; }
-.toolbar__exports { display: inline-flex; gap: .5rem; margin-left: auto; }
-
 /* ---------- Analyse ---------- */
 .findings { display: flex; flex-direction: column; gap: 1.5rem; }
 .findings__group h3 { font-size: 1rem; line-height: 1.5rem; margin: 0 0 .5rem; }
@@ -234,39 +188,10 @@ body {
 .toast .fr-alert { background: var(--background-default-grey); box-shadow: 0 4px 12px rgba(0, 0, 18, .16); }
 .toast:empty { display: none; }
 
-/* ---------- Grand format : deux colonnes, chaque zone défile seule ---------- */
-@media (min-width: 56em) {
-  .app__body { grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr); }
-  .source { border-right: 1px solid var(--border-default-grey); }
-}
-/* Hauteur fixe seulement si le panneau est assez haut ; sinon la page défile normalement. */
-@media (min-width: 56em) and (min-height: 30em) {
-  .app { height: 100vh; min-height: 0; }
-  .app__body { min-height: 0; overflow: hidden; }
-  .source { overflow: auto; }
-  .source__block--code { flex: 1 0 auto; }
-  .source__block--code .source__input { flex: 1; display: flex; flex-direction: column; }
-  .source__block--code .code-input { flex: 1; resize: none; }
-  .result { min-height: 0; overflow: hidden; }
-  .tabs { flex: 1; min-height: 0; }
-  .tabs__panel { flex: 1; min-height: 0; overflow: auto; }
-  .diagram { flex: 1; min-height: 16rem; }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .code .ln.is-target, .tbl.is-target { transition: background-color .6s ease, box-shadow .6s ease; }
 }
 
-/* ---------- Panneau Grist peu haut : on rend la place au contenu ---------- */
-@media (max-height: 42em) {
-  .app__lead, .app__footer { display: none; }
-  .app__header { padding: .5rem 1rem; }
-  .source { gap: .75rem; padding: .75rem 1rem; }
-  .result { gap: .5rem; padding: .75rem 1rem; }
-  .tabs__panel { padding: .75rem; }
-}
-.findings .fr-callout { padding: 1rem 1.25rem; margin: 0; }
-.findings .fr-callout .fr-callout__text { font-size: .875rem; line-height: 1.5rem; }
 
 /* ===================================================================
    Visualiseur de schéma (assets/erd.js)
@@ -432,3 +357,22 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .erd-node, .erd-edge__line, .erd-edge__mark { transition: none; }
 }
+
+/* ---------- Ajouts de la version 2 ---------- */
+.diagram { background: var(--background-alt-grey); }
+.diagram .erd__viewport { min-height: 16rem; }
+.diagram.no-minimap .erd__minimap { display: none; }
+.code--wrap .ln { white-space: pre-wrap; overflow-wrap: anywhere; }
+.code { min-height: 100%; box-sizing: border-box; }
+.analysis { display: grid; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); gap: 1.5rem; align-items: start; }
+.checks { padding: 1.25rem; background: var(--background-alt-grey); }
+.checks h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.checks ul { list-style: none; margin: 0; padding: 0; }
+.checks li { display: flex; align-items: center; gap: .625rem; padding: .5rem 0; border-top: 1px solid var(--border-default-grey); font-size: .875rem; }
+.checks li::before { content: ""; flex: none; width: 1rem; height: 1rem; background-color: var(--text-default-success);
+  -webkit-mask: url(https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/icons/system/check-line.svg) center / contain no-repeat;
+  mask: url(https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/icons/system/check-line.svg) center / contain no-repeat; }
+.checks li.is-ko::before { background-color: var(--text-default-error);
+  -webkit-mask-image: url(https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/icons/system/close-line.svg);
+  mask-image: url(https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/icons/system/close-line.svg); }
+@media (max-width: 48em) { .analysis { grid-template-columns: minmax(0, 1fr); } }

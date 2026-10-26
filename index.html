@@ -4,183 +4,142 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Structure en DBML · widget Grist</title>
-  <meta name="description" content="Widget Grist : convertit la structure d'un document Grist en DBML (dbdiagram.io).">
+  <meta name="description" content="Widget Grist : schéma, tables, analyse et DBML de la structure du document.">
   <script>
     // Thème appliqué avant le premier rendu pour éviter un flash ; ensuite synchronisé avec Grist.
     document.documentElement.setAttribute('data-fr-theme',
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=1.2.1">
-  <link rel="stylesheet" href="assets/styles.css?v=1.2.1">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.0.0">
+  <link rel="stylesheet" href="assets/styles.css?v=2.0.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=1.2.1"></script>
+  <script type="module" src="assets/app.js?v=2.0.0"></script>
 </head>
 <body>
   <div class="app">
     <header class="app__header">
-      <h1 class="app__title">Structure en DBML</h1>
-      <p class="app__lead">Décrit les tables et relations du document en DBML, à ouvrir dans dbdiagram.io ou un autre éditeur.</p>
+      <div class="app__heading">
+        <h1 class="app__title">Structure en DBML</h1>
+        <p class="app__stats" id="stats"></p>
+      </div>
+      <div class="app__status">
+        <span class="app__read-at" id="read-at" aria-live="polite"></span>
+        <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" id="btn-refresh" type="button"
+          title="Relit les tables et colonnes du document">Relire le document</button>
+      </div>
     </header>
 
-    <div class="app__body">
-      <section class="source" aria-labelledby="source-title">
-        <h2 class="fr-sr-only" id="source-title">Source</h2>
+    <div class="app__alert" id="doc-alert"></div>
 
-        <div id="standalone-notice" hidden>
-          <div class="fr-alert fr-alert--info fr-alert--sm">
-            <p>Hors de Grist, collez le code de la Vue du code. Installé comme widget, l'outil lit directement la structure du document.</p>
-          </div>
-        </div>
-
-        <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend source__switch">
-          <legend class="fr-segmented__legend">Source de la structure</legend>
-          <div class="fr-segmented__elements">
-            <div class="fr-segmented__element">
-              <input value="doc" type="radio" id="source-doc" name="source">
-              <label class="fr-icon-database-line fr-label" for="source-doc">Ce document</label>
-            </div>
-            <div class="fr-segmented__element">
-              <input value="code" type="radio" id="source-code" name="source">
-              <label class="fr-icon-code-s-slash-line fr-label" for="source-code">Code collé</label>
-            </div>
-          </div>
-        </fieldset>
-
-        <div id="panel-doc" class="source__block">
-          <p class="source__status" id="doc-status" aria-live="polite"></p>
-          <div id="doc-alert"></div>
-          <ul class="fr-btns-group fr-btns-group--sm fr-btns-group--inline fr-btns-group--icon-left">
-            <li><button class="fr-btn fr-btn--secondary fr-icon-refresh-line" id="btn-refresh" type="button">Actualiser</button></li>
-            <li><button class="fr-btn fr-btn--tertiary fr-icon-edit-line" id="btn-edit-code" type="button"
-              title="Copie la Vue du code reconstituée dans « Code collé » pour l'ajuster à la main">Modifier comme code</button></li>
-          </ul>
-        </div>
-
-        <div id="panel-code" class="source__block source__block--code" hidden>
-          <div class="fr-input-group source__input">
-            <label class="fr-label" for="code-input">Code de la Vue du code
-              <span class="fr-hint-text">Dans Grist, ouvrez « Vue du code » dans le panneau de gauche, copiez tout le texte et collez-le ici.</span>
-            </label>
-            <textarea class="fr-input code-input" id="code-input" rows="8" spellcheck="false" autocomplete="off"
-              autocapitalize="off" wrap="off"></textarea>
-          </div>
-          <p class="fr-hint-text source__row-info" id="row-info" hidden></p>
-          <ul class="fr-btns-group fr-btns-group--sm fr-btns-group--inline fr-btns-group--icon-left">
-            <li><button class="fr-btn fr-btn--secondary fr-icon-file-text-line" id="btn-example" type="button">Charger l'exemple</button></li>
-            <li><button class="fr-btn fr-btn--tertiary fr-icon-delete-line" id="btn-clear" type="button">Effacer</button></li>
-          </ul>
-        </div>
-
-        <div class="source__options">
-        <div class="fr-toggle">
-          <input type="checkbox" class="fr-toggle__input" id="strict-toggle" aria-describedby="strict-hint" checked>
-          <label class="fr-toggle__label" for="strict-toggle" data-fr-checked-label="Activé"
-            data-fr-unchecked-label="Désactivé">Reproduire exactement la formule d'origine</label>
-          <p class="fr-hint-text" id="strict-hint">Désactivez pour corriger les relations perdues, les booléens, les dates-heures et les colonnes fantômes.</p>
-        </div>
-        </div>
-      </section>
-
-      <section class="result" aria-labelledby="result-title">
-        <h2 class="fr-sr-only" id="result-title">Résultat</h2>
-        <div class="result__summary" id="summary"></div>
-
-        <div class="tabs">
-          <ul class="fr-tabs__list tabs__list" role="tablist" aria-label="Vues du résultat">
-            <li role="presentation">
-              <button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-code-s-slash-line" id="tab-dbml" type="button"
-                role="tab" aria-selected="true" aria-controls="tabpanel-dbml" tabindex="0">DBML</button>
-            </li>
-            <li role="presentation">
-              <button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-table-line" id="tab-tables" type="button"
-                role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button>
-            </li>
-            <li role="presentation">
-              <button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-git-merge-line" id="tab-schema" type="button"
-                role="tab" aria-selected="false" aria-controls="tabpanel-schema" tabindex="-1">Schéma</button>
-            </li>
-            <li role="presentation">
-              <button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lightbulb-line" id="tab-analysis" type="button"
-                role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span
-                  class="tabs__count" id="analysis-count" hidden></span></button>
-            </li>
-          </ul>
-
-          <div class="tabs__panel" id="tabpanel-dbml" role="tabpanel" aria-labelledby="tab-dbml" tabindex="0">
-            <div class="toolbar">
-              <button class="fr-btn fr-btn--sm fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
-              <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger</button>
-              <a class="fr-btn fr-btn--sm fr-btn--tertiary" id="btn-open" href="https://dbdiagram.io/d" target="_blank"
-                rel="noopener" title="Copie le DBML puis ouvre dbdiagram.io dans un nouvel onglet">Copier et ouvrir dbdiagram.io</a>
-              <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-save-line" id="btn-save" type="button" hidden>Enregistrer dans la ligne</button>
-            </div>
-            <div id="dbml-body"></div>
-          </div>
-
-          <div class="tabs__panel" id="tabpanel-tables" role="tabpanel" aria-labelledby="tab-tables" tabindex="0" hidden>
-            <div class="fr-input-group tables__filter">
-              <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
-              <div class="fr-input-wrap fr-icon-search-line">
-                <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et les colonnes" autocomplete="off">
-              </div>
-            </div>
-            <div id="tables-body"></div>
-          </div>
-
-          <div class="tabs__panel tabs__panel--flush" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema" tabindex="0" hidden>
-            <div class="toolbar toolbar--diagram">
-              <div class="zoom" role="group" aria-label="Zoom du schéma">
-                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
-                <output class="zoom__value" id="zoom-value" aria-live="off">100 %</output>
-                <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
-              </div>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-relayout" type="button"
-                title="Recalcule la disposition automatique et oublie les positions mémorisées">Réorganiser</button>
-              <fieldset class="fr-segmented fr-segmented--sm fr-segmented--no-legend toolbar__detail">
-                <legend class="fr-segmented__legend">Détail affiché</legend>
-                <div class="fr-segmented__elements">
-                  <div class="fr-segmented__element">
-                    <input value="all" type="radio" id="detail-all" name="detail" checked>
-                    <label class="fr-label" for="detail-all">Colonnes</label>
-                  </div>
-                  <div class="fr-segmented__element">
-                    <input value="keys" type="radio" id="detail-keys" name="detail">
-                    <label class="fr-label" for="detail-keys">Relations</label>
-                  </div>
-                  <div class="fr-segmented__element">
-                    <input value="tables" type="radio" id="detail-tables" name="detail">
-                    <label class="fr-label" for="detail-tables">Tables</label>
-                  </div>
-                </div>
-              </fieldset>
-              <div class="toolbar__find">
-                <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
-                <div class="fr-input-wrap fr-icon-focus-3-line">
-                  <input class="fr-input" id="find-table" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
-                </div>
-                <datalist id="find-table-list"></datalist>
-              </div>
-              <div class="toolbar__exports" role="group" aria-label="Télécharger le schéma">
-                <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button" title="Télécharger le schéma en SVG">SVG</button>
-                <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en PNG">PNG</button>
-              </div>
-            </div>
-            <div class="diagram" id="schema-body"></div>
-          </div>
-
-          <div class="tabs__panel" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" tabindex="0" hidden>
-            <div id="analysis-body"></div>
-          </div>
-        </div>
-      </section>
+    <div class="pages">
+      <ul class="fr-tabs__list pages__list" role="tablist" aria-label="Pages du widget">
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-git-merge-line" id="tab-schema" type="button"
+          role="tab" aria-selected="true" aria-controls="tabpanel-schema" tabindex="0">Schéma</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-table-line" id="tab-tables" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lightbulb-line" id="tab-analysis" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="pages__count" id="analysis-count" hidden></span></button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-code-s-slash-line" id="tab-dbml" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-dbml" tabindex="-1">DBML</button></li>
+      </ul>
     </div>
 
-    <footer class="app__footer">
-      <p>Conversion fondée sur la formule du tableau « Conversion-DBML » et sur
-        <a class="fr-link fr-link--sm" href="https://github.com/arnaud-robin/grist-db-parser" target="_blank" rel="noopener">grist-db-parser d'Arnaud Robin</a>.</p>
-    </footer>
+    <!-- Schéma -->
+    <section class="page" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema">
+      <div class="toolbar" role="toolbar" aria-label="Outils du schéma">
+        <div class="toolbar__group">
+          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
+          <output class="toolbar__zoom" id="zoom-value">100 %</output>
+          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" id="btn-relayout" type="button"
+            title="Recalcule la disposition automatique et oublie les positions mémorisées">Réorganiser</button>
+        </div>
+        <span class="toolbar__sep" aria-hidden="true"></span>
+        <div class="toolbar__group">
+          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+            <legend class="fr-segmented__legend">Détail affiché</legend>
+            <div class="fr-segmented__elements">
+              <div class="fr-segmented__element"><input value="all" type="radio" id="detail-all" name="detail" checked><label class="fr-label" for="detail-all">Colonnes</label></div>
+              <div class="fr-segmented__element"><input value="keys" type="radio" id="detail-keys" name="detail"><label class="fr-label" for="detail-keys">Relations</label></div>
+              <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
+            </div>
+          </fieldset>
+          <button class="fr-btn fr-btn--tertiary fr-icon-road-map-line toolbar__toggle" id="btn-minimap" type="button" aria-pressed="true" title="Afficher ou masquer la mini-carte">Mini-carte</button>
+          <div class="fr-input-wrap fr-icon-focus-3-line toolbar__find">
+            <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
+            <input class="fr-input" id="find-table" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
+            <datalist id="find-table-list"></datalist>
+          </div>
+        </div>
+        <div class="toolbar__group toolbar__end">
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-svg" type="button" title="Télécharger le schéma en SVG">SVG</button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en PNG">PNG</button>
+        </div>
+      </div>
+      <div class="page__body page__body--flush diagram" id="schema-body"></div>
+    </section>
+
+    <!-- Tables -->
+    <section class="page" id="tabpanel-tables" role="tabpanel" aria-labelledby="tab-tables" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils des tables">
+        <div class="toolbar__group">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__filter">
+            <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
+            <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et les colonnes" autocomplete="off">
+          </div>
+          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+            <legend class="fr-segmented__legend">Colonnes affichées</legend>
+            <div class="fr-segmented__elements">
+              <div class="fr-segmented__element"><input value="all" type="radio" id="cols-all" name="cols" checked><label class="fr-label" for="cols-all">Toutes les colonnes</label></div>
+              <div class="fr-segmented__element"><input value="refs" type="radio" id="cols-refs" name="cols"><label class="fr-label" for="cols-refs">Relations</label></div>
+              <div class="fr-segmented__element"><input value="formulas" type="radio" id="cols-formulas" name="cols"><label class="fr-label" for="cols-formulas">Formules</label></div>
+            </div>
+          </fieldset>
+        </div>
+        <div class="toolbar__group toolbar__end">
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-csv" type="button">Liste des colonnes (CSV)</button>
+        </div>
+      </div>
+      <div class="page__body" id="tables-body"></div>
+    </section>
+
+    <!-- Analyse -->
+    <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
+        <div class="toolbar__group">
+          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+            <legend class="fr-segmented__legend">Points affichés</legend>
+            <div class="fr-segmented__elements">
+              <div class="fr-segmented__element"><input value="all" type="radio" id="level-all" name="level" checked><label class="fr-label" for="level-all" id="level-all-label">Tout</label></div>
+              <div class="fr-segmented__element"><input value="error" type="radio" id="level-error" name="level"><label class="fr-label fr-icon-error-warning-line" for="level-error" id="level-error-label">À corriger</label></div>
+              <div class="fr-segmented__element"><input value="info" type="radio" id="level-info" name="level"><label class="fr-label fr-icon-information-line" for="level-info" id="level-info-label">Pour information</label></div>
+            </div>
+          </fieldset>
+        </div>
+        <div class="toolbar__group toolbar__end">
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-clipboard-line" id="btn-report" type="button">Copier le rapport</button>
+        </div>
+      </div>
+      <div class="page__body" id="analysis-body"></div>
+    </section>
+
+    <!-- DBML -->
+    <section class="page" id="tabpanel-dbml" role="tabpanel" aria-labelledby="tab-dbml" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Outils du DBML">
+        <div class="toolbar__group">
+          <button class="fr-btn fr-btn--icon-left fr-icon-clipboard-line" id="btn-copy" type="button">Copier</button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-download-line" id="btn-download" type="button">Télécharger .dbml</button>
+          <button class="fr-btn fr-btn--secondary fr-btn--icon-left fr-icon-save-line" id="btn-save" type="button" hidden>Enregistrer dans la ligne</button>
+        </div>
+        <span class="toolbar__sep" aria-hidden="true"></span>
+        <div class="toolbar__group">
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-align-left toolbar__toggle" id="btn-wrap" type="button" aria-pressed="false">Retour à la ligne</button>
+        </div>
+      </div>
+      <div class="page__body" id="dbml-body"></div>
+    </section>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

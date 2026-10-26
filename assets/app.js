@@ -1,46 +1,44 @@
 import {
-  convertAll, analyze, computeStats, schemaFromMetadata,
-} from './converter.js?v=1.2.1';
-import { EXAMPLE_CODE } from './example.js?v=1.2.1';
-import { ErdViewer } from './erd.js?v=1.2.1';
+  convertAll, analyzeDocument, computeStats, schemaFromMetadata,
+} from './converter.js?v=2.0.0';
+import { ErdViewer } from './erd.js?v=2.0.0';
 
-const MAX_SAVED_CODE = 200_000;
-const DIFF_CODES = new Set(['lost-relation', 'phantom-column', 'phantom-table', 'missing-column',
-  'missing-table', 'wrong-type', 'type-leak', 'bool', 'datetime']);
+// Le widget lit toujours la structure du document où il est installé et produit
+// la conversion corrigée (relations et types fidèles au document).
 
 const gristApi = window.grist;
 const inGrist = Boolean(gristApi) && window.self !== window.top;
 
 const $ = (id) => document.getElementById(id);
 const els = {};
-for (const id of ['standalone-notice', 'source-doc', 'source-code', 'panel-doc', 'panel-code', 'doc-status', 'doc-alert',
-  'btn-refresh', 'btn-edit-code', 'code-input', 'row-info', 'btn-example', 'btn-clear', 'strict-toggle', 'summary',
-  'btn-copy', 'btn-download', 'btn-open', 'btn-save', 'dbml-body', 'filter-input', 'tables-body', 'schema-body',
-  'btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'zoom-value', 'btn-svg', 'btn-png', 'btn-relayout', 'find-table',
-  'find-table-list', 'detail-all', 'detail-keys', 'detail-tables', 'analysis-body', 'analysis-count',
-  'toast', 'live']) {
+for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
+  'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
+  'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'btn-png', 'schema-body',
+  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
+  'level-all', 'level-error', 'level-info', 'level-all-label', 'level-error-label', 'level-info-label', 'btn-report', 'analysis-body',
+  'btn-copy', 'btn-download', 'btn-save', 'btn-wrap', 'dbml-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['dbml', 'tables', 'schema', 'analysis'];
+const tabs = ['schema', 'tables', 'analysis', 'dbml'];
 
 const state = {
-  source: inGrist ? 'doc' : 'code',
-  strict: true,
-  code: '',
   schema: null,
   schemaAt: null,
   schemaError: null,
   schemaLoading: false,
-  result: null,
+  out: null, // { tables, dbml }
   findings: [],
-  tab: 'dbml',
+  tab: 'schema',
   record: null,
   mappings: null,
   filter: '',
+  cols: 'all',
+  level: 'all',
+  wrap: false,
+  minimap: true,
   diagramKey: null,
   diagram: { detail: 'all', positions: null }, // mémorisé dans les options du widget
   lines: { table: new Map(), column: new Map() },
-  optionsApplied: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -54,11 +52,6 @@ const plural = (n, one, many) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : 
 function debounce(fn, ms) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
-
-function shown() {
-  if (!state.result) return null;
-  return state.strict ? state.result.strict : state.result.corrected;
 }
 
 let toastTimer;
@@ -90,7 +83,7 @@ async function copyText(text) {
 }
 
 function downloadFile(name, content, type) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
+  const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
@@ -100,9 +93,11 @@ function downloadFile(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function fileBaseName() {
-  const first = shown()?.tables?.[0]?.name;
-  return state.source === 'doc' ? 'schema-document' : first ? `schema-${first.toLowerCase()}` : 'schema';
+function buttonFeedback(btn, label) {
+  const original = btn.dataset.label || btn.textContent;
+  btn.dataset.label = original;
+  btn.textContent = label;
+  setTimeout(() => { btn.textContent = original; }, 2000);
 }
 
 // ---------------------------------------------------------------------------
@@ -113,40 +108,29 @@ const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: 
 function syncTheme() {
   const appearance = document.documentElement.getAttribute('data-grist-appearance');
   const dark = appearance ? appearance === 'dark' : Boolean(darkQuery && darkQuery.matches);
-  const theme = dark ? 'dark' : 'light';
-  if (document.documentElement.getAttribute('data-fr-theme') !== theme) {
-    document.documentElement.setAttribute('data-fr-theme', theme);
-    if (state.tab === 'schema') renderDiagram();
-  }
+  document.documentElement.setAttribute('data-fr-theme', dark ? 'dark' : 'light');
 }
 new MutationObserver(syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-grist-appearance'] });
 darkQuery?.addEventListener?.('change', syncTheme);
 
 // ---------------------------------------------------------------------------
-// Calcul
+// Lecture de la structure et calcul
 // ---------------------------------------------------------------------------
 
 function recompute() {
-  let result = null;
-  if (state.source === 'doc') {
-    result = state.schema ? convertAll({ schema: state.schema }) : null;
-  } else if (state.code.trim()) {
-    result = convertAll({ code: state.code });
-  }
-  state.result = result;
-  state.findings = result ? analyze(result, state.strict ? 'strict' : 'corrected') : [];
+  state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
+  state.findings = state.out ? analyzeDocument(state.out) : [];
   render();
-  const out = shown();
-  if (out && !(state.strict && result.strict.error)) {
-    const s = computeStats(out.tables);
-    announce(`DBML mis à jour : ${plural(s.tables, 'table', 'tables')}, ${plural(s.relations, 'relation', 'relations')}.`);
+  if (state.out) {
+    const s = computeStats(state.out.tables);
+    announce(`Structure mise à jour : ${plural(s.tables, 'table', 'tables')}, ${plural(s.relations, 'relation', 'relations')}.`);
   }
 }
 
-async function loadSchema() {
+async function loadSchema({ manual = false } = {}) {
   if (!inGrist || state.schemaLoading) return;
   state.schemaLoading = true;
-  renderSource();
+  renderHeader();
   try {
     const [tables, columns] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
@@ -156,15 +140,14 @@ async function loadSchema() {
     state.schemaError = null;
     state.schemaAt = new Date();
   } catch (err) {
-    state.schema = null;
     state.schemaError = err;
   } finally {
     state.schemaLoading = false;
   }
-  if (state.source === 'doc') recompute();
-  else renderSource();
+  recompute();
+  if (manual && !state.schemaError) toast('Structure du document relue.', 'info');
 }
-const loadSchemaSoon = debounce(loadSchema, 1200);
+const loadSchemaSoon = debounce(() => loadSchema(), 1200);
 
 // ---------------------------------------------------------------------------
 // Options du widget (enregistrées dans le document Grist)
@@ -174,29 +157,16 @@ function saveOption(key, value) {
   if (!inGrist) return;
   Promise.resolve(gristApi.setOption(key, value)).catch(() => { /* accès en lecture seule */ });
 }
-const saveCodeSoon = debounce(() => {
-  if (state.mappings?.code) return; // le code vient alors de la ligne sélectionnée
-  saveOption('code', state.code.length <= MAX_SAVED_CODE ? state.code : '');
-}, 1000);
+const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
 
 function applyOptions(options) {
-  if (!options) { state.optionsApplied = true; return; }
-  let changed = false;
-  if (typeof options.strict === 'boolean' && options.strict !== state.strict) { state.strict = options.strict; changed = true; }
-  if ((options.source === 'doc' || options.source === 'code') && options.source !== state.source) { state.source = options.source; changed = true; }
-  if (options.diagram && typeof options.diagram === 'object') {
-    const d = options.diagram;
+  const d = options?.diagram;
+  if (d && typeof d === 'object') {
     state.diagram = {
       detail: ['all', 'keys', 'tables'].includes(d.detail) ? d.detail : 'all',
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
     };
   }
-  if (typeof options.code === 'string' && !state.mappings?.code && options.code !== state.code && document.activeElement !== els['code-input']) {
-    state.code = options.code;
-    changed = true;
-  }
-  state.optionsApplied = true;
-  if (changed) recompute();
 }
 
 // ---------------------------------------------------------------------------
@@ -204,100 +174,50 @@ function applyOptions(options) {
 // ---------------------------------------------------------------------------
 
 function render() {
-  renderSource();
-  renderSummary();
+  renderHeader();
   renderDbml();
   renderTables();
   renderAnalysis();
   if (state.tab === 'schema') renderDiagram();
 }
 
-function renderSource() {
-  els['source-doc'].checked = state.source === 'doc';
-  els['source-code'].checked = state.source === 'code';
-  els['source-doc'].disabled = !inGrist;
-  els['standalone-notice'].hidden = inGrist;
-  els['panel-doc'].hidden = state.source !== 'doc';
-  els['panel-code'].hidden = state.source !== 'code';
-  els['strict-toggle'].checked = state.strict;
-  if (els['code-input'].value !== state.code) els['code-input'].value = state.code;
+function emptyState(html) {
+  return `<div class="empty">${html}</div>`;
+}
 
-  // Mode « Ce document »
-  if (state.schemaLoading && !state.schema) {
-    els['doc-status'].textContent = 'Lecture de la structure du document…';
-  } else if (state.schema) {
-    const n = state.result?.corrected?.tables?.filter((t) => t.kind === 'table').length
-      ?? [...state.schema.keys()].length;
-    const time = state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    els['doc-status'].innerHTML = `<strong>${esc(plural(n, 'table', 'tables'))}</strong> lue${n > 1 ? 's' : ''} à ${esc(time)}.`;
+function unavailableMessage() {
+  if (!inGrist) return emptyState('<p>Ce widget s\'utilise dans Grist : ajoutez-le comme widget personnalisé avec l\'accès « Accès complet au document ».</p>');
+  if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
+  return emptyState('<p>La structure du document n\'est pas disponible.</p>');
+}
+
+function renderHeader() {
+  if (state.out) {
+    const s = computeStats(state.out.tables);
+    els.stats.textContent = [
+      plural(s.tables, 'table', 'tables'), plural(s.columns, 'colonne', 'colonnes'),
+      plural(s.relations, 'relation', 'relations'), plural(s.formulas, 'formule', 'formules'),
+    ].join(' · ');
   } else {
-    els['doc-status'].textContent = '';
+    els.stats.textContent = '';
   }
-  if (state.schemaError) {
+  if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
+  else if (state.schemaAt) els['read-at'].textContent = `Structure lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  else els['read-at'].textContent = '';
+  els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
+
+  if (!inGrist) {
+    els['doc-alert'].innerHTML = `<div class="fr-alert fr-alert--info fr-alert--sm"><p>Ouvrez ce widget dans un document Grist : il lit directement la structure du document où il est installé.</p></div>`;
+  } else if (state.schemaError) {
     els['doc-alert'].innerHTML = `
       <div class="fr-alert fr-alert--warning fr-alert--sm">
-        <p><strong>Accès complet requis.</strong> Pour lire la structure, le widget doit avoir l'accès
-        « Accès complet au document » (panneau de droite, rubrique Widget). Vous pouvez aussi passer en
-        « Code collé ».</p>
+        <p><strong>Accès complet requis.</strong> Dans le panneau de droite de Grist, rubrique Widget, choisissez
+        « Accès complet au document », puis cliquez sur « Relire le document ».</p>
         <p class="fr-hint-text">Détail : ${esc(state.schemaError.message || state.schemaError)}</p>
       </div>`;
   } else {
     els['doc-alert'].innerHTML = '';
   }
-  els['btn-refresh'].disabled = state.schemaLoading;
-  els['btn-edit-code'].disabled = !state.result?.codeView || state.source !== 'doc';
-
-  // Mode « Code collé » lié à une colonne
-  const codeCol = state.mappings?.code;
-  if (codeCol && state.source === 'code') {
-    els['row-info'].hidden = false;
-    els['row-info'].textContent = state.record
-      ? `Code lu dans la colonne « ${codeCol} » de la ligne sélectionnée. Les modifications faites ici ne sont pas enregistrées dans la ligne.`
-      : `Sélectionnez une ligne pour lire le code de la colonne « ${codeCol} ».`;
-  } else {
-    els['row-info'].hidden = true;
-  }
-}
-
-function renderSummary() {
-  const out = shown();
-  if (!out || (state.strict && state.result.strict.error)) {
-    els.summary.innerHTML = '';
-    return;
-  }
-  const s = computeStats(out.tables);
-  const errors = state.findings.filter((f) => f.level === 'error').length;
-  const diffs = state.findings.filter((f) => DIFF_CODES.has(f.code)).length;
-  const tags = [
-    plural(s.tables, 'table', 'tables'),
-    plural(s.columns, 'colonne', 'colonnes'),
-    plural(s.relations, 'relation', 'relations'),
-    plural(s.formulas, 'formule', 'formules'),
-  ].map((t) => `<li><p class="fr-tag fr-tag--sm">${esc(t)}</p></li>`).join('');
-  const mode = state.strict
-    ? '<p class="fr-badge fr-badge--sm fr-badge--info fr-badge--no-icon">Formule d\'origine</p>'
-    : '<p class="fr-badge fr-badge--sm fr-badge--success fr-badge--no-icon">Conversion corrigée</p>';
-  let note = '';
-  if (errors) {
-    note = `<button class="fr-link fr-link--sm fr-icon-error-warning-line fr-link--icon-left" type="button" data-goto-tab="analysis">${esc(plural(errors, 'erreur bloque', 'erreurs bloquent'))} l'import</button>`;
-  } else if (state.strict && diffs) {
-    note = `<button class="fr-link fr-link--sm fr-icon-warning-line fr-link--icon-left" type="button" data-goto-tab="analysis">${esc(plural(diffs, 'écart', 'écarts'))} avec la conversion corrigée</button>`;
-  }
-  els.summary.innerHTML = `<ul class="fr-tags-group fr-tags-group--sm">${tags}</ul>${mode}${note}`;
-}
-
-function emptyState(html) {
-  return `<div class="empty">${html}</div>`;
-}
-
-function sourceEmptyMessage() {
-  if (state.source === 'doc') {
-    if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
-    return emptyState('<p>La structure du document n\'est pas disponible. Vérifiez l\'accès du widget ou passez en « Code collé ».</p>');
-  }
-  return emptyState(`
-    <p>Collez le contenu de la Vue du code de votre document pour obtenir son schéma en DBML.</p>
-    <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-file-text-line" type="button" data-action="example">Charger l'exemple</button>`);
 }
 
 function highlightType(rest) {
@@ -329,8 +249,7 @@ function highlightDbml(dbml) {
       const body = line.slice(2);
       const sp = body.indexOf(' ');
       const name = sp < 0 ? body : body.slice(0, sp);
-      const key = `${current}.${name}`;
-      if (!column.has(key)) column.set(key, n);
+      if (!column.has(`${current}.${name}`)) column.set(`${current}.${name}`, n);
       inner = `  <span class="t-col">${esc(name)}</span>${sp < 0 ? '' : ' ' + highlightType(body.slice(sp + 1))}`;
     } else {
       inner = esc(line);
@@ -341,42 +260,27 @@ function highlightDbml(dbml) {
 }
 
 function renderDbml() {
-  const out = shown();
-  const failing = state.strict && state.result?.strict.error;
-  const usable = Boolean(out && out.dbml && !failing);
-  for (const id of ['btn-copy', 'btn-download']) els[id].disabled = !usable;
-  els['btn-open'].setAttribute('aria-disabled', String(!usable));
-  els['btn-open'].classList.toggle('is-disabled', !usable);
-  if (!usable) els['btn-open'].removeAttribute('href'); else els['btn-open'].href = 'https://dbdiagram.io/d';
+  const out = state.out;
+  const usable = Boolean(out && out.dbml);
+  els['btn-copy'].disabled = !usable;
+  els['btn-download'].disabled = !usable;
   els['btn-save'].hidden = !(inGrist && state.mappings?.dbml);
   els['btn-save'].disabled = !usable || !state.record;
   if (state.mappings?.dbml) els['btn-save'].textContent = `Enregistrer dans « ${state.mappings.dbml} »`;
-
-  if (!state.result) {
+  els['btn-wrap'].setAttribute('aria-pressed', String(state.wrap));
+  if (!out) {
     state.lines = { table: new Map(), column: new Map() };
-    els['dbml-body'].innerHTML = sourceEmptyMessage();
-    return;
-  }
-  if (failing) {
-    const e = state.result.strict.error;
-    state.lines = { table: new Map(), column: new Map() };
-    els['dbml-body'].innerHTML = `
-      <div class="fr-alert fr-alert--error">
-        <h3 class="fr-alert__title">La formule d'origine échoue sur ce code</h3>
-        <p>Elle lève « ${esc(e.message)} » à la ligne ${e.line} : une déclaration de colonne apparaît avant toute table.
-        Dans Grist, la cellule afficherait une erreur.</p>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-2w" type="button" data-action="corrected">Utiliser la conversion corrigée</button>
-      </div>`;
+    els['dbml-body'].innerHTML = unavailableMessage();
     return;
   }
   if (!out.dbml) {
     state.lines = { table: new Map(), column: new Map() };
-    els['dbml-body'].innerHTML = emptyState('<p>Aucune table détectée. Le texte collé doit provenir de la Vue du code (il commence par « import grist »).</p>');
+    els['dbml-body'].innerHTML = emptyState('<p>Ce document ne contient aucune table.</p>');
     return;
   }
   const { html, table, column } = highlightDbml(out.dbml);
   state.lines = { table, column };
-  els['dbml-body'].innerHTML = `<pre class="code" aria-label="Code DBML"><code>${html}</code></pre>`;
+  els['dbml-body'].innerHTML = `<pre class="code${state.wrap ? ' code--wrap' : ''}" aria-label="Code DBML"><code>${html}</code></pre>`;
 }
 
 function slug(name) {
@@ -384,11 +288,8 @@ function slug(name) {
 }
 
 function renderTables() {
-  const out = shown();
-  if (!out || (state.strict && state.result.strict.error)) {
-    els['tables-body'].innerHTML = state.result ? '' : sourceEmptyMessage();
-    return;
-  }
+  const out = state.out;
+  if (!out) { els['tables-body'].innerHTML = unavailableMessage(); return; }
   const q = state.filter.trim().toLowerCase();
   const incoming = new Map();
   for (const t of out.tables) {
@@ -400,13 +301,17 @@ function renderTables() {
   }
   const known = new Set(out.tables.map((t) => t.name));
   const matches = (s) => q && String(s).toLowerCase().includes(q);
-  const visible = out.tables.filter((t) => !q || matches(t.name) || t.columns.some((c) => matches(c.name)));
+  const keep = (c) => state.cols === 'all' || (state.cols === 'refs' ? Boolean(c.ref) : c.isFormula);
+  const visible = out.tables
+    .map((t) => ({ ...t, shownColumns: t.columns.filter(keep) }))
+    .filter((t) => (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name)))
+      && (state.cols === 'all' || t.shownColumns.length));
   if (!visible.length) {
-    els['tables-body'].innerHTML = emptyState(q ? `<p>Aucune table ni colonne ne contient « ${esc(state.filter)} ».</p>` : '<p>Aucune table.</p>');
+    els['tables-body'].innerHTML = emptyState(q ? `<p>Aucune table ni colonne ne contient « ${esc(state.filter)} ».</p>` : '<p>Aucune table ne correspond.</p>');
     return;
   }
   const cards = visible.map((t) => {
-    const rows = t.columns.map((c) => {
+    const rows = t.shownColumns.map((c) => {
       let rel = '';
       if (c.ref) {
         const label = c.ref.kind === '<>' ? 'plusieurs vers' : 'vers';
@@ -425,23 +330,23 @@ function renderTables() {
       ? `<p class="tbl__incoming">Référencée par ${refs.map((r) => `<a href="#${slug(r.table)}" data-goto-table="${esc(r.table)}">${esc(r.table)}.${esc(r.column)}</a>`).join(', ')}</p>`
       : '';
     const line = state.lines.table.get(t.name);
+    const pk = state.cols === 'all'
+      ? '<tr><th scope="row">id</th><td class="tbl__type"><code>integer</code> <span class="col-pk">clé primaire</span></td><td class="tbl__rel"></td></tr>'
+      : '';
     return `<article class="tbl" id="${slug(t.name)}">
       <header class="tbl__head">
         <h3 class="tbl__name">${esc(t.name)}</h3>
         ${t.kind === 'summary' ? '<p class="fr-tag fr-tag--sm">Synthèse</p>' : ''}
-        <span class="tbl__meta">${esc(plural(t.columns.length, 'colonne', 'colonnes'))}</span>
+        <span class="tbl__meta">${esc(plural(t.columns.length + 1, 'colonne', 'colonnes'))}</span>
         <span class="tbl__actions">
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" data-goto-schema="${esc(t.name)}">Schéma</button>
-          ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" type="button" data-goto-line="${line}">DBML</button>` : ''}
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(t.name)}">Schéma</button>
+          ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-code-s-slash-line" type="button" data-goto-line="${line}">DBML</button>` : ''}
         </span>
       </header>
       <table class="tbl__cols">
         <caption class="fr-sr-only">Colonnes de ${esc(t.name)}</caption>
         <thead class="fr-sr-only"><tr><th scope="col">Colonne</th><th scope="col">Type</th><th scope="col">Relation</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">id</th><td class="tbl__type"><code>integer</code> <span class="col-pk">clé primaire</span></td><td class="tbl__rel"></td></tr>
-          ${rows}
-        </tbody>
+        <tbody>${pk}${rows}</tbody>
       </table>
       ${inc}
     </article>`;
@@ -449,58 +354,74 @@ function renderTables() {
   els['tables-body'].innerHTML = `<div class="tables__list">${cards}</div>`;
 }
 
-const GROUPS = [
-  { level: 'error', title: 'À corriger avant l\'import', intro: 'Ces points font échouer l\'import dans dbdiagram.io et les autres outils DBML.' },
-  { level: 'warning', title: 'Points d\'attention', intro: 'Le DBML s\'importe, mais ne décrit pas fidèlement le document.' },
-  { level: 'fixed', title: 'Corrigé par rapport à la formule d\'origine', intro: 'La formule d\'origine produirait un résultat différent sur ces points.' },
-  { level: 'info', title: 'Pour information', intro: '' },
+function columnsCsv() {
+  const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const rows = [['Table', 'Colonne', 'Type DBML', 'Formule', 'Relation vers']];
+  for (const t of state.out.tables) {
+    rows.push([t.name, 'id', 'integer', 'non', '']);
+    for (const c of t.columns) rows.push([t.name, c.name, c.base, c.isFormula ? 'oui' : 'non', c.ref ? c.ref.table : '']);
+  }
+  return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
+}
+
+const CHECKS = [
+  { codes: ['unknown-ref'], label: 'Relations vers des tables existantes' },
+  { codes: ['bad-table-name', 'bad-column-name'], label: 'Noms de tables et de colonnes valides en DBML' },
+  { codes: ['duplicate-column'], label: 'Aucune colonne en double' },
 ];
 
 function renderAnalysis() {
   const count = els['analysis-count'];
-  if (!state.result) {
+  if (!state.out) {
     count.hidden = true;
-    els['analysis-body'].innerHTML = sourceEmptyMessage();
+    els['analysis-body'].innerHTML = unavailableMessage();
     return;
   }
-  const findings = state.findings.map((f) => (!state.strict && DIFF_CODES.has(f.code) ? { ...f, level: 'fixed' } : f));
-  const errors = findings.filter((f) => f.level === 'error').length;
-  const warnings = findings.filter((f) => f.level === 'warning').length;
-  count.hidden = !(errors || warnings);
-  count.textContent = String(errors || warnings);
-  count.className = 'tabs__count' + (errors ? ' tabs__count--error' : '');
-  count.setAttribute('aria-label', errors ? plural(errors, 'erreur', 'erreurs') : plural(warnings, 'point d\'attention', 'points d\'attention'));
+  const errors = state.findings.filter((f) => f.level === 'error');
+  const infos = state.findings.filter((f) => f.level !== 'error');
+  count.hidden = !errors.length;
+  count.textContent = String(errors.length);
+  count.setAttribute('aria-label', plural(errors.length, 'point à corriger', 'points à corriger'));
+  els['level-all-label'].textContent = `Tout (${state.findings.length})`;
+  els['level-error-label'].textContent = `À corriger (${errors.length})`;
+  els['level-info-label'].textContent = `Pour information (${infos.length})`;
 
-  if (!findings.length) {
-    els['analysis-body'].innerHTML = `<div class="fr-alert fr-alert--success fr-alert--sm"><p>Aucun problème détecté : le DBML s'importe tel quel et correspond à la structure du document.</p></div>`;
-    return;
+  const item = (f) => {
+    const line = f.column ? state.lines.column.get(`${f.table}.${f.column}`) : f.table ? state.lines.table.get(f.table) : null;
+    const actions = [];
+    if (f.table && state.out.tables.some((t) => t.name === f.table)) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-schema="${esc(f.table)}">Voir sur le schéma</button>`);
+    if (f.tables?.length) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-schema="${esc(f.tables[0])}">Voir sur le schéma</button>`);
+    if (line) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-line="${line}">Voir dans le DBML</button>`);
+    return `<div class="fr-alert fr-alert--${f.level === 'error' ? 'error' : 'info'} fr-alert--sm finding">
+      <p class="finding__title">${esc(f.title)}</p>
+      <p>${esc(f.detail)}</p>
+      ${actions.length ? `<p class="finding__actions">${actions.join('')}</p>` : ''}
+    </div>`;
+  };
+  const show = (lvl) => state.level === 'all' || state.level === lvl;
+  const parts = [];
+  if (show('error')) {
+    parts.push(errors.length
+      ? `<section class="findings__group"><h3>À corriger avant l'import (${errors.length})</h3><p>Ces points font échouer l'import dans dbdiagram.io et les autres outils DBML.</p><div class="findings__list">${errors.map(item).join('')}</div></section>`
+      : '<div class="fr-alert fr-alert--success fr-alert--sm"><p class="finding__title">Le DBML s\'importe sans erreur</p><p>Toutes les relations pointent vers une table existante et tous les noms sont valides.</p></div>');
   }
-  const html = GROUPS.map((g) => {
-    const items = findings.filter((f) => f.level === g.level);
-    if (!items.length) return '';
-    const alertLevel = g.level === 'fixed' ? 'success' : g.level;
-    const list = items.map((f) => {
-      const actions = [];
-      const line = f.column ? state.lines.column.get(`${f.table}.${f.column}`) : f.table ? state.lines.table.get(f.table) : null;
-      if (line) actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-line="${line}">Voir dans le DBML</button>`);
-      if (f.line && state.source === 'code') actions.push(`<button class="fr-link fr-link--sm" type="button" data-goto-code="${f.line}">Ligne ${f.line} du code</button>`);
-      return `<div class="fr-alert fr-alert--${alertLevel} fr-alert--sm finding">
-        <p class="finding__title">${esc(f.title)}</p>
-        <p>${esc(f.detail)}</p>
-        ${actions.length ? `<p class="finding__actions">${actions.join('')}</p>` : ''}
-      </div>`;
-    }).join('');
-    return `<section class="findings__group" aria-label="${esc(g.title)}">
-      <h3>${esc(g.title)} (${items.length})</h3>
-      ${g.intro ? `<p>${esc(g.intro)}</p>` : ''}
-      <div class="findings__list">${list}</div>
-    </section>`;
-  }).join('');
-  const hint = state.strict && findings.some((f) => DIFF_CODES.has(f.code))
-    ? `<div class="fr-callout fr-callout--blue-france fr-mb-0"><p class="fr-callout__text fr-text--md">Ces écarts viennent de la formule d'origine. Désactivez « Reproduire exactement la formule d'origine » pour les corriger.</p>
-       <button class="fr-btn fr-btn--sm" type="button" data-action="corrected">Utiliser la conversion corrigée</button></div>`
-    : '';
-  els['analysis-body'].innerHTML = `<div class="findings">${hint}${html}</div>`;
+  if (show('info') && infos.length) {
+    parts.push(`<section class="findings__group"><h3>Pour information (${infos.length})</h3><div class="findings__list">${infos.map(item).join('')}</div></section>`);
+  }
+  if (!parts.length) parts.push(emptyState('<p>Rien à afficher pour ce filtre.</p>'));
+  const failed = new Set(errors.map((f) => f.code));
+  const checks = CHECKS.map((c) => `<li class="${c.codes.some((k) => failed.has(k)) ? 'is-ko' : ''}">${esc(c.label)}</li>`).join('');
+  els['analysis-body'].innerHTML = `<div class="analysis">
+    <div class="findings">${parts.join('')}</div>
+    <aside class="checks" aria-label="Contrôles effectués"><h3>Contrôles effectués</h3><ul>${checks}</ul></aside>
+  </div>`;
+}
+
+function reportText() {
+  const lines = ['Analyse de la structure du document (widget Structure en DBML)', ''];
+  if (!state.findings.some((f) => f.level === 'error')) lines.push('Le DBML s\'importe sans erreur.', '');
+  for (const f of state.findings) lines.push(`- [${f.level === 'error' ? 'À corriger' : 'Info'}] ${f.title} : ${f.detail}`);
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -510,9 +431,7 @@ function renderAnalysis() {
 let viewer = null;
 let diagramReady = Promise.resolve();
 const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'btn-png', 'find-table',
-  'detail-all', 'detail-keys', 'detail-tables'];
-
-const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
+  'detail-all', 'detail-keys', 'detail-tables', 'btn-minimap'];
 
 function ensureViewer() {
   if (viewer) return viewer;
@@ -527,27 +446,29 @@ function ensureViewer() {
   return viewer;
 }
 
-function updateZoomControls(enabled) {
+function updateDiagramControls(enabled) {
   for (const id of DIAGRAM_CONTROLS) els[id].disabled = !enabled;
 }
 
-async function renderDiagram() {
-  const out = shown();
+function renderDiagram() {
+  const out = state.out;
   const body = els['schema-body'];
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
-  if (!out || (state.strict && state.result.strict.error) || !out.tables.length) {
+  els['btn-minimap'].setAttribute('aria-pressed', String(state.minimap));
+  body.classList.toggle('no-minimap', !state.minimap);
+  if (!out || !out.tables.length) {
     viewer?.destroy();
     viewer = null;
     state.diagramKey = null;
-    body.innerHTML = state.result ? emptyState('<p>Aucune table à dessiner.</p>') : sourceEmptyMessage();
-    updateZoomControls(false);
-    return;
+    body.innerHTML = out ? emptyState('<p>Ce document ne contient aucune table.</p>') : unavailableMessage();
+    updateDiagramControls(false);
+    return Promise.resolve();
   }
   const key = JSON.stringify(out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]));
   if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
   const v = ensureViewer();
-  updateZoomControls(true);
+  updateDiagramControls(true);
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail })
     .catch((err) => {
@@ -557,7 +478,6 @@ async function renderDiagram() {
   return diagramReady;
 }
 
-/** Ouvre l'onglet Schéma centré sur une table. */
 async function showOnDiagram(name) {
   selectTab('schema');
   await renderDiagram();
@@ -572,11 +492,10 @@ function selectTab(name, { focus = false } = {}) {
   state.tab = name;
   for (const t of tabs) {
     const tab = $(`tab-${t}`);
-    const panel = $(`tabpanel-${t}`);
     const active = t === name;
     tab.setAttribute('aria-selected', String(active));
     tab.tabIndex = active ? 0 : -1;
-    panel.hidden = !active;
+    $(`tabpanel-${t}`).hidden = !active;
   }
   if (focus) $(`tab-${name}`).focus();
   if (name === 'schema') renderDiagram();
@@ -596,9 +515,11 @@ function gotoDbmlLine(line) {
 }
 
 function gotoTable(name) {
-  if (state.filter && !name.toLowerCase().includes(state.filter.toLowerCase())) {
+  if (state.filter || state.cols !== 'all') {
     state.filter = '';
     els['filter-input'].value = '';
+    state.cols = 'all';
+    els['cols-all'].checked = true;
     renderTables();
   }
   selectTab('tables');
@@ -608,110 +529,56 @@ function gotoTable(name) {
   flash(el);
 }
 
-function gotoCodeLine(line) {
-  const ta = els['code-input'];
-  const lines = ta.value.split('\n');
-  let start = 0;
-  for (let i = 0; i < line - 1 && i < lines.length; i++) start += lines[i].length + 1;
-  const end = start + (lines[line - 1] || '').length;
-  ta.focus();
-  ta.setSelectionRange(start, end);
-  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 22;
-  ta.scrollTop = Math.max(0, (line - 4) * lh);
-}
-
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
-function setSource(source) {
-  if (source === state.source) return;
-  state.source = source;
-  saveOption('source', source);
-  recompute();
-  if (source === 'doc' && !state.schema && !state.schemaLoading) loadSchema();
-}
-
-function setStrict(strict) {
-  if (strict === state.strict) return;
-  state.strict = strict;
-  saveOption('strict', strict);
-  recompute();
-}
-
-function setCode(code, { save = true } = {}) {
-  state.code = code;
-  if (save) saveCodeSoon();
-  recompute();
-}
-
 async function saveToRow() {
   const col = state.mappings?.dbml;
-  const out = shown();
-  if (!col || !state.record || !out) return;
+  if (!col || !state.record || !state.out) return;
   try {
-    await gristApi.selectedTable.update({ id: state.record.id, fields: { [col]: out.dbml } });
+    await gristApi.selectedTable.update({ id: state.record.id, fields: { [col]: state.out.dbml } });
     toast(`DBML enregistré dans la colonne « ${col} ».`);
   } catch (err) {
     toast(`Enregistrement impossible dans « ${col} » : ${err.message || err}. Choisissez une colonne de données (pas une formule).`, 'error');
   }
 }
 
-function buttonFeedback(btn, label) {
-  const original = btn.dataset.label || btn.textContent;
-  btn.dataset.label = original;
-  btn.textContent = label;
-  btn.classList.replace('fr-icon-clipboard-line', 'fr-icon-check-line');
-  setTimeout(() => {
-    btn.textContent = original;
-    btn.classList.replace('fr-icon-check-line', 'fr-icon-clipboard-line');
-  }, 2000);
-}
-
 function bindEvents() {
-  for (const input of [els['source-doc'], els['source-code']]) {
-    input.addEventListener('change', () => { if (input.checked) setSource(input.value); });
-  }
-  els['strict-toggle'].addEventListener('change', () => setStrict(els['strict-toggle'].checked));
-  const onInput = debounce(() => setCode(els['code-input'].value), 200);
-  els['code-input'].addEventListener('input', onInput);
-  els['btn-example'].addEventListener('click', () => setCode(EXAMPLE_CODE));
-  els['btn-clear'].addEventListener('click', () => { setCode(''); els['code-input'].focus(); });
-  els['btn-refresh'].addEventListener('click', () => loadSchema());
-  els['btn-edit-code'].addEventListener('click', () => {
-    if (!state.result?.codeView) return;
-    state.code = state.result.codeView;
-    saveCodeSoon();
-    setSource('code');
-    els['code-input'].focus();
-    els['code-input'].setSelectionRange(0, 0);
-    toast('Vue du code reconstituée copiée dans « Code collé ».', 'info');
-  });
+  els['btn-refresh'].addEventListener('click', () => loadSchema({ manual: true }));
 
+  // DBML
   els['btn-copy'].addEventListener('click', async () => {
-    const out = shown();
-    if (!out) return;
-    if (await copyText(out.dbml)) buttonFeedback(els['btn-copy'], 'Copié');
+    if (!state.out) return;
+    if (await copyText(state.out.dbml)) buttonFeedback(els['btn-copy'], 'Copié');
     else toast('La copie a été refusée par le navigateur : utilisez « Télécharger ».', 'error');
   });
   els['btn-download'].addEventListener('click', () => {
-    const out = shown();
-    if (out) downloadFile(`${fileBaseName()}.dbml`, out.dbml, 'text/plain;charset=utf-8');
-  });
-  els['btn-open'].addEventListener('click', (ev) => {
-    const out = shown();
-    if (!out || els['btn-open'].classList.contains('is-disabled')) { ev.preventDefault(); return; }
-    copyText(out.dbml).then((ok) => {
-      toast(ok ? 'DBML copié : collez-le dans l\'éditeur de dbdiagram.io.' : 'Copie refusée : copiez le DBML manuellement.', ok ? 'success' : 'error');
-    });
+    if (state.out) downloadFile('schema-document.dbml', state.out.dbml, 'text/plain;charset=utf-8');
   });
   els['btn-save'].addEventListener('click', saveToRow);
+  els['btn-wrap'].addEventListener('click', () => { state.wrap = !state.wrap; renderDbml(); });
 
-  els['filter-input'].addEventListener('input', debounce(() => {
-    state.filter = els['filter-input'].value;
-    renderTables();
-  }, 120));
+  // Tables
+  els['filter-input'].addEventListener('input', debounce(() => { state.filter = els['filter-input'].value; renderTables(); }, 120));
+  for (const id of ['cols-all', 'cols-refs', 'cols-formulas']) {
+    els[id].addEventListener('change', () => { if (els[id].checked) { state.cols = els[id].value; renderTables(); } });
+  }
+  els['btn-csv'].addEventListener('click', () => {
+    if (state.out) downloadFile('colonnes-document.csv', columnsCsv(), 'text/csv;charset=utf-8');
+  });
 
+  // Analyse
+  for (const id of ['level-all', 'level-error', 'level-info']) {
+    els[id].addEventListener('change', () => { if (els[id].checked) { state.level = els[id].value; renderAnalysis(); } });
+  }
+  els['btn-report'].addEventListener('click', async () => {
+    if (!state.out) return;
+    if (await copyText(reportText())) buttonFeedback(els['btn-report'], 'Rapport copié');
+    else toast('La copie a été refusée par le navigateur.', 'error');
+  });
+
+  // Schéma
   els['btn-zoom-in'].addEventListener('click', () => viewer?.zoomAt(1.25));
   els['btn-zoom-out'].addEventListener('click', () => viewer?.zoomAt(0.8));
   els['btn-zoom-fit'].addEventListener('click', () => viewer?.fit());
@@ -730,6 +597,11 @@ function bindEvents() {
       saveDiagramSoon();
     });
   }
+  els['btn-minimap'].addEventListener('click', () => {
+    state.minimap = !state.minimap;
+    els['btn-minimap'].setAttribute('aria-pressed', String(state.minimap));
+    els['schema-body'].classList.toggle('no-minimap', !state.minimap);
+  });
   const findTable = () => {
     const name = els['find-table'].value.trim();
     if (!viewer || !name) return;
@@ -739,13 +611,12 @@ function bindEvents() {
   els['find-table'].addEventListener('change', findTable);
   els['find-table'].addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); findTable(); } });
   els['btn-svg'].addEventListener('click', () => {
-    if (viewer) downloadFile(`${fileBaseName()}.svg`, viewer.toSvg(), 'image/svg+xml');
+    if (viewer) downloadFile('schema-document.svg', viewer.toSvg(), 'image/svg+xml');
   });
   els['btn-png'].addEventListener('click', async () => {
     if (!viewer) return;
     try {
-      const blob = await viewer.toPng();
-      downloadFile(`${fileBaseName()}.png`, blob, 'image/png');
+      downloadFile('schema-document.png', await viewer.toPng(), 'image/png');
     } catch (err) {
       toast(`Export PNG impossible : ${err.message || err}. Utilisez le SVG.`, 'error');
     }
@@ -768,15 +639,12 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-code],[data-goto-tab],[data-goto-schema],[data-action]');
+    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema]');
     if (!target) return;
-    if (target.dataset.gotoSchema) { ev.preventDefault(); showOnDiagram(target.dataset.gotoSchema); }
-    else if (target.dataset.gotoLine) { ev.preventDefault(); gotoDbmlLine(Number(target.dataset.gotoLine)); }
-    else if (target.dataset.gotoTable) { ev.preventDefault(); gotoTable(target.dataset.gotoTable); }
-    else if (target.dataset.gotoCode) { ev.preventDefault(); gotoCodeLine(Number(target.dataset.gotoCode)); }
-    else if (target.dataset.gotoTab) { ev.preventDefault(); selectTab(target.dataset.gotoTab, { focus: true }); }
-    else if (target.dataset.action === 'example') setCode(EXAMPLE_CODE);
-    else if (target.dataset.action === 'corrected') setStrict(false);
+    ev.preventDefault();
+    if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
+    else if (target.dataset.gotoLine) gotoDbmlLine(Number(target.dataset.gotoLine));
+    else if (target.dataset.gotoTable) gotoTable(target.dataset.gotoTable);
   });
 }
 
@@ -790,13 +658,6 @@ function connectGrist() {
     allowSelectBy: false,
     columns: [
       {
-        name: 'code',
-        title: 'Code Grist (source)',
-        optional: true,
-        type: 'Text',
-        description: 'Colonne contenant le texte de la Vue du code. En mode « Code collé », le widget lit la ligne sélectionnée.',
-      },
-      {
         name: 'dbml',
         title: 'DBML (destination)',
         optional: true,
@@ -805,23 +666,21 @@ function connectGrist() {
       },
     ],
   });
-  gristApi.onOptions((options) => applyOptions(options));
+  gristApi.onOptions((options) => {
+    applyOptions(options);
+    if (state.tab === 'schema' && state.out && !viewer) renderDiagram();
+  });
   gristApi.onRecord((record, mappings) => {
     state.record = record || null;
     state.mappings = mappings || null;
-    const col = mappings?.code;
-    if (col && record && typeof record[col] === 'string' && record[col] !== state.code) {
-      state.code = record[col];
-      if (state.source === 'code') { recompute(); return; }
-    }
-    renderSource();
     renderDbml();
   });
-  gristApi.onRecords(() => { if (state.source === 'doc') loadSchemaSoon(); });
+  gristApi.onRecords(() => loadSchemaSoon());
   loadSchema();
 }
 
 bindEvents();
 syncTheme();
+selectTab('schema');
 if (inGrist) connectGrist();
 recompute();

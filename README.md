@@ -1,14 +1,15 @@
 # Structure en DBML — widget Grist
 
-Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui convertit la structure d'un document Grist en [DBML](https://dbml.dbdiagram.io/docs/) pour l'ouvrir dans [dbdiagram.io](https://dbdiagram.io/d) ou tout autre éditeur DBML.
+Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui montre la structure du document où il est installé et la convertit en [DBML](https://dbml.dbdiagram.io/docs/).
 
-Il reprend exactement le traitement du tableau Grist **Conversion-DBML** (formule Python basée sur [grist-db-parser](https://github.com/arnaud-robin/grist-db-parser) d'Arnaud Robin), et y ajoute :
+Quatre pages, en plein écran, avec leur barre d'outils juste sous les onglets :
 
-- **la lecture directe de la structure du document** : plus besoin de copier-coller la Vue du code ;
-- **une analyse** qui signale les défauts de la formule d'origine et ce qui empêcherait l'import ;
-- **une conversion corrigée**, en option ;
-- un aperçu des tables et un **schéma interactif façon dbdiagram.io** (voir ci-dessous), exportable en SVG et PNG ;
-- copie, téléchargement `.dbml`, ouverture de dbdiagram.io, enregistrement dans une colonne.
+- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », exports SVG et PNG ;
+- **Tables** : chaque table avec ses colonnes, ses types et ses liens, filtres (relations, formules), export CSV ;
+- **Analyse** : ce qui bloquerait l'import DBML (relation vers une table absente, nom invalide, colonne en double) et des informations utiles (tables isolées, formules sans type, tables de synthèse) ;
+- **DBML** : le code, à copier, télécharger ou enregistrer dans une colonne du document.
+
+La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
 
 ## Installation dans Grist
 
@@ -21,24 +22,15 @@ Il reprend exactement le traitement du tableau Grist **Conversion-DBML** (formul
 
 3. Accordez l'accès **« Accès complet au document »** (nécessaire pour lire la structure).
 
-Le widget mémorise ses réglages (mode strict, source, code collé) dans le document : comme pour tout widget, Grist affiche alors **Enregistrer** dans l'en-tête du widget ; cliquez dessus pour les conserver.
+Le widget mémorise la disposition du schéma dans le document : comme pour tout widget, Grist affiche alors **Enregistrer** dans l'en-tête du widget ; cliquez dessus pour la conserver.
 
-### Reproduire l'usage du tableau Conversion-DBML
+### Enregistrer le DBML dans une cellule
 
-Le widget peut lire et écrire des cellules, comme le document d'origine :
-
-| Colonne du widget | Rôle |
-|---|---|
-| **Code Grist (source)** | colonne contenant le texte de la Vue du code ; lue sur la ligne sélectionnée en mode « Code collé » |
-| **DBML (destination)** | colonne de **données** où le bouton « Enregistrer dans … » écrit le DBML |
-
-Les deux liaisons sont facultatives.
+Facultatif : liez la colonne **DBML (destination)** du widget à une colonne de **données** de la table ; le bouton « Enregistrer dans … » de la page DBML y écrit le code de la ligne sélectionnée.
 
 ## Utilisation
 
-- **Ce document** : la structure est lue dans les métadonnées (`_grist_Tables`, `_grist_Tables_column`) et la Vue du code est reconstituée à l'identique (même ordre des tables et des colonnes, mêmes types, tables de synthèse, références bidirectionnelles). « Modifier comme code » copie ce code dans l'onglet « Code collé ».
-- **Code collé** : collez le contenu de **Vue du code** (panneau de gauche de Grist).
-- **Reproduire exactement la formule d'origine** (activé par défaut) : la sortie est identique, octet par octet, à celle de la formule. Désactivé, la conversion corrige les défauts listés ci-dessous.
+La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`) à l'ouverture, puis à chaque modification de la table du widget ; **Relire le document** la relit à la demande (après l'ajout d'une colonne dans une autre table, par exemple).
 
 ## Schéma interactif
 
@@ -64,7 +56,7 @@ L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
 | ChartDB, drawDB, Liam ERD, Azimutt | AGPL-3.0, Apache-2.0, MIT | Applications complètes, non intégrables dans un widget |
 | **Rendu maison + ELK.js** | EPL-2.0 (ELK) | **Retenu** : sans compilation, rendu DSFR maîtrisé, disposition de qualité grâce aux ports |
 
-## Défauts de la formule d'origine (corrigés en option)
+## Défauts de l'ancienne formule, corrigés par le widget
 
 | Défaut | Exemple | Effet |
 |---|---|---|
@@ -76,7 +68,7 @@ L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
 | `class X:` dans un texte multiligne | chaîne contenant `class Brouillon:` | **table fantôme**, et les colonnes suivantes changent de table |
 | Décorateur orphelin | `@grist.formulaType` suivi d'une fonction exclue | type appliqué à la mauvaise colonne |
 
-L'onglet **Analyse** liste ces écarts pour le document courant, avec un lien vers la ligne du DBML et du code concernées, ainsi que les erreurs qui bloqueraient l'import (relation vers une table absente, nom invalide, colonne en double).
+Le moteur « strict », qui reproduit cette formule à l'identique, n'est plus proposé dans l'interface : il sert d'oracle aux tests (`tests/converter.test.mjs`).
 
 ## Développement
 

@@ -10,7 +10,7 @@
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=1.2.1';
+} from './erd-geometry.js?v=2.0.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -141,6 +141,7 @@ export class ErdViewer {
     this.bindEvents();
     this.resizeObserver = new ResizeObserver(() => this.updateMinimap());
     this.resizeObserver.observe(this.viewport);
+    this.watchFonts();
   }
 
   status(message) {
@@ -244,11 +245,9 @@ export class ErdViewer {
     this.nodes.clear();
     for (const el of this.nodeLayer.children) {
       const n = this.model.find((m) => m.id === el.dataset.id);
-      const rowY = new Map();
-      const headH = el.firstElementChild.offsetHeight;
-      for (const row of el.querySelectorAll('.erd-row[data-col]')) rowY.set(row.dataset.col, row.offsetTop + row.offsetHeight / 2);
-      this.nodes.set(n.id, { ...n, el, w: el.offsetWidth, h: el.offsetHeight, headY: headH / 2, rowY, x: 0, y: 0 });
+      this.nodes.set(n.id, { ...n, el, x: 0, y: 0 });
     }
+    this.measure();
     this.edgeLayer.innerHTML = this.edges.map((e, i) => `
       <g class="erd-edge${e.kind === '<>' ? ' erd-edge--many' : ''}" data-edge="${i}">
         <path class="erd-edge__hit"><title>${esc(`${e.source}.${e.column} → ${e.target}${e.kind === '<>' ? ' (plusieurs)' : ''}`)}</title></path>
@@ -256,6 +255,33 @@ export class ErdViewer {
         <path class="erd-edge__mark"/>
       </g>`).join('');
     this.edges.forEach((e, i) => { e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`); });
+  }
+
+  /** Mesure la taille de chaque table et la position de ses lignes ; vrai si quelque chose a changé. */
+  measure() {
+    let changed = false;
+    for (const n of this.nodes.values()) {
+      const el = n.el;
+      const rowY = new Map();
+      for (const row of el.querySelectorAll('.erd-row[data-col]')) rowY.set(row.dataset.col, row.offsetTop + row.offsetHeight / 2);
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const headY = el.firstElementChild.offsetHeight / 2;
+      if (w !== n.w || h !== n.h || headY !== n.headY || JSON.stringify([...rowY]) !== JSON.stringify([...(n.rowY || [])])) changed = true;
+      Object.assign(n, { w, h, headY, rowY });
+    }
+    return changed;
+  }
+
+  /** Les polices web (Marianne) changent la taille des tables : on re-mesure une fois chargées. */
+  watchFonts() {
+    if (!document.fonts?.ready) return;
+    document.fonts.ready.then(() => {
+      if (this.nodes.size && this.measure()) { this.drawEdges(); this.updateMinimap(); }
+    });
+    document.fonts.addEventListener?.('loadingdone', () => {
+      if (this.nodes.size && this.measure()) { this.drawEdges(); this.updateMinimap(); }
+    });
   }
 
   /** Ordonnée d'ancrage d'une colonne dans une table (centre de l'en-tête si elle n'est pas affichée). */
@@ -272,6 +298,9 @@ export class ErdViewer {
     const seq = ++this.layoutSeq;
     const list = [...this.nodes.values()];
     if (relayout) { this.positions.clear(); this.manual = false; }
+    if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
+    if (seq !== this.layoutSeq) return;
+    this.measure();
     const missing = list.filter((n) => !this.positions.has(n.id));
     const refit = relayout || missing.length > 0 || !this.fitted;
     if (missing.length) {
