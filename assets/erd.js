@@ -6,12 +6,13 @@
  * - Disposition automatique par ELK (Eclipse Layout Kernel, EPL-2.0), chargé à la demande dans un Web Worker.
  * - Glisser les tables, déplacer la vue, zoomer (molette, boutons, clavier), mini-carte.
  * - Survol ou sélection d'une table ou d'une colonne : ses relations sont mises en évidence.
- * - Export SVG et PNG.
+ * - Export SVG (et PNG pour le rapport Word).
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=2.1.0';
-import { readTheme } from './report.js?v=2.1.0';
+} from './erd-geometry.js?v=2.2.0';
+import { readTheme } from './report.js?v=2.2.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=2.2.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -172,7 +173,7 @@ export class ErdViewer {
       id: t.name,
       kind: t.kind === 'summary' ? 'summary' : 'table',
       ghost: false,
-      columns: t.columns.map((c) => ({ name: c.name, base: c.base, isFormula: c.isFormula, ref: c.ref })),
+      columns: t.columns.map((c) => ({ name: c.name, base: c.base, type: columnTypeLabel(c), isFormula: c.isFormula, ref: c.ref, label: c.label })),
     }));
     const edges = [];
     for (const t of tables) {
@@ -220,15 +221,15 @@ export class ErdViewer {
       const cols = this.visibleColumns(n);
       const hidden = n.columns.length - cols.length;
       const rows = n.ghost ? '' : [
-        this.detail === 'tables' ? '' : `<li class="erd-row erd-row--pk" data-col="id">${icon(ICON_KEY, 'erd-row__icon')}<span class="erd-row__name">id</span><span class="erd-row__type">integer</span></li>`,
+        this.detail === 'tables' ? '' : `<li class="erd-row erd-row--pk" data-col="id">${icon(ICON_KEY, 'erd-row__icon')}<span class="erd-row__name">id</span><span class="erd-row__type">${ID_TYPE_LABEL}</span></li>`,
         ...cols.map((c) => {
           const cls = ['erd-row', c.ref ? 'erd-row--fk' : '', c.isFormula ? 'erd-row--formula' : ''].filter(Boolean).join(' ');
           const lead = c.ref ? icon(ICON_LINK, 'erd-row__icon') : c.isFormula ? '<span class="erd-row__icon erd-row__fx" aria-hidden="true">ƒ</span>' : '<span class="erd-row__icon"></span>';
           const title = [
-            `${c.name} : ${c.base}${c.isFormula ? ' (formule)' : ''}`,
+            `${c.name}${c.label && c.label !== c.name ? ` (${c.label})` : ''} : ${c.type}${c.isFormula ? ', formule' : ''}`,
             c.ref ? `${c.ref.kind === '<>' ? 'plusieurs' : 'une'} ligne${c.ref.kind === '<>' ? 's' : ''} de ${c.ref.table}` : '',
           ].filter(Boolean).join(' – ');
-          return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.base === 'default' ? 'sans type' : c.base)}</span></li>`;
+          return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.type)}</span></li>`;
         }),
         hidden && this.detail === 'keys' ? `<li class="erd-row erd-row--more">${esc(plural(hidden, 'autre colonne', 'autres colonnes'))}</li>` : '',
       ].join('');
@@ -652,7 +653,6 @@ export class ErdViewer {
       ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
-    const mono = "ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace";
     const parts = [];
     parts.push(`<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + 2 * pad}" height="${b.h + 2 * pad}" fill="${t.surface}"/>`);
     for (const e of this.edges) {
@@ -679,7 +679,7 @@ export class ErdViewer {
         if (isPk || isFk) parts.push(`<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? c.key : c.head}"/>`);
         if (isFx && !isFk) parts.push(`<text x="17" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="${c.formula}">ƒ</text>`);
         parts.push(`<text x="30" y="${y}" dominant-baseline="central" font-family="${font}" font-size="13" font-weight="${isPk ? 700 : 400}" fill="${row.classList.contains('erd-row--more') ? c.mention : c.text}">${esc(name)}</text>`);
-        if (type) parts.push(`<text x="${n.w - 10}" y="${y}" dominant-baseline="central" text-anchor="end" font-family="${mono}" font-size="11.5" fill="${isFx ? c.formula : c.type}">${esc(type)}</text>`);
+        if (type) parts.push(`<text x="${n.w - 10}" y="${y}" dominant-baseline="central" text-anchor="end" font-family="${font}" font-size="11.5" fill="${isFx ? c.formula : c.type}">${esc(type)}</text>`);
       }
       parts.push('</g>');
     }

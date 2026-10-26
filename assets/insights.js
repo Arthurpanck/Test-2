@@ -1,8 +1,9 @@
 /**
- * Constats sur la structure du document, rédigés pour l'utilisateur : ce qui se passe,
- * pourquoi c'est important, comment corriger dans Grist. Source unique pour la page
- * Analyse et pour le rapport Word.
+ * Constats sur la structure et les droits d'accès du document, rédigés pour l'utilisateur :
+ * ce qui se passe, pourquoi c'est important, comment corriger dans Grist. Source unique
+ * pour la page Analyse et pour le rapport Word.
  */
+import { accessInsights } from './access.js?v=2.2.0';
 
 const DBML_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -14,16 +15,15 @@ export const SEVERITIES = {
 
 const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
 
-/** Libellé lisible d'un type DBML (« default » n'a pas de sens pour l'utilisateur). */
-export function typeLabel(base) {
-  return base === 'default' ? 'sans type' : base;
-}
+/** Domaines des constats. */
+export const AREAS = { structure: 'Structure', access: 'Droits d\'accès' };
 
 /**
  * @param {Array} tables  tables de la conversion ({ name, kind, columns: [{ name, base, isFormula, ref }] })
+ * @param {object} [access] buildAccess() : ajoute les constats sur les droits d'accès
  * @returns {{ verdict, counts, items, checks }}
  */
-export function buildInsights(tables) {
+export function buildInsights(tables, access = null) {
   const items = [];
   const names = new Set(tables.map((t) => t.name));
 
@@ -98,8 +98,8 @@ export function buildInsights(tables) {
     items.push({
       id: 'untyped',
       severity: 'check',
-      title: untyped.length > 1 ? `${untyped.length} colonnes de formule sans type` : 'Une colonne de formule sans type',
-      summary: 'Grist ne sait pas quel genre de valeur ces formules renvoient : le schéma les affiche « sans type ».',
+      title: untyped.length > 1 ? `${untyped.length} formules de type « Non défini »` : 'Une formule de type « Non défini »',
+      summary: 'Grist ne sait pas quel genre de valeur ces formules renvoient : leur type de colonne est resté « Non défini ».',
       why: 'Le DBML s\'importe, mais le schéma est moins précis pour les personnes qui le lisent.',
       steps: [
         'Sélectionnez la colonne dans sa table.',
@@ -107,6 +107,25 @@ export function buildInsights(tables) {
         REFRESH_STEP,
       ],
       targets: untyped,
+    });
+  }
+
+  // 4 bis. Colonnes vides (ni type ni formule), comme A, B, C d'une table créée par défaut.
+  const empty = [];
+  for (const t of tables) for (const c of t.columns) if (c.empty) empty.push({ table: t.name, column: c.name });
+  if (empty.length) {
+    items.push({
+      id: 'empty',
+      severity: 'check',
+      title: empty.length > 1 ? `${empty.length} colonnes vides, sans type` : 'Une colonne vide, sans type',
+      summary: 'Ces colonnes n\'ont encore ni type ni formule, comme les colonnes A, B, C d\'une table créée par défaut.',
+      why: 'Elles alourdissent le schéma sans rien décrire. Grist leur donnera un type à la première saisie, parfois pas celui attendu.',
+      steps: [
+        'Si la colonne ne sert pas : clic droit sur son en-tête ▸ « Supprimer la colonne ».',
+        'Sinon : renommez-la et choisissez son « Type de colonne » dans le panneau de droite.',
+        REFRESH_STEP,
+      ],
+      targets: empty,
     });
   }
 
@@ -143,6 +162,8 @@ export function buildInsights(tables) {
     });
   }
 
+  for (const it of items) it.area = 'structure';
+  items.push(...accessInsights(access));
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
   const counts = { blocking: 0, check: 0, info: 0 };
   for (const it of items) counts[it.severity] += 1;
@@ -154,15 +175,29 @@ export function buildInsights(tables) {
     { label: 'Aucune colonne en double', ok: !has('duplicate') },
     { label: 'Toutes les formules ont un type', ok: !has('untyped') },
   ];
+  if (access && access.hasRules) {
+    checks.push(
+      { label: 'Les attributs utilisateur trouvent leur table', ok: !has('acl-attribute') },
+      { label: 'Les règles visent des tables et colonnes existantes', ok: !has('acl-missing') && !has('acl-unknown-attribute') },
+    );
+    if (access.restrictsRead) checks.push({ label: 'Les données cachées ne sont pas lisibles par formule', ok: !has('acl-bypass') });
+  }
 
+  const blockingItems = items.filter((i) => i.severity === 'blocking');
+  const structureBlocking = blockingItems.some((i) => i.area === 'structure');
+  const accessBlocking = blockingItems.some((i) => i.area === 'access');
   let verdict;
   if (counts.blocking) {
-    const n = items.filter((i) => i.severity === 'blocking').reduce((s, i) => s + i.targets.length, 0);
-    verdict = { level: 'blocking', title: 'Le DBML ne s\'importera pas encore', text: `${n} élément${n > 1 ? 's' : ''} à corriger dans Grist avant l'import. Suivez les étapes ci-dessous.` };
+    const n = blockingItems.reduce((s, i) => s + Math.max(1, i.targets.length), 0);
+    const why = [
+      structureBlocking ? 'le DBML ne s\'importera pas tant qu\'ils ne sont pas corrigés' : '',
+      accessBlocking ? 'certaines règles d\'accès ne protègent pas comme prévu' : '',
+    ].filter(Boolean).join(', et ');
+    verdict = { level: 'blocking', title: `${n} point${n > 1 ? 's' : ''} à corriger`, text: `${why.charAt(0).toUpperCase()}${why.slice(1)}. Suivez les étapes ci-dessous.` };
   } else if (counts.check) {
-    verdict = { level: 'ready', title: 'Prêt pour l\'import', text: `Le DBML s'importe tel quel. ${counts.check} point${counts.check > 1 ? 's' : ''} à vérifier pour un schéma plus précis.` };
+    verdict = { level: 'ready', title: 'Aucun point bloquant', text: `Le DBML s'importe tel quel. ${counts.check} point${counts.check > 1 ? 's' : ''} à vérifier ci-dessous.` };
   } else {
-    verdict = { level: 'ready', title: 'Prêt pour l\'import', text: 'Le DBML s\'importe tel quel et décrit fidèlement le document.' };
+    verdict = { level: 'ready', title: 'Aucun point bloquant', text: 'Le DBML s\'importe tel quel et décrit fidèlement le document.' };
   }
   return { verdict, counts, items, checks };
 }

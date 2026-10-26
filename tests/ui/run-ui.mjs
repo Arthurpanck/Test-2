@@ -21,20 +21,33 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const cols = await frame.evaluate(() => window.__ready?.columns);
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Analyse,DBML,Rapport', `ordre des onglets (${tabs.join(', ')})`);
+  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Analyse,DBML,Accès,Rapport', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
   for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
   }
   check(await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count() === 0, 'pas de bouton dbdiagram.io');
   check((await frame.locator('#stats').textContent()).startsWith('8 tables'), `en-tête : ${await frame.locator('#stats').textContent()}`);
-  check((await frame.locator('#read-at').textContent()).startsWith('Structure lue à'), 'heure de lecture affichée');
+  check((await frame.locator('#read-at').textContent()).startsWith('Lue à'), 'heure de lecture affichée');
+  // En-tête sur la ligne des onglets
+  const tabBox = await frame.locator('#tab-schema').boundingBox();
+  const refreshBox = await frame.locator('#btn-refresh').boundingBox();
+  check(Math.abs((refreshBox.y + refreshBox.height / 2) - (tabBox.y + tabBox.height / 2)) < 8, 'bouton « Relire » sur la ligne des onglets');
+  check(await frame.locator('.app__header').count() === 0, 'plus de bandeau d\'en-tête séparé');
 
   // Barre d'outils juste sous les onglets
   const tabsBox = await frame.locator('.pages').boundingBox();
   const barBox = await frame.locator('#tabpanel-schema .toolbar').boundingBox();
   check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, 'barre d\'outils collée sous les onglets');
   check(barBox.height < 56, `barre d'outils du schéma sur une seule ligne (${Math.round(barBox.height)} px)`);
+  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, output, input:not([type=radio]), .fr-segmented__elements)')]
+    .filter((e) => e.offsetParent).map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { id: e.id || e.className, top: Math.round(r.top), h: Math.round(r.height), shadow: cs.boxShadow }; }));
+  const tops = new Set(ctrl.map((c) => c.top));
+  const heights = new Set(ctrl.map((c) => c.h));
+  check(tops.size === 1 && heights.size === 1, `contrôles alignés et de même hauteur (${[...heights].join('/')} px, ${tops.size} ligne)`);
+  check(ctrl.every((c) => c.shadow && c.shadow !== 'none'), 'tous les contrôles sont encadrés');
+  const types = await frame.locator('.erd-node[data-id="Agents"] .erd-row__type').allTextContents();
+  check(types.includes('Booléen') && types.includes('Date et Heure') && types.includes('Choix multiple') && !types.some((t) => /varchar|integer/.test(t)), `types en français sur le schéma (${types.join(', ')})`);
   check(await frame.locator('.erd-node').count() === 8, 'schéma : 8 tables');
   await shot(page, '01-schema.png');
 
@@ -63,7 +76,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await page.waitForTimeout(200);
   const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
   const csvText = await readFile(await csv.path(), 'utf8');
-  check(csvText.includes('Interventions;Echeance;integer;non;Dates_cles'), 'export CSV des colonnes');
+  check(csvText.includes('Interventions;Echeance;;Référence;integer;non;Dates_cles'), `export CSV des colonnes`);
   await shot(page, '03-tables.png');
   await frame.locator('.tbl').first().locator('[data-goto-schema]').click();
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'bouton Schéma d\'une carte');
@@ -71,12 +84,13 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('Prêt pour l\'import'), 'analyse : verdict « Prêt pour l\'import »');
-  check(await frame.locator('.insight').count() === 3, `analyse : 3 constats (${await frame.locator('.insight').count()})`);
+  check(analysis.includes('Aucun point bloquant'), 'analyse : verdict « Aucun point bloquant »');
+  check(await frame.locator('.insight').count() === 5, `analyse : 5 constats (${await frame.locator('.insight').count()})`);
+  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('colonnes vides'), 'analyse : droits d\'accès et colonnes vides');
   check(analysis.includes('Comment corriger dans Grist') && analysis.includes('Type de colonne'), 'analyse : étapes de correction');
   check(!/formula\[default\]|formule d'origine/.test(analysis), 'analyse : sans jargon ni référence à l\'ancienne formule');
   await frame.locator('label[for="level-check"]').click();
-  check(await frame.locator('.insight').count() === 2, 'filtre « À vérifier »');
+  check(await frame.locator('.insight').count() === 3, `filtre « À vérifier » (${await frame.locator('.insight').count()})`);
   await frame.locator('label[for="level-all"]').click();
   await shot(page, '04-analyse.png');
   await frame.locator('.insight .fr-tag', { hasText: 'Table1' }).first().click();
@@ -103,8 +117,82 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   await frame.locator('#tab-report').focus();
   await frame.locator('#tab-report').press('ArrowLeft');
-  check(await frame.locator('#tab-dbml').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
+  check(await frame.locator('#tab-access').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
+  await context.close();
+}
+
+// 1 bis. Document complexe : 22 tables, tous les types, règles d'accès
+{
+  const meta = await metadata('document-complexe.metadata.json');
+  const { context, page, frame, errors } = await h.openWidget({ meta, viewport: { width: 1280, height: 860 } });
+  const t0 = Date.now();
+  await h.waitDiagram(frame);
+  check(await frame.locator('.erd-node').count() === 22, `complexe : 22 tables sur le schéma (${await frame.locator('.erd-node').count()}, ${Date.now() - t0} ms)`);
+  const overlap = await frame.evaluate(() => {
+    const r = [...document.querySelectorAll('.erd-node')].map((n) => n.getBoundingClientRect());
+    let n = 0;
+    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) if (r[i].left < r[j].right && r[j].left < r[i].right && r[i].top < r[j].bottom && r[j].top < r[i].bottom) n++;
+    return n;
+  });
+  check(overlap === 0, `complexe : aucune table superposée (${overlap})`);
+  await frame.locator('#btn-zoom-fit').click();
+  await page.waitForTimeout(300);
+  await shot(page, '10-complexe-schema.png');
+
+  // Tables : détails
+  await frame.locator('#tab-tables').click();
+  await frame.locator('#btn-details').click();
+  const agents = await frame.locator('#tbl-Agents').textContent();
+  check(agents.includes('Formule d\'initialisation') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'), 'complexe : formule d\'initialisation et déclenchement');
+  check(agents.includes('Catégorie A') && agents.includes('Une ligne par agent'), 'complexe : choix et description de table');
+  check((await frame.locator('#tbl-Taches').textContent()).includes('choice.Service == $Projet.Service_pilote'), 'complexe : liste filtrée');
+  await frame.locator('#tables-body').evaluate((el) => { const a = document.getElementById('tbl-Agents'); el.scrollTop = a.offsetTop - el.offsetTop - 12; });
+  await shot(page, '11-complexe-details.png');
+
+  // Analyse
+  await frame.locator('#tab-analysis').click();
+  const analysis = await frame.locator('#analysis-body').textContent();
+  check(analysis.includes('à corriger') && analysis.includes('attribut inexistant') && analysis.includes('contourner les restrictions de lecture'), 'complexe : constats sur les droits d\'accès');
+  check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
+  await shot(page, '12-complexe-analyse.png');
+  await frame.locator('.insight--blocking [data-goto-access]').first().click();
+  check(await frame.locator('#tab-access').getAttribute('aria-selected') === 'true', 'complexe : « Voir les droits d\'accès » ouvre la page Accès');
+
+  // Accès
+  const access = await frame.locator('#access-body').textContent();
+  check(access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Règles par défaut'), 'accès : sections principales');
+  check(await frame.locator('.acl-table').count() === 8, `accès : 8 tables avec règles (${await frame.locator('.acl-table').count()})`);
+  check(access.includes('Personnes dont « Habilitation.Role » vaut « RH »') && access.includes('Fiches réservées au service RH.'), 'accès : conditions en clair et messages');
+  check(await frame.locator('#acl-Agents .perm--deny').count() >= 4 && await frame.locator('#acl-Agents .perm--allow').count() >= 4, 'accès : permissions Autorisé / Refusé');
+  check(access.includes('« user.Profil » n\'est défini nulle part'), 'accès : attribut inexistant signalé sur la règle');
+  await frame.locator('#access-body').evaluate((el) => { el.scrollTop = 0; });
+  await shot(page, '13-acces.png');
+  await frame.locator('#access-body').evaluate((el) => { const a = document.getElementById('acl-Agents'); el.scrollTop = a.offsetTop - el.offsetTop - 12; });
+  await shot(page, '14-acces-agents.png');
+  const pagesTop = await frame.locator('.pages').boundingBox();
+  check(pagesTop.y >= 0, 'les onglets restent visibles après un saut');
+  await frame.locator('#access-filter').fill('Email');
+  await page.waitForTimeout(250);
+  check(await frame.locator('.acl-table').count() === 2, `accès : filtre « Email » (${await frame.locator('.acl-table').count()} tables)`);
+  await frame.locator('#access-filter').fill('');
+  await page.waitForTimeout(250);
+  await frame.locator('label[for="access-all"]').click();
+  check(await frame.locator('.acl-table').count() === 8 + 11, `accès : toutes les tables (${await frame.locator('.acl-table').count()})`);
+  const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
+  const csvText = await readFile(await csv.path(), 'utf8');
+  check(csvText.includes('Agents;*;4;Tous les autres;;refusé;refusé;refusé;refusé;;-CRUD;Fiches réservées au service RH.'), 'accès : export CSV des règles');
+
+  // Rapport
+  await frame.locator('#tab-report').click();
+  await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 60000 });
+  check((await frame.locator('.doc').textContent()).includes('Structure et droits d\'accès'), 'rapport : titre adapté');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
+  await dl.saveAs(path.join(outDir, 'rapport-complexe.docx'));
+  const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport-complexe.docx')));
+  const xml = await zip.file('word/document.xml').async('string');
+  check(xml.includes('user.Habilitation') && xml.includes('Formule d'), 'rapport complexe : droits d\'accès et formules');
+  check(errors.length === 0, `complexe : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
 

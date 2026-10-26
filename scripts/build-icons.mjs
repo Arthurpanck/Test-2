@@ -10,7 +10,8 @@ const ICONS = [
   'save-line', 'information-line', 'warning-line', 'error-warning-line', 'checkbox-circle-line',
   'delete-line', 'file-text-line', 'links-line', 'check-line', 'eye-line', 'edit-line',
   'arrow-right-line', 'settings-5-line', 'lightbulb-line', 'file-download-line', 'fullscreen-line',
-  'layout-grid-line', 'focus-3-line', 'road-map-line', 'close-line',
+  'layout-grid-line', 'focus-3-line', 'road-map-line', 'close-line', 'lock-line', 'user-line',
+  'list-unordered', 'subtract-line',
 ];
 
 const pkg = process.argv[2];

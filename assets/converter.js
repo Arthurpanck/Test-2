@@ -267,6 +267,7 @@ export function getGristTypeCode(colType, reverseColId = null) {
 }
 
 const CORRECTED_BASE = {
+  Any: 'any',
   Text: 'varchar',
   Int: 'integer',
   Numeric: 'numeric',
@@ -312,10 +313,36 @@ export function columnarToRows(data) {
   return rows;
 }
 
-/** Portage de `build_schema()` : colonnes triées par (table, position). */
-export function schemaFromMetadata(metaTables, metaColumns) {
+/** Options d'affichage d'une colonne (`widgetOptions`) : chaîne JSON ou objet. */
+export function parseWidgetOptions(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string' || !value.trim()) return {};
+  try {
+    const v = JSON.parse(value);
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Liste de références des métadonnées : ['L', 1, 2], [1, 2] ou "[1, 2]" → [1, 2] (null si absente). */
+export function refListValue(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'string') {
+    try { return refListValue(JSON.parse(value)); } catch { return null; }
+  }
+  if (!Array.isArray(value)) return null;
+  return (value[0] === 'L' ? value.slice(1) : value).filter((v) => typeof v === 'number');
+}
+
+/**
+ * Portage de `build_schema()` : colonnes triées par (table, position).
+ * `sections` (facultatif) : lignes de `_grist_Views_section`, pour la description des tables.
+ */
+export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
   const tables = columnarToRows(metaTables).slice().sort((a, b) => a.id - b.id);
   const cols = columnarToRows(metaColumns);
+  const sectionDescription = new Map(columnarToRows(sections || []).map((s) => [s.id, s.description || '']));
   const colIdByRef = new Map(cols.map((c) => [c.id, c.colId]));
   const sorted = cols.slice().sort((a, b) => (a.parentId - b.parentId) || (a.parentPos - b.parentPos));
   const byTable = new Map();
@@ -327,6 +354,7 @@ export function schemaFromMetadata(metaTables, metaColumns) {
   for (const t of tables) {
     const columns = new Map();
     for (const c of byTable.get(t.id) || []) {
+      const deps = refListValue(c.recalcDeps);
       columns.set(c.colId, {
         colId: c.colId,
         type: c.type || 'Any',
@@ -335,11 +363,42 @@ export function schemaFromMetadata(metaTables, metaColumns) {
         reverseColId: colIdByRef.get(c.reverseCol || 0) || null,
         label: c.label || '',
         description: c.description || '',
+        widgetOptions: parseWidgetOptions(c.widgetOptions),
+        recalcWhen: Number(c.recalcWhen) || 0,
+        recalcDeps: deps ? deps.map((id) => colIdByRef.get(id)).filter(Boolean) : null,
       });
     }
-    schema.set(t.tableId, { tableId: t.tableId, columns, summarySourceTable: t.summarySourceTable || 0 });
+    schema.set(t.tableId, {
+      tableId: t.tableId,
+      columns,
+      summarySourceTable: t.summarySourceTable || 0,
+      description: sectionDescription.get(t.rawViewSectionRef) || '',
+    });
   }
   return schema;
+}
+
+/**
+ * Ce que Grist montre d'une colonne dans son panneau : formule, formule d'initialisation
+ * (« formule de déclenchement ») et quand elle s'applique, choix, condition de liste, description.
+ */
+export function columnDetails(c) {
+  const formula = String(c.formula || '');
+  const wo = c.widgetOptions || {};
+  let trigger = null;
+  if (!c.isFormula && formula.trim()) {
+    // recalcWhen : 0 = nouvelles lignes (+ colonnes de recalcDeps), 1 = jamais, 2 = toute modification.
+    const when = c.recalcWhen === 2 ? 'any' : c.recalcWhen === 1 ? 'never' : (c.recalcDeps && c.recalcDeps.length ? 'deps' : 'new');
+    trigger = { when, deps: when === 'deps' ? c.recalcDeps : [] };
+  }
+  return {
+    formula: c.isFormula || trigger ? formula : '',
+    trigger,
+    choices: Array.isArray(wo.choices) ? wo.choices.map(String) : [],
+    dropdown: wo.dropdownCondition && typeof wo.dropdownCondition.text === 'string' ? wo.dropdownCondition.text : '',
+    label: c.label || '',
+    description: c.description || '',
+  };
 }
 
 /** Portage de `summary.decode_summary_table_name()`. */
@@ -382,7 +441,7 @@ function userViewTables(schema) {
       summaryFormulas = new Map();
       for (const s of sums) for (const c of s.columns.values()) if (c.isFormula) summaryFormulas.set(c.colId, c);
     }
-    result.push({ tableId: t.tableId, columns, summaryFormulas });
+    result.push({ tableId: t.tableId, columns, summaryFormulas, description: t.description || '' });
   }
   return result;
 }
@@ -543,10 +602,16 @@ export function modelFromSchema(schema) {
     tables.push({
       name: t.tableId,
       kind: 'table',
-      columns: t.columns.map((c) => ({
-        name: c.colId, isFormula: c.isFormula, gristType: gristTypeFromColType(c.type, c.reverseColId),
-        label: c.label, description: c.description,
-      })),
+      description: t.description,
+      columns: t.columns.map((c) => {
+        // Colonne « vide » (créée sans type ni formule, comme A, B, C d'un nouveau document) :
+        // Grist la range parmi les formules, mais elle n'en a aucune.
+        const empty = c.isFormula && !String(c.formula || '').trim();
+        return {
+          name: c.colId, isFormula: c.isFormula && !empty, empty, gristType: gristTypeFromColType(c.type, c.reverseColId),
+          label: c.label, description: c.description, details: columnDetails(c),
+        };
+      }),
     });
     if (t.summaryFormulas) {
       tables.push({
@@ -555,7 +620,7 @@ export function modelFromSchema(schema) {
         source: t.tableId,
         columns: [...t.summaryFormulas.values()]
           .filter((c) => !c.colId.startsWith('gristHelper_'))
-          .map((c) => ({ name: c.colId, isFormula: true, gristType: gristTypeFromColType(c.type, c.reverseColId) })),
+          .map((c) => ({ name: c.colId, isFormula: true, gristType: gristTypeFromColType(c.type, c.reverseColId), label: c.label, details: columnDetails(c) })),
       });
     }
   }
@@ -632,8 +697,10 @@ export function outputFromModel(model) {
     line: t.line,
     kind: t.kind,
     source: t.source,
+    description: t.description || '',
     columns: t.columns.map((c) => toOutputColumn(c.name, convertTypeCorrected(c.gristType, c.isFormula), {
       line: c.line, gristType: c.gristType, sourceIsFormula: c.isFormula, label: c.label, description: c.description,
+      empty: Boolean(c.empty), details: c.details || null,
     })),
   }));
 }

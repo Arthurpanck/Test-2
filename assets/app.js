@@ -1,9 +1,11 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.1.0';
-import { ErdViewer } from './erd.js?v=2.1.0';
-import { buildInsights, SEVERITIES, targetLabel, typeLabel } from './insights.js?v=2.1.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.2.0';
+import { ErdViewer } from './erd.js?v=2.2.0';
+import { buildInsights, SEVERITIES, AREAS, targetLabel } from './insights.js?v=2.2.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.2.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.2.0';
 import {
-  REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx,
-} from './report.js?v=2.1.0';
+  REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
+} from './report.js?v=2.2.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -16,13 +18,14 @@ const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
   'btn-minimap', 'find-table', 'find-table-list', 'btn-svg', 'schema-body',
-  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
+  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-details', 'btn-csv', 'tables-body',
+  'access-filter', 'access-rules', 'access-all', 'btn-access-csv', 'access-body',
   'level-all', 'level-blocking', 'level-check', 'level-info', 'level-all-label', 'level-blocking-label', 'level-check-label',
   'level-info-label', 'btn-goto-report', 'analysis-body',
   'btn-copy', 'btn-download', 'dbml-body', 'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['schema', 'tables', 'analysis', 'dbml', 'report'];
+const tabs = ['schema', 'tables', 'analysis', 'dbml', 'access', 'report'];
 
 const state = {
   schema: null,
@@ -31,6 +34,11 @@ const state = {
   schemaLoading: false,
   out: null, // { tables, dbml }
   insights: null,
+  acl: null, // { resources, rules } lus dans le document, ou null si illisibles
+  access: null, // buildAccess()
+  details: false,
+  accessFilter: '',
+  accessView: 'rules',
   docName: '',
   tab: 'schema',
   filter: '',
@@ -122,7 +130,8 @@ darkQuery?.addEventListener?.('change', syncTheme);
 
 function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
-  state.insights = state.out ? buildInsights(state.out.tables) : null;
+  state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -135,11 +144,16 @@ async function loadSchema({ manual = false } = {}) {
   state.schemaLoading = true;
   renderHeader();
   try {
-    const [tables, columns] = await Promise.all([
+    const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
+    const [tables, columns, sections, resources, rules] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
       gristApi.docApi.fetchTable('_grist_Tables_column'),
+      optional('_grist_Views_section'),
+      optional('_grist_ACLResources'),
+      optional('_grist_ACLRules'),
     ]);
-    state.schema = schemaFromMetadata(tables, columns);
+    state.schema = schemaFromMetadata(tables, columns, { sections });
+    state.acl = resources && rules ? { resources, rules } : null;
     state.schemaError = null;
     state.schemaAt = new Date();
   } catch (err) {
@@ -181,6 +195,7 @@ function render() {
   renderDbml();
   renderTables();
   renderAnalysis();
+  renderAccess();
   if (state.tab === 'schema') renderDiagram();
   if (state.tab === 'report') renderReport();
 }
@@ -199,14 +214,14 @@ function renderHeader() {
   if (state.out) {
     const s = computeStats(state.out.tables);
     els.stats.textContent = [
-      plural(s.tables, 'table', 'tables'), plural(s.columns, 'colonne', 'colonnes'),
-      plural(s.relations, 'relation', 'relations'), plural(s.formulas, 'formule', 'formules'),
+      plural(s.tables, 'table', 'tables'), plural(s.columns, 'colonne', 'colonnes'), plural(s.relations, 'relation', 'relations'),
     ].join(' · ');
+    els.stats.title = `${els.stats.textContent} · ${plural(s.formulas, 'formule', 'formules')}`;
   } else {
     els.stats.textContent = '';
   }
   if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
-  else if (state.schemaAt) els['read-at'].textContent = `Structure lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  else if (state.schemaAt) els['read-at'].textContent = `Lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   else els['read-at'].textContent = '';
   els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
 
@@ -283,6 +298,10 @@ function renderDbml() {
   els['dbml-body'].innerHTML = `<pre class="code" aria-label="Code DBML"><code>${html}</code></pre>`;
 }
 
+function aclSlug(name) {
+  return 'acl-' + String(name).replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
 function slug(name) {
   return 'tbl-' + String(name).replace(/[^A-Za-z0-9_-]/g, '_');
 }
@@ -301,10 +320,10 @@ function renderTables() {
   }
   const known = new Set(out.tables.map((t) => t.name));
   const matches = (s) => q && String(s).toLowerCase().includes(q);
-  const keep = (c) => state.cols === 'all' || (state.cols === 'refs' ? Boolean(c.ref) : c.isFormula);
+  const keep = (c) => state.cols === 'all' || (state.cols === 'refs' ? Boolean(c.ref) : c.isFormula || Boolean(c.details?.trigger));
   const visible = out.tables
     .map((t) => ({ ...t, shownColumns: t.columns.filter(keep) }))
-    .filter((t) => (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name)))
+    .filter((t) => (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name) || matches(c.label)))
       && (state.cols === 'all' || t.shownColumns.length));
   if (!visible.length) {
     els['tables-body'].innerHTML = emptyState(q ? `<p>Aucune table ni colonne ne contient « ${esc(state.filter)} ».</p>` : '<p>Aucune table ne correspond.</p>');
@@ -319,11 +338,14 @@ function renderTables() {
           ? `${label} <a href="#${slug(c.ref.table)}" data-goto-table="${esc(c.ref.table)}">${esc(c.ref.table)}</a>`
           : `${label} <strong>${esc(c.ref.table)}</strong> (table absente)`;
       }
-      const cls = [c.isFormula ? 'is-formula' : '', matches(c.name) ? 'is-match' : ''].filter(Boolean).join(' ');
+      const cls = [c.isFormula ? 'is-formula' : '', c.empty ? 'is-empty' : '', matches(c.name) || matches(c.label) ? 'is-match' : ''].filter(Boolean).join(' ');
+      const flag = c.isFormula ? ' <span class="col-flag">formule</span>' : c.details?.trigger ? ' <span class="col-flag">initialisée</span>' : '';
+      const label = c.label && c.label !== c.name ? `<span class="tbl__label">${esc(c.label)}</span>` : '';
+      const detail = state.details ? columnDetailsHtml(c) : '';
       return `<tr${cls ? ` class="${cls}"` : ''}>
-        <th scope="row">${esc(c.name)}</th>
-        <td class="tbl__type"><code>${esc(typeLabel(c.base))}</code>${c.isFormula ? ' <span class="col-flag">formule</span>' : ''}</td>
-        <td class="tbl__rel">${rel}</td></tr>`;
+        <th scope="row">${esc(c.name)}${label}</th>
+        <td class="tbl__type">${esc(columnTypeLabel(c))}${flag}</td>
+        <td class="tbl__rel">${rel}</td></tr>${detail ? `<tr class="tbl__detail${cls ? ` ${cls}` : ''}"><td colspan="3">${detail}</td></tr>` : ''}`;
     }).join('');
     const refs = incoming.get(t.name) || [];
     const inc = refs.length
@@ -331,7 +353,7 @@ function renderTables() {
       : '';
     const line = state.lines.table.get(t.name);
     const pk = state.cols === 'all'
-      ? '<tr><th scope="row">id</th><td class="tbl__type"><code>integer</code> <span class="col-pk">clé primaire</span></td><td class="tbl__rel"></td></tr>'
+      ? `<tr><th scope="row">id</th><td class="tbl__type">${ID_TYPE_LABEL} <span class="col-pk">clé</span></td><td class="tbl__rel"></td></tr>`
       : '';
     return `<article class="tbl" id="${slug(t.name)}">
       <header class="tbl__head">
@@ -343,23 +365,40 @@ function renderTables() {
           ${line ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-code-s-slash-line" type="button" data-goto-line="${line}">DBML</button>` : ''}
         </span>
       </header>
+      ${t.description ? `<p class="tbl__desc">${esc(t.description)}</p>` : ''}
       <table class="tbl__cols">
         <caption class="fr-sr-only">Colonnes de ${esc(t.name)}</caption>
-        <thead class="fr-sr-only"><tr><th scope="col">Colonne</th><th scope="col">Type</th><th scope="col">Relation</th></tr></thead>
+        <thead class="fr-sr-only"><tr><th scope="col">Colonne</th><th scope="col">Type de colonne</th><th scope="col">Relation</th></tr></thead>
         <tbody>${pk}${rows}</tbody>
       </table>
       ${inc}
     </article>`;
   }).join('');
-  els['tables-body'].innerHTML = `<div class="tables__list">${cards}</div>`;
+  els['tables-body'].innerHTML = `<div class="tables__list${state.details ? ' tables__list--details' : ''}">${cards}</div>`;
+}
+
+/** Formules, choix, condition de liste et description d'une colonne (mode « Détails »). */
+function columnDetailsHtml(c) {
+  const lines = detailLines(c, { includeLabel: false });
+  if (!lines.length) return '';
+  return `<dl class="col-details">${lines.map((l) => {
+    let value = esc(l.text);
+    if (l.mono) value = `<code>${value}</code>`;
+    else if (l.label === 'Choix') value = `<span class="col-chips">${c.details.choices.map((x) => `<span>${esc(x)}</span>`).join('')}</span>`;
+    return `<dt>${esc(l.label)}</dt><dd>${value}</dd>`;
+  }).join('')}</dl>`;
 }
 
 function columnsCsv() {
   const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const rows = [['Table', 'Colonne', 'Type DBML', 'Formule', 'Relation vers']];
+  const rows = [['Table', 'Colonne', 'Libellé', 'Type de colonne', 'Type DBML', 'Formule', 'Relation vers', 'Texte de la formule', 'Choix', 'Description']];
   for (const t of state.out.tables) {
-    rows.push([t.name, 'id', 'integer', 'non', '']);
-    for (const c of t.columns) rows.push([t.name, c.name, c.base, c.isFormula ? 'oui' : 'non', c.ref ? c.ref.table : '']);
+    rows.push([t.name, 'id', '', ID_TYPE_LABEL, 'integer', 'non', '', '', '', '']);
+    for (const c of t.columns) {
+      const d = c.details || {};
+      rows.push([t.name, c.name, c.label || '', columnTypeLabel(c), c.base, c.isFormula ? 'oui' : d.trigger ? 'initialisation' : 'non',
+        c.ref ? c.ref.table : '', d.formula || '', (d.choices || []).join(', '), d.description || '']);
+    }
   }
   return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
 }
@@ -381,25 +420,29 @@ function renderAnalysis() {
   for (const lvl of ['blocking', 'check', 'info']) els[`level-${lvl}-label`].textContent = `${SEVERITIES[lvl].label} (${ins.counts[lvl]})`;
 
   const known = new Set(state.out.tables.map((t) => t.name));
+  const aclTables = new Set((state.access?.tables || []).map((t) => t.tableId));
   const card = (it) => {
-    const chips = it.targets.map((t) => (known.has(t.table)
-      ? `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}</button></li>`
-      : `<li><p class="fr-tag fr-tag--sm">${esc(targetLabel(t))}</p></li>`)).join('');
+    const chips = it.targets.map((t) => {
+      const text = `${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}`;
+      if (it.area === 'access' && aclTables.has(t.table)) return `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-access="${esc(t.table)}" title="Voir ses règles d'accès">${text}</button></li>`;
+      if (known.has(t.table)) return `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${text}</button></li>`;
+      return `<li><p class="fr-tag fr-tag--sm">${text}</p></li>`;
+    }).join('');
     const steps = it.steps.length
       ? `<div class="insight__fix"><p class="insight__label">Comment corriger dans Grist</p><ol>${it.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>`
       : '';
     const actions = [];
-    if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
+    if (it.area === 'access') actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-lock-line" type="button" data-goto-access="${esc(aclTables.has(it.targets[0]?.table) ? it.targets[0].table : '*')}">Voir les droits d'accès</button>`);
+    else if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
     if (it.steps.length) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
     return `<article class="insight insight--${it.severity}">
       <div class="insight__icon ${SEVERITY_ICON[it.severity]}" aria-hidden="true"></div>
       <div class="insight__main">
-        <p class="insight__severity">${esc(SEVERITIES[it.severity].label)}</p>
+        <p class="insight__severity">${esc(SEVERITIES[it.severity].label)}<span class="insight__area">${esc(AREAS[it.area] || '')}</span></p>
         <h3 class="insight__title">${esc(it.title)}</h3>
         <p class="insight__text">${esc(it.summary)}</p>
         <p class="insight__why">${esc(it.why)}</p>
-        <p class="insight__label">Concerné</p>
-        <ul class="fr-tags-group insight__targets">${chips}</ul>
+        ${chips ? `<p class="insight__label">Concerné</p><ul class="fr-tags-group insight__targets">${chips}</ul>` : ''}
         ${steps}
         ${actions.length ? `<div class="insight__actions">${actions.join('')}</div>` : ''}
       </div>
@@ -422,6 +465,156 @@ function renderAnalysis() {
       <div class="insights">${list}</div>
       <aside class="checks" aria-label="Ce qui a été vérifié"><h3>Ce qui a été vérifié</h3><ul>${checks}</ul></aside>
     </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Droits d'accès
+// ---------------------------------------------------------------------------
+
+const PERM_HTML = {
+  allow: '<span class="perm perm--allow fr-icon-check-line">Autorisé</span>',
+  deny: '<span class="perm perm--deny fr-icon-close-line">Refusé</span>',
+  none: '<span class="perm perm--none" title="Cette règle ne dit rien : la règle suivante décide">—</span>',
+};
+
+function rulesTableHtml(rules, bits, caption) {
+  const head = `<tr><th scope="col">Qui</th>${bits.map((b) => `<th scope="col" class="rules__perm">${esc(PERMISSION_LABEL[b])}</th>`).join('')}<th scope="col">Message en cas de refus</th></tr>`;
+  const body = rules.map((r) => `<tr>
+      <td class="rules__who"><strong>${esc(r.who.text)}</strong>${r.formula && r.who.kind !== 'email' ? `<code>${esc(r.formula)}</code>` : ''}${r.problems.map((p) => `<span class="rules__problem">${esc(p.text)}</span>`).join('')}</td>
+      ${bits.map((b) => `<td class="rules__perm">${PERM_HTML[r.perms[b] || 'none']}</td>`).join('')}
+      <td class="rules__memo">${esc(r.memo)}</td></tr>`).join('');
+  return `<table class="rules"><caption class="fr-sr-only">${esc(caption)}</caption><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
+
+function accessMatches(q, ...values) {
+  return !q || values.some((v) => String(v || '').toLowerCase().includes(q));
+}
+
+function renderAccess() {
+  const body = els['access-body'];
+  if (!state.out) { body.innerHTML = unavailableMessage(); return; }
+  const a = state.access;
+  els['btn-access-csv'].disabled = !a || !a.hasRules;
+  if (!a) {
+    body.innerHTML = emptyState('<p>Les règles d\'accès du document n\'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les règles) peuvent les consulter.</p>');
+    return;
+  }
+  const accessIssues = (state.insights?.items || []).filter((i) => i.area === 'access' && i.severity !== 'info');
+  const issuesBtn = accessIssues.length
+    ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="access">${esc(plural(accessIssues.length, 'point d\'attention', 'points d\'attention'))}</button>`
+    : '';
+  if (!a.hasRules) {
+    body.innerHTML = `<div class="access">
+      <section class="access__summary"><div><h2>Aucune règle d'accès avancée</h2>
+      <p>Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.</p></div></section>
+      <p class="fr-hint-text">Pour restreindre une table, une colonne ou certaines lignes, ouvrez « Règles d'accès » dans le menu de gauche de Grist.</p></div>`;
+    return;
+  }
+  const q = state.accessFilter.trim().toLowerCase();
+  const ruleMatches = (r) => accessMatches(q, r.formula, r.who.text, r.memo);
+
+  // Réglages généraux
+  const settings = [];
+  settings.push({
+    name: 'Modifier la structure',
+    badge: a.structureRestricted ? ['success', 'Restreinte'] : [a.restrictsRead ? 'warning' : 'info', 'Éditeurs autorisés'],
+    text: a.structureRestricted ? 'Une règle par défaut refuse la permission Structure.' : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
+  });
+  for (const id of ['FullCopies', 'AccessRules']) {
+    const sp = a.special.find((x) => x.id === id);
+    const allowedTo = sp ? sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text) : [];
+    settings.push({
+      name: SPECIAL[id].label,
+      badge: allowedTo.length ? [sp.allowedForAll && id === 'FullCopies' && a.restrictsRead ? 'warning' : 'info', sp.allowedForAll ? 'Tout le monde' : 'Personnalisé'] : ['success', 'Par défaut'],
+      text: allowedTo.length ? `${SPECIAL[id].allowed} Visées : ${allowedTo.join(' ; ')}.` : SPECIAL[id].byDefault,
+    });
+  }
+  for (const sp of a.special.filter((x) => !['FullCopies', 'AccessRules'].includes(x.id))) {
+    settings.push({ name: sp.label, badge: ['info', 'Défini'], text: sp.allowed });
+  }
+  const settingsHtml = `<section class="access__section"><h3>Réglages généraux</h3><div class="access__grid">${settings.map((x) => `
+    <div class="setting"><p class="setting__name">${esc(x.name)}</p>
+      <p class="setting__state"><span class="fr-badge fr-badge--sm fr-badge--no-icon fr-badge--${x.badge[0]}">${esc(x.badge[1])}</span></p>
+      <p class="setting__text">${esc(x.text)}</p></div>`).join('')}</div></section>`;
+
+  const attrs = a.attributes.length ? `<section class="access__section"><h3>Attributs utilisateur</h3>
+    <p>Un attribut retrouve la personne connectée dans une table ; les conditions l'utilisent sous la forme <code>user.Nom.Colonne</code>.</p>
+    <table class="rules"><caption class="fr-sr-only">Attributs utilisateur</caption>
+      <thead><tr><th scope="col">Attribut</th><th scope="col">Cherché dans</th><th scope="col">En comparant à</th><th scope="col">État</th></tr></thead>
+      <tbody>${a.attributes.map((x) => `<tr><td><code>user.${esc(x.name)}</code></td><td>${esc(x.tableId)}.${esc(x.lookupColId)}</td><td><code>user.${esc(x.charId)}</code></td>
+        <td>${x.problems.length ? `<span class="perm perm--deny fr-icon-close-line">${esc(x.problems.join(', '))}</span>` : '<span class="perm perm--allow fr-icon-check-line">Correct</span>'}</td></tr>`).join('')}</tbody></table></section>` : '';
+
+  const defaults = a.defaults.filter(ruleMatches);
+  const defaultsHtml = defaults.length ? `<section class="access__section"><h3>Règles par défaut</h3>
+    <p>Elles s'appliquent à toutes les tables, après les règles propres à chaque table.</p>${rulesTableHtml(defaults, BITS.defaults, 'Règles par défaut')}</section>` : '';
+
+  const known = new Set(state.out.tables.map((t) => t.name));
+  const cards = [];
+  for (const t of a.tables) {
+    const tableHit = accessMatches(q, t.tableId);
+    const rules = tableHit ? t.rules : t.rules.filter(ruleMatches);
+    const cols = t.columns.map((c) => ({ ...c, rules: tableHit || accessMatches(q, c.colIds.join(' ')) ? c.rules : c.rules.filter(ruleMatches) })).filter((c) => c.rules.length);
+    if (!rules.length && !cols.length) continue;
+    const n = t.rules.length + t.columns.reduce((s, c) => s + c.rules.length, 0);
+    const rowRules = [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.who.row);
+    cards.push(`<article class="acl-table" id="${aclSlug(t.tableId)}">
+      <header class="acl-table__head"><h3>${esc(t.tableId)}</h3>
+        <p class="fr-badge fr-badge--sm fr-badge--no-icon">${esc(plural(n, 'règle', 'règles'))}</p>
+        ${rowRules ? '<p class="fr-badge fr-badge--sm fr-badge--no-icon fr-badge--info">par ligne</p>' : ''}
+        ${t.missing ? '<p class="fr-badge fr-badge--sm fr-badge--error">table introuvable</p>' : ''}
+        <span class="tbl__actions">${known.has(t.tableId) ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-table-line" type="button" data-goto-table="${esc(t.tableId)}">Colonnes</button>` : ''}</span>
+      </header>
+      <div class="acl-table__body">
+        ${rules.length ? rulesTableHtml(rules, BITS.table, `Règles de la table ${t.tableId}`) : ''}
+        ${cols.map((c) => `<p class="acl-table__cols">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))}${c.missing.length ? ` <span class="rules__problem">introuvable : ${esc(c.missing.join(', '))}</span>` : ''}</p>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
+      </div></article>`);
+  }
+  const uncovered = a.uncovered.filter((t) => accessMatches(q, t));
+  let open = '';
+  if (state.accessView === 'all') {
+    for (const t of uncovered) {
+      cards.push(`<article class="acl-table" id="${aclSlug(t)}"><header class="acl-table__head"><h3>${esc(t)}</h3>
+        <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-badge--success">aucune règle propre</p></header>
+        <div class="acl-table__body"><p>Suit les règles par défaut${a.defaults.length ? '' : ' (aucune)'} et les rôles de partage.</p></div></article>`);
+    }
+  } else if (uncovered.length) {
+    open = `<div class="acl-open">Sans règle propre (règles par défaut et rôles de partage) :
+      <ul>${uncovered.map((t) => `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-table="${esc(t)}">${esc(t)}</button></li>`).join('')}</ul></div>`;
+  }
+  const tablesHtml = `<section class="access__section"><h3>Règles par table</h3>
+    <p>Dans chaque tableau, les règles s'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : la règle ne dit rien, la suivante décide.</p>
+    <div class="access">${cards.join('') || emptyState(q ? `<p>Aucune règle ne contient « ${esc(state.accessFilter)} ».</p>` : '<p>Aucune table n\'a de règle propre.</p>')}</div>${open}</section>`;
+
+  body.innerHTML = `<div class="access">
+    <section class="access__summary"><div><h2>Règles d'accès avancées</h2><p>${esc(accessSummary(a))}</p></div>${issuesBtn}</section>
+    ${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
+}
+
+function accessCsv() {
+  const a = state.access;
+  const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+  const state2 = (r, b) => (r.perms[b] === 'allow' ? 'autorisé' : r.perms[b] === 'deny' ? 'refusé' : '');
+  const rows = [['Table', 'Colonnes', 'Ordre', 'Qui', 'Condition', ...['R', 'U', 'C', 'D', 'S'].map((b) => PERMISSION_LABEL[b]), 'Permissions (Grist)', 'Message']];
+  const add = (table, cols, list) => list.forEach((r, i) => rows.push([table, cols, i + 1, r.who.text, r.formula, ...['R', 'U', 'C', 'D', 'S'].map((b) => state2(r, b)), r.permText, r.memo]));
+  add('(toutes les tables)', '*', a.defaults);
+  for (const t of a.tables) {
+    add(t.tableId, '*', t.rules);
+    for (const c of t.columns) add(t.tableId, c.colIds.join(', '), c.rules);
+  }
+  for (const sp of a.special) add(`(réglage) ${sp.label}`, sp.id, sp.rules);
+  for (const x of a.attributes) rows.push(['(attribut utilisateur)', '', '', `user.${x.name}`, `${x.tableId}.${x.lookupColId} = user.${x.charId}`, '', '', '', '', '', '', x.problems.join(', ')]);
+  return '\ufeff' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
+}
+
+function gotoAccess(table) {
+  if (state.accessFilter) { state.accessFilter = ''; els['access-filter'].value = ''; }
+  if (table && table !== '*' && !state.access?.tables.some((t) => t.tableId === table)) { state.accessView = 'all'; els['access-all'].checked = true; }
+  renderAccess();
+  selectTab('access');
+  const el = table && table !== '*' ? $(aclSlug(table)) : null;
+  if (!el) { els['access-body'].scrollTop = 0; return; }
+  scrollWithin(el);
+  flash(el);
 }
 
 // ---------------------------------------------------------------------------
@@ -466,6 +659,7 @@ function reportContext(schema) {
     stats: computeStats(state.out.tables),
     tables: state.out.tables,
     insights: state.insights,
+    access: state.access,
     dbml: state.out.dbml,
     schema,
   };
@@ -596,6 +790,15 @@ function selectTab(name, { focus = false } = {}) {
   if (name === 'report') renderReport();
 }
 
+/** Fait défiler le contenu de la page jusqu'à `el`, sans faire bouger les onglets ni la barre d'outils. */
+function scrollWithin(el, block = 'start') {
+  const box = el.closest('.page__body');
+  if (!box) return;
+  const c = box.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  box.scrollTop += block === 'center' ? (r.top - c.top) - (c.height - r.height) / 2 : r.top - c.top - 12;
+}
+
 function flash(el) {
   el.classList.add('is-target');
   setTimeout(() => el.classList.remove('is-target'), 1800);
@@ -605,7 +808,7 @@ function gotoDbmlLine(line) {
   selectTab('dbml');
   const el = $(`dbml-L${line}`);
   if (!el) return;
-  el.scrollIntoView({ block: 'center' });
+  scrollWithin(el, 'center');
   flash(el);
 }
 
@@ -620,7 +823,7 @@ function gotoTable(name) {
   selectTab('tables');
   const el = $(slug(name));
   if (!el) return;
-  el.scrollIntoView({ block: 'start' });
+  scrollWithin(el);
   flash(el);
 }
 
@@ -648,6 +851,20 @@ function bindEvents() {
   }
   els['btn-csv'].addEventListener('click', () => {
     if (state.out) downloadFile('colonnes-document.csv', columnsCsv(), 'text/csv;charset=utf-8');
+  });
+  els['btn-details'].addEventListener('click', () => {
+    state.details = !state.details;
+    els['btn-details'].setAttribute('aria-pressed', String(state.details));
+    renderTables();
+  });
+
+  // Droits d'accès
+  els['access-filter'].addEventListener('input', debounce(() => { state.accessFilter = els['access-filter'].value; renderAccess(); }, 120));
+  for (const id of ['access-rules', 'access-all']) {
+    els[id].addEventListener('change', () => { if (els[id].checked) { state.accessView = els[id].value; renderAccess(); } });
+  }
+  els['btn-access-csv'].addEventListener('click', () => {
+    if (state.access?.hasRules) downloadFile('regles-acces-document.csv', accessCsv(), 'text/csv;charset=utf-8');
   });
 
   // Analyse
@@ -719,10 +936,12 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema],[data-action]');
+    const target = ev.target.closest('[data-goto-line],[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-action]');
     if (!target) return;
     ev.preventDefault();
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
+    else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
+    else if (target.dataset.gotoAnalysis) selectTab('analysis', { focus: true });
     else if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
     else if (target.dataset.gotoLine) gotoDbmlLine(Number(target.dataset.gotoLine));
     else if (target.dataset.gotoTable) gotoTable(target.dataset.gotoTable);

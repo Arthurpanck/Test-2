@@ -18,7 +18,10 @@ export const fixture = (name) => readFile(path.join(root, 'tests/fixtures', name
 export async function metadata(name) {
   if (name.endsWith('.json')) {
     const m = JSON.parse(await fixture(name));
-    return { tables: m.tables, cols: m.columns };
+    const cols = m.columns.id ? m.columns : m.columns.map((c) => ({
+      parentPos: c.id, label: c.colId, formula: '', reverseCol: 0, description: '', widgetOptions: '', recalcWhen: 0, recalcDeps: null, isFormula: 0, ...c,
+    }));
+    return { tables: m.tables, cols, sections: m.sections || [], aclResources: m.aclResources || [], aclRules: m.aclRules || [] };
   }
   return metadataFromModel(parseGristCodeCorrected(await fixture(name)));
 }
@@ -81,6 +84,8 @@ export async function start(outDir) {
           fetchTable: async (t) => {
             await new Promise((r) => setTimeout(r, 30));
             if (cfg.fail) throw new Error('Access denied');
+            const extra = { _grist_Views_section: cfg.meta.sections, _grist_ACLResources: cfg.meta.aclResources, _grist_ACLRules: cfg.meta.aclRules };
+            if (t in extra) return extra[t] || [];
             return t === '_grist_Tables' ? cfg.meta.tables : cfg.meta.cols;
           },
         },

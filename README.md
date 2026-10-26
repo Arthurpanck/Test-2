@@ -1,14 +1,15 @@
-# Structure en DBML — widget Grist
+# Audit de structure — widget Grist
 
-Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui montre la structure du document où il est installé et la convertit en [DBML](https://dbml.dbdiagram.io/docs/).
+Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui audite le document où il est installé : structure, formules, droits d'accès, conversion en [DBML](https://dbml.dbdiagram.io/docs/) et rapport Word.
 
-Cinq pages, en plein écran, avec leur barre d'outils juste sous les onglets :
+Six pages, en plein écran. Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
 
 - **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », export SVG ;
-- **Tables** : chaque table avec ses colonnes, ses types et ses liens, filtres (relations, formules), export CSV ;
-- **Analyse** : un verdict (« Prêt pour l'import » ou « Le DBML ne s'importera pas encore »), puis chaque constat classé *À corriger*, *À vérifier* ou *Bon à savoir*, avec les éléments concernés, pourquoi c'est important et les étapes pour corriger dans Grist ;
+- **Tables** : chaque table avec ses colonnes, leur type (libellés de Grist : Texte, Numérique, Référence multiple…) et leurs liens ; bouton **Détails** pour les formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
+- **Analyse** : un verdict, puis chaque constat (structure ou droits d'accès) classé *À corriger*, *À vérifier* ou *Bon à savoir*, avec les éléments concernés, pourquoi c'est important et les étapes pour corriger dans Grist ;
 - **DBML** : le code, à copier ou télécharger ;
-- **Rapport** : un rapport Word (.docx) qui reprend le résumé, l'image du schéma, les tables et colonnes, l'analyse et le code DBML, avec un aperçu et le choix des sections.
+- **Accès** : les règles d'accès avancées en clair — réglages généraux, attributs utilisateur, règles par défaut, puis les règles de chaque table et de ses colonnes, avec « Autorisé / Refusé » par permission et les messages de refus ; filtre et export CSV ;
+- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un aperçu et le choix des sections.
 
 La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
 
@@ -27,7 +28,7 @@ Le widget mémorise la disposition du schéma dans le document : comme pour tout
 
 ## Utilisation
 
-La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`) à l'ouverture, puis à chaque modification de la table du widget ; **Relire le document** la relit à la demande (après l'ajout d'une colonne dans une autre table, par exemple).
+La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`) et les règles d'accès dans `_grist_ACLResources` et `_grist_ACLRules`, à l'ouverture puis à chaque modification de la table du widget ; **Relire le document** les relit à la demande. Seuls les propriétaires (ou les personnes autorisées à voir les règles) peuvent lire les règles d'accès : pour les autres, la page Accès l'indique.
 
 ## Schéma interactif
 
@@ -52,6 +53,24 @@ L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
 | dbml-renderer (Graphviz) | MIT | Image statique, sans interaction |
 | ChartDB, drawDB, Liam ERD, Azimutt | AGPL-3.0, Apache-2.0, MIT | Applications complètes, non intégrables dans un widget |
 | **Rendu maison + ELK.js** | EPL-2.0 (ELK) | **Retenu** : sans compilation, rendu DSFR maîtrisé, disposition de qualité grâce aux ports |
+
+## Droits d'accès : reprise de « Tables et permissions »
+
+La page **Accès** reprend le rapport du widget [tables-et-permissions](https://github.com/jtab87/grist-plugins/tree/main/tables-et-permissions) (tables, formules, choix, conditions de liste, règles d'accès) et l'améliore :
+
+| Widget d'origine | Ici |
+|---|---|
+| Permissions brutes (`+R-CD`) colorées | Une colonne par permission : Lire, Modifier, Créer, Supprimer, Structure, « Autorisé / Refusé / — » |
+| Conditions affichées telles quelles | Traduites quand la forme est connue (« Éditeurs et propriétaires », « Personnes dont Habilitation.Role vaut RH »…), formule gardée dessous |
+| Règles triées par chaîne (`table + colonnes + rulePos`) : « 10 » avant « 9 » | Ordre réel d'application (`rulePos` numérique) |
+| Règles par défaut (`*`) et réglages spéciaux mélangés aux tables | Sections distinctes : réglages généraux, attributs utilisateur, règles par défaut |
+| Nom de la première table jamais affiché | Une carte par table, liée à ses colonnes et au schéma |
+| Colonnes de déclenchement : la première colonne du document ignorée (`indexOf > 0`) | Déclenchement en clair (« aux nouvelles lignes et quand cette colonne change : Statut ») |
+| Texte des formules inséré sans échappement HTML | Tout est échappé |
+| Export HTML | Export CSV et rapport Word |
+| — | Contrôles : attribut ou colonne introuvable, condition sur un attribut inexistant, éditeurs pouvant contourner les restrictions de lecture par formule, copie complète ouverte à tous, adresses e-mail écrites dans les règles, refus sans message, tables sans règle propre |
+
+Grist refuse d'enregistrer une règle sur une colonne inexistante ou placée après la règle « Tous les autres » ; les contrôles du widget couvrent ce qui se casse ensuite (suppression, renommage) et ce que Grist accepte sans le vérifier (attribut `user.X` inconnu).
 
 ## Rapport Word adaptatif
 
@@ -82,6 +101,8 @@ Aucune étape de compilation : `index.html` et les modules de `assets/` sont ser
 ```
 assets/converter.js   conversion (moteurs strict et corrigé) — sans dépendance
 assets/insights.js    constats de la page Analyse et du rapport (libellés, étapes de correction)
+assets/access.js      droits d'accès : lecture des règles, conditions en clair, contrôles
+assets/types.js       libellés français des types de colonnes, détails (formules, choix…)
 assets/report.js      rapport : sections, aperçu HTML, rendu Word, charte (--doc-*)
 assets/erd.js         visualiseur de schéma (tables, relations, interactions, exports)
 assets/erd-geometry.js géométrie du visualiseur (tracés, cardinalités, graphe ELK) — testée sous Node
@@ -96,7 +117,7 @@ tests/                tests du convertisseur et de l'interface
 ```sh
 npm ci         # dépendances de test (docx, jszip)
 npm test       # convertisseur (comparaison avec la formule Python d'origine, Python 3 requis), géométrie, rapport Word
-npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé
+npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé, dont un document de 22 tables avec règles d'accès
 npm run test:erd -- captures/  # visualiseur de schéma : disposition, relations, glisser, zoom, exports
 npm run test:deployed -- <url du widget> captures/  # version publiée, métadonnées réelles d'un document
 
