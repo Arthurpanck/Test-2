@@ -58,22 +58,24 @@ test('document complexe : constats sur les droits d\'accès', () => {
   const { access } = complexe();
   const ids = accessInsights(access).map((i) => i.id);
   for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-full-copies', 'acl-emails', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
-  assert.ok(!ids.includes('acl-attribute') && !ids.includes('acl-missing'));
+  assert.ok(!ids.includes('acl-attribute') && !ids.includes('acl-hidden'));
   const unknown = accessInsights(access).find((i) => i.id === 'acl-unknown-attribute');
   assert.equal(unknown.severity, 'blocking');
   assert.match(unknown.targets[0].note, /user\.Profil/);
 });
 
-test('règles cassées après coup : table, colonne et attribut disparus', () => {
+test('table, colonne ou table d\'attribut absentes des métadonnées (supprimées ou masquées pour soi)', () => {
   const { m, schema } = complexe();
   schema.delete('Conges');
   schema.get('Agents').columns.delete('Quotite');
   schema.get('Habilitations').columns.delete('Email');
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
-  const missing = items.find((i) => i.id === 'acl-missing');
-  assert.ok(missing && missing.targets.some((t) => t.table === 'Conges') && missing.targets.some((t) => t.column === 'Quotite'));
-  assert.ok(items.find((i) => i.id === 'acl-attribute').targets.some((t) => /Habilitation/.test(t.note)));
+  const hidden = items.find((i) => i.id === 'acl-hidden');
+  assert.equal(hidden.severity, 'check', 'pas bloquant : peut-être seulement masqué pour la personne connectée');
+  assert.ok(hidden.targets.some((t) => t.table === 'Conges') && hidden.targets.some((t) => t.column === 'Quotite'));
+  const attr = items.find((i) => i.id === 'acl-attribute');
+  assert.ok(attr.severity === 'check' && attr.targets.some((t) => /Habilitation/.test(t.note)));
 });
 
 test('document sans règle : un seul constat informatif', () => {
@@ -103,4 +105,15 @@ test('document complexe : types en français, colonnes vides, formules d\'initia
   assert.equal(ins.verdict.level, 'blocking');
   assert.ok(ins.items.some((i) => i.id === 'empty' && i.targets.length === 3));
   assert.ok(ins.items.some((i) => i.id === 'untyped' && i.targets.some((t) => t.column === 'Statut_calcule')));
+});
+
+test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, sans faux « bloquant »', () => {
+  // Grist retire des métadonnées les colonnes que la personne connectée ne peut pas lire.
+  const { m, schema } = complexe();
+  schema.get('Agents').columns.delete('Quotite');
+  schema.get('Agents').columns.delete('Derniere_connexion');
+  const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
+  const items = accessInsights(access);
+  assert.deepEqual(items.filter((i) => i.severity === 'blocking').map((i) => i.id), ['acl-unknown-attribute']);
+  assert.deepEqual(items.find((i) => i.id === 'acl-hidden').targets.map((t) => t.column), ['Quotite', 'Derniere_connexion']);
 });

@@ -134,8 +134,8 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     try { a = JSON.parse(r.userAttributes); } catch { a = null; }
     if (!a || !a.name) continue;
     const problems = [];
-    if (!tableExists(a.tableId)) problems.push(`la table « ${a.tableId} » n'existe pas`);
-    else if (!columnExists(a.tableId, a.lookupColId)) problems.push(`la colonne « ${a.tableId}.${a.lookupColId} » n'existe pas`);
+    if (!tableExists(a.tableId)) problems.push(`table « ${a.tableId} » introuvable`);
+    else if (!columnExists(a.tableId, a.lookupColId)) problems.push(`colonne « ${a.tableId}.${a.lookupColId} » introuvable`);
     const charRoot = String(a.charId || '').split('.')[0];
     if (charRoot && !USER_BUILTINS.has(charRoot) && !attributes.some((x) => x.name === charRoot)) problems.push(`« user.${a.charId} » n'est pas une propriété connue`);
     attributes.push({ id: r.id, name: a.name, tableId: a.tableId, lookupColId: a.lookupColId, charId: a.charId, problems });
@@ -160,7 +160,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
       if (!USER_BUILTINS.has(name) && !attrNames.has(name)) problems.push({ kind: 'unknown-attribute', text: `« user.${name} » n'est défini nulle part` });
     }
     if (res.tableId !== '*' && !res.tableId.startsWith('*')) {
-      for (const c of recCols(formula)) if (tableExists(res.tableId) && !columnExists(res.tableId, c)) problems.push({ kind: 'missing-rec-column', text: `la colonne « ${res.tableId}.${c} » n'existe pas` });
+      for (const c of recCols(formula)) if (tableExists(res.tableId) && !columnExists(res.tableId, c)) problems.push({ kind: 'missing-rec-column', text: `colonne « ${res.tableId}.${c} » introuvable` });
     }
     const unusable = Object.keys(perms).filter((b) => !bits.includes(b));
     return {
@@ -236,11 +236,11 @@ export function accessInsights(access) {
   const brokenAttr = access.attributes.filter((a) => a.problems.length);
   if (brokenAttr.length) {
     push({
-      id: 'acl-attribute', severity: 'blocking',
-      title: brokenAttr.length > 1 ? `${brokenAttr.length} attributs utilisateur cassés` : 'Un attribut utilisateur cassé',
-      summary: 'Ces attributs cherchent la personne connectée dans une table ou une colonne qui n\'existe plus.',
-      why: 'Les règles qui s\'en servent ne trouvent personne : elles ne donnent plus les droits prévus.',
-      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », choisissez une table et une colonne existantes, ou supprimez l\'attribut.', REFRESH_STEP],
+      id: 'acl-attribute', severity: 'check',
+      title: brokenAttr.length > 1 ? `${brokenAttr.length} attributs utilisateur cherchent dans une table introuvable` : 'Un attribut utilisateur cherche dans une table introuvable',
+      summary: 'La table ou la colonne où l\'attribut cherche la personne connectée n\'apparaît pas au widget : supprimée, ou masquée pour vous par les règles.',
+      why: 'Si elle a été supprimée, les règles qui utilisent l\'attribut ne trouvent plus personne et ne donnent plus les droits prévus.',
+      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », vérifiez la table et la colonne ; choisissez-en d\'existantes ou supprimez l\'attribut.', REFRESH_STEP],
       targets: brokenAttr.map((a) => ({ table: a.tableId, note: `user.${a.name} : ${a.problems.join(', ')}` })),
     });
   }
@@ -258,8 +258,8 @@ export function accessInsights(access) {
     for (const p of r.problems) (p.kind === 'unknown-attribute' ? unknown : missingCols).push({ table, note: p.text, rule: r });
   });
   for (const t of access.tables) {
-    if (t.missing) missingCols.push({ table: t.tableId, note: 'cette table n\'existe plus' });
-    for (const c of t.columns) for (const col of c.missing) missingCols.push({ table: t.tableId, column: col, note: 'colonne visée par une règle, introuvable' });
+    if (t.missing) missingCols.push({ table: t.tableId, note: 'table invisible pour vous' });
+    for (const c of t.columns) for (const col of c.missing) missingCols.push({ table: t.tableId, column: col, note: 'colonne invisible pour vous' });
   }
   if (unknown.length) {
     push({
@@ -273,11 +273,16 @@ export function accessInsights(access) {
   }
   if (missingCols.length) {
     push({
-      id: 'acl-missing', severity: 'blocking',
-      title: missingCols.length > 1 ? `${missingCols.length} règles visent une table ou une colonne disparue` : 'Une règle vise une table ou une colonne disparue',
-      summary: 'Des règles d\'accès font référence à des éléments qui n\'existent plus dans le document.',
-      why: 'Grist signale ces règles comme invalides : la protection prévue ne s\'applique pas.',
-      steps: [OPEN_RULES, 'Retirez les colonnes disparues des règles, ou supprimez la règle.', REFRESH_STEP],
+      id: 'acl-hidden', severity: 'check',
+      title: missingCols.length > 1 ? `${missingCols.length} éléments protégés que vous ne voyez pas` : 'Un élément protégé que vous ne voyez pas',
+      summary: 'Des règles visent ces tables ou colonnes, mais Grist ne les montre pas au widget : elles vous sont masquées par les règles (ou ont été supprimées).',
+      why: 'Elles manquent alors au schéma, aux tables, au DBML et au rapport. Attention : une règle de colonne passe avant les règles de la table, propriétaires compris.',
+      steps: [
+        OPEN_RULES,
+        'Si les propriétaires doivent les voir : dans les règles de ces colonnes, ajoutez en premier une règle « user.Access in [OWNER] » avec Lire autorisé.',
+        'Si elles ont été supprimées : retirez-les des règles.',
+        REFRESH_STEP,
+      ],
       targets: missingCols.map((m) => ({ table: m.table, column: m.column, note: m.note })),
     });
   }

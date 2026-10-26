@@ -178,7 +178,8 @@ export function buildInsights(tables, access = null) {
   if (access && access.hasRules) {
     checks.push(
       { label: 'Les attributs utilisateur trouvent leur table', ok: !has('acl-attribute') },
-      { label: 'Les règles visent des tables et colonnes existantes', ok: !has('acl-missing') && !has('acl-unknown-attribute') },
+      { label: 'Les conditions n\'utilisent que des attributs définis', ok: !has('acl-unknown-attribute') },
+      { label: 'Vous voyez tout ce que les règles protègent', ok: !has('acl-hidden') },
     );
     if (access.restrictsRead) checks.push({ label: 'Les données cachées ne sont pas lisibles par formule', ok: !has('acl-bypass') });
   }

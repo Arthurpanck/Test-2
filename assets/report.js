@@ -227,10 +227,11 @@ export const REPORT_SECTIONS = [
         blocks.push(ruleTable(a.defaults, BITS.defaults));
       }
       for (const t of a.tables) {
-        blocks.push({ type: 'heading', level: 2, text: t.missing ? `${t.tableId} (table introuvable)` : t.tableId });
+        blocks.push({ type: 'heading', level: 2, text: t.missing ? `${t.tableId} (invisible pour vous)` : t.tableId });
         if (t.rules.length) blocks.push(ruleTable(t.rules, BITS.table));
         for (const c of t.columns) {
-          blocks.push({ type: 'paragraph', runs: [{ text: c.colIds.length > 1 ? 'Colonnes ' : 'Colonne ', bold: true }, { text: c.colIds.join(', ') }] });
+          blocks.push({ type: 'paragraph', runs: [{ text: c.colIds.length > 1 ? 'Colonnes ' : 'Colonne ', bold: true }, { text: c.colIds.join(', ') },
+            ...(c.missing.length ? [{ text: ` — invisible pour vous : ${c.missing.join(', ')}` }] : [])] });
           blocks.push(ruleTable(c.rules, BITS.column));
         }
       }

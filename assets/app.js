@@ -561,12 +561,12 @@ function renderAccess() {
       <header class="acl-table__head"><h3>${esc(t.tableId)}</h3>
         <p class="fr-badge fr-badge--sm fr-badge--no-icon">${esc(plural(n, 'règle', 'règles'))}</p>
         ${rowRules ? '<p class="fr-badge fr-badge--sm fr-badge--no-icon fr-badge--info">par ligne</p>' : ''}
-        ${t.missing ? '<p class="fr-badge fr-badge--sm fr-badge--error">table introuvable</p>' : ''}
+        ${t.missing ? '<p class="fr-badge fr-badge--sm fr-badge--warning">invisible pour vous</p>' : ''}
         <span class="tbl__actions">${known.has(t.tableId) ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-table-line" type="button" data-goto-table="${esc(t.tableId)}">Colonnes</button>` : ''}</span>
       </header>
       <div class="acl-table__body">
         ${rules.length ? rulesTableHtml(rules, BITS.table, `Règles de la table ${t.tableId}`) : ''}
-        ${cols.map((c) => `<p class="acl-table__cols">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))}${c.missing.length ? ` <span class="rules__problem">introuvable : ${esc(c.missing.join(', '))}</span>` : ''}</p>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
+        ${cols.map((c) => `<p class="acl-table__cols">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))}${c.missing.length ? ` <span class="rules__problem">invisible pour vous (masquée par ces règles, ou supprimée) : ${esc(c.missing.join(', '))}</span>` : ''}</p>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
       </div></article>`);
   }
   const uncovered = a.uncovered.filter((t) => accessMatches(q, t));
