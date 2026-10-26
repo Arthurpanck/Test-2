@@ -734,24 +734,14 @@ function bindEvents() {
 // ---------------------------------------------------------------------------
 
 /**
- * Titre du document. getDocName() renvoie souvent l'identifiant interne (« swd2QJ… ») :
- * on demande alors le vrai titre à l'API REST du document, avec le jeton du widget.
+ * Titre du document. Selon l'instance, getDocName() renvoie le titre ou seulement
+ * l'identifiant interne (« swd2QJ… ») : dans ce cas, le rapport dit « Document Grist ».
+ * (L'API REST, qui connaît le titre, refuse les appels venant d'une autre origine.)
  */
 async function readDocTitle(api) {
   let name = '';
   try { name = String((await api.docApi.getDocName?.()) || ''); } catch { /* sans nom */ }
-  const looksLikeId = /^[A-Za-z0-9]{16,}$/.test(name);
-  if (name && !looksLikeId) return name;
-  try {
-    const getToken = api.getAccessToken ?? api.docApi.getAccessToken?.bind(api.docApi);
-    const { token, baseUrl } = await getToken({ readOnly: true });
-    const res = await fetch(`${baseUrl}?auth=${encodeURIComponent(token)}`);
-    if (res.ok) {
-      const info = await res.json();
-      if (info && typeof info.name === 'string' && info.name) return info.name;
-    }
-  } catch { /* hors ligne ou API indisponible */ }
-  return looksLikeId ? '' : name;
+  return /^[A-Za-z0-9]{16,}$/.test(name) ? '' : name;
 }
 
 function connectGrist() {

@@ -59,12 +59,6 @@ export async function start(outDir) {
       permissions: ['clipboard-read', 'clipboard-write'],
     });
     await context.route('https://docs.getgrist.com/grist-plugin-api.js', (route) => route.fulfill({ contentType: 'text/javascript', body: '' }));
-    // API REST du document : le vrai titre (getDocName ne renvoie que l'identifiant).
-    await context.route('https://grist.test/api/docs/**', (route) => route.fulfill({
-      contentType: 'application/json',
-      headers: { 'access-control-allow-origin': '*' },
-      body: JSON.stringify({ name: 'Suivi des interventions' }),
-    }));
     await context.addInitScript((cfg) => {
       if (window.self === window.top) return;
       window.__options = {};
@@ -83,8 +77,7 @@ export async function start(outDir) {
         onRecords(cb) { handlers.records.push(cb); },
         setOption(k, v) { window.__options[k] = JSON.parse(JSON.stringify(v)); return Promise.resolve(); },
         docApi: {
-          getDocName: async () => 'swd2QJbkiCiN8Wjx6DS9yx',
-          getAccessToken: async () => ({ token: 'jeton', baseUrl: 'https://grist.test/api/docs/swd2QJbkiCiN8Wjx6DS9yx' }),
+          getDocName: async () => cfg.docName ?? 'swd2QJbkiCiN8Wjx6DS9yx',
           fetchTable: async (t) => {
             await new Promise((r) => setTimeout(r, 30));
             if (cfg.fail) throw new Error('Access denied');
@@ -93,7 +86,7 @@ export async function start(outDir) {
         },
         selectedTable: { update: async (rec) => { window.__updates.push(rec); } },
       };
-    }, { meta: o.meta, options: o.options, mappings: o.mappings, fail: o.fail });
+    }, { meta: o.meta, options: o.options, mappings: o.mappings, fail: o.fail, docName: o.docName });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
