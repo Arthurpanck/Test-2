@@ -65,10 +65,8 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
   .toolbar__sep { display: none; }
   .toolbar__find, .toolbar__filter { width: 100%; }
 }
-@media (max-height: 34em) {
-  .app { height: auto; min-height: 100vh; }
-  .page { min-height: 26rem; }
-}
+/* Widget peu haut (fréquent dans Grist) : l'en-tête et la barre d'outils restent fixes,
+   le contenu de la page défile à l'intérieur. */
 
 /* ---------- Code DBML ---------- */
 .code {
@@ -346,7 +344,7 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
 
 /* ---------- Ajouts de la version 2 ---------- */
 .diagram { background: var(--background-alt-grey); }
-.diagram .erd__viewport { min-height: 16rem; }
+.diagram .erd__viewport { min-height: 10rem; }
 .diagram.no-minimap .erd__minimap { display: none; }
 .code--wrap .ln { white-space: pre-wrap; overflow-wrap: anywhere; }
 .code { min-height: 100%; box-sizing: border-box; }

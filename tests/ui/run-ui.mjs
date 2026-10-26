@@ -196,6 +196,23 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await context.close();
 }
 
+// 1 ter. Widget peu haut (cas courant dans Grist) : le contenu défile, onglets et barre d'outils restent visibles
+{
+  const meta = await metadata('document-complexe.metadata.json');
+  const { context, page, frame } = await h.openWidget({ meta, viewport: { width: 1000, height: 420 } });
+  await h.waitDiagram(frame);
+  await frame.locator('#tab-analysis').click();
+  const box = await frame.locator('#analysis-body').boundingBox();
+  await page.mouse.move(box.x + 200, box.y + 150);
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(400);
+  const scrolled = await frame.locator('#analysis-body').evaluate((el) => el.scrollTop);
+  check(scrolled > 100, `widget peu haut : la page défile à la molette (${scrolled} px)`);
+  check((await frame.locator('.pages').boundingBox()).y >= 0, 'widget peu haut : onglets toujours visibles');
+  await shot(page, '15-widget-bas.png');
+  await context.close();
+}
+
 // 2. Accès refusé : message clair
 {
   const { context, page, frame, errors } = await h.openWidget({ meta: { tables: {}, cols: {} }, fail: true });
