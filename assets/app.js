@@ -21,8 +21,8 @@ for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-coun
   'find-table', 'find-table-list', 'btn-svg', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
-  'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-info',
-  'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-info-label', 'analysis-body',
+  'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-accepted', 'level-info',
+  'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-accepted-label', 'level-info-label', 'analysis-body',
   'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
@@ -382,6 +382,7 @@ function renderAnalysis() {
   count.setAttribute('aria-label', plural(ins.counts.blocking, 'point à corriger', 'points à corriger'));
   els['level-all-label'].textContent = `Tout (${ins.items.length})`;
   for (const lvl of LEVELS) els[`level-${lvl}-label`].textContent = `${SEVERITIES[lvl].label} (${ins.counts[lvl]})`;
+  els['level-accepted-label'].textContent = `Choix confirmés (${ins.accepted.length})`;
 
   const known = new Set(state.out.tables.map((t) => t.name));
   const aclTables = new Set((state.access?.tables || []).map((t) => t.tableId));
@@ -409,7 +410,7 @@ function renderAnalysis() {
     return `<article class="insight insight--${it.severity}${accepted ? ' insight--accepted' : ''}">
       <div class="insight__icon ${SEVERITY_ICON[it.severity]}" aria-hidden="true"></div>
       <div class="insight__main">
-        <p class="insight__severity">${esc(SEVERITIES[it.severity].label)}<span class="insight__area">${esc(AREAS[it.area] || '')}</span></p>
+        <p class="insight__severity">${esc(accepted ? 'Choix confirmé' : SEVERITIES[it.severity].label)}<span class="insight__area">${esc(AREAS[it.area] || '')}</span></p>
         <h3 class="insight__title">${esc(it.title)}</h3>
         <p class="insight__text">${esc(it.summary)}</p>
         <p class="insight__why">${esc(it.why)}</p>
@@ -419,7 +420,7 @@ function renderAnalysis() {
       </div>
     </article>`;
   };
-  const shown = ins.items.filter((it) => state.level === 'all' || it.severity === state.level);
+  const shown = state.level === 'accepted' ? ins.accepted : ins.items.filter((it) => state.level === 'all' || it.severity === state.level);
   const verdict = `<section class="verdict verdict--${ins.verdict.level}">
       <div class="verdict__icon ${ins.verdict.level === 'blocking' ? 'fr-icon-error-warning-line' : 'fr-icon-checkbox-circle-line'}" aria-hidden="true"></div>
       <div><h2 class="verdict__title">${esc(ins.verdict.title)}</h2><p class="verdict__text">${esc(ins.verdict.text)}</p></div>
@@ -428,15 +429,12 @@ function renderAnalysis() {
       </dl>
     </section>`;
   const list = shown.length
-    ? shown.map(card).join('')
-    : emptyState(`<p>${state.level === 'all' ? 'Rien à signaler.' : `Aucun point « ${esc(SEVERITIES[state.level].label)} ».`}</p>`);
+    ? shown.map((it) => card(it, { accepted: state.level === 'accepted' })).join('')
+    : emptyState(`<p>${state.level === 'all' ? 'Rien à signaler.' : state.level === 'accepted' ? 'Aucun choix confirmé. Sur une carte « Choix à confirmer », le bouton « C\'est voulu » la range ici.' : `Aucun point « ${esc(SEVERITIES[state.level].label)} ».`}</p>`);
   const checks = ins.checks.map((c) => `<li class="${c.ok ? '' : 'is-ko'}">${esc(c.label)}</li>`).join('');
-  const acceptedHtml = ins.accepted.length && (state.level === 'all' || state.level === 'choice')
-    ? `<details class="insights__accepted"><summary>${esc(plural(ins.accepted.length, 'choix confirmé', 'choix confirmés'))} (« C'est voulu »)</summary>${ins.accepted.map((it) => card(it, { accepted: true })).join('')}</details>`
-    : '';
   els['analysis-body'].innerHTML = `${verdict}
     <div class="analysis">
-      <div class="insights">${list}${acceptedHtml}</div>
+      <div class="insights">${list}</div>
       <aside class="checks" aria-label="Ce qui a été vérifié"><h3>Ce qui a été vérifié</h3><ul>${checks}</ul></aside>
     </div>`;
 }
@@ -815,7 +813,7 @@ function bindEvents() {
   });
 
   // Analyse
-  for (const id of ['level-all', ...LEVELS.map((l) => `level-${l}`)]) {
+  for (const id of ['level-all', 'level-accepted', ...LEVELS.map((l) => `level-${l}`)]) {
     els[id].addEventListener('change', () => { if (els[id].checked) { state.level = els[id].value; renderAnalysis(); } });
   }
 
