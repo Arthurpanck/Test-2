@@ -2,17 +2,18 @@
 
 Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui audite le document où il est installé : structure, formules, droits d'accès, conversion en [DBML](https://dbml.dbdiagram.io/docs/) et rapport Word.
 
-Cinq pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès), le diagnostiquer (Analyse), produire (Rapport). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
+Six pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès, Widgets), le diagnostiquer (Analyse), produire (Rapport). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
 
 - **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, « Aller à une table », export SVG ;
 - **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
 - **Accès** : les règles d'accès avancées en clair — réglages généraux, attributs utilisateur, règles par défaut, puis les règles de chaque table et de ses colonnes, avec « Autorisé / Refusé » par permission et les messages de refus ; filtre et export CSV ;
+- **Widgets** : les pages du document dans l'ordre du menu, et pour chacune ses widgets — type (tableau, fiche, liste de fiches, graphique, formulaire, widget personnalisé), table affichée, widget qui le pilote ; pour les widgets personnalisés, le site d'origine et l'accès accordé ; les tables affichées sur aucune page ;
 - **Analyse** : un verdict, puis les constats sur la structure, les données et les droits d'accès, en quatre niveaux :
   - *À corriger* — ne fonctionne pas comme prévu (lien vers une table introuvable, condition sur un attribut inexistant, copie non protégée d'une table protégée…) ;
   - *À améliorer* — fonctionne, mais une bonne pratique éviterait des erreurs (liens écrits à la main au lieu d'une référence, nombres / dates / oui-non saisis en texte, valeurs répétées sans liste de choix, valeurs hors liste, noms par défaut, e-mails écrits dans les règles…) ;
   - *Choix à confirmer* — souvent volontaire (formule « Non défini », table isolée, table vide, colonne jamais remplie, table très large, tables en double, table sans règle propre…) : chaque carte dit « Si c'est voulu » et « Sinon, dans Grist » ; le bouton **C'est voulu** retire le point des comptes (mémorisé dans le widget) ;
   - *Bon à savoir*.
-- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un aperçu et le choix des sections ;
+- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un sommaire cliquable, un aperçu et le choix des sections ;
 
 Les constats sur les données lisent les lignes des tables (pas des synthèses) à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir.
 
@@ -33,7 +34,7 @@ Le widget mémorise la disposition du schéma dans le document : comme pour tout
 
 ## Utilisation
 
-La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`) et les règles d'accès dans `_grist_ACLResources` et `_grist_ACLRules`, à l'ouverture puis à chaque modification de la table du widget ; **Relire le document** les relit à la demande. Seuls les propriétaires (ou les personnes autorisées à voir les règles) peuvent lire les règles d'accès : pour les autres, la page Accès l'indique.
+La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`, `_grist_Views`, `_grist_Pages`) et les règles d'accès dans `_grist_ACLResources` et `_grist_ACLRules`, à l'ouverture puis à chaque modification de la table du widget ; **Relire le document** les relit à la demande. Seuls les propriétaires (ou les personnes autorisées à voir les règles) peuvent lire les règles d'accès : pour les autres, la page Accès l'indique.
 
 ## Schéma interactif
 
@@ -82,6 +83,7 @@ Grist refuse d'enregistrer une règle sur une colonne inexistante ou placée apr
 Le rapport est décrit une seule fois, puis rendu deux fois : en aperçu HTML dans la page Rapport et en fichier Word (bibliothèque [docx](https://docx.js.org/), chargée à la demande).
 
 - **Sections** : `REPORT_SECTIONS` dans `assets/report.js`. Chaque section renvoie des blocs neutres (titre, paragraphe, chiffres clés, encadré, tableau, image, liste, code). Ajouter, retirer ou réordonner une section met à jour à la fois le bouton de sélection, l'aperçu et le Word.
+- **Sommaire** : chaque titre reçoit un signet ; le sommaire, placé après le titre, renvoie vers ces signets (liens internes dans le Word, ancres dans l'aperçu). Il est construit à partir des sections retenues.
 - **Contenu** : les constats viennent de `assets/insights.js`, la même source que la page Analyse ; l'image est le schéma tel qu'il est disposé à l'écran.
 - **Charte** : couleurs et polices sont lues dans les variables CSS `--doc-*` de `assets/styles.css` (police, couleur principale, couleurs des types, des clés, des niveaux…). Modifier ces variables change l'aperçu, le fichier Word et l'export SVG du schéma, sans toucher au code.
 

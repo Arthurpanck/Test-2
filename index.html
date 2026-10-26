@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Audit de structure · widget Grist</title>
-  <meta name="description" content="Widget Grist : schéma, tables, droits d'accès, analyse et rapport Word du document.">
+  <meta name="description" content="Widget Grist : schéma, tables, droits d'accès, widgets, analyse et rapport Word du document.">
   <script>
     // Thème appliqué avant le premier rendu pour éviter un flash ; ensuite synchronisé avec Grist.
     document.documentElement.setAttribute('data-fr-theme',
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.3.0">
-  <link rel="stylesheet" href="assets/styles.css?v=2.3.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=2.4.0">
+  <link rel="stylesheet" href="assets/styles.css?v=2.4.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=2.3.0"></script>
+  <script type="module" src="assets/app.js?v=2.4.0"></script>
 </head>
 <body>
   <div class="app">
@@ -27,6 +27,8 @@
           role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lock-line" id="tab-access" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-access" tabindex="-1">Accès</button></li>
+        <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-layout-grid-line" id="tab-widgets" type="button"
+          role="tab" aria-selected="false" aria-controls="tabpanel-widgets" tabindex="-1">Widgets</button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-lightbulb-line" id="tab-analysis" type="button"
           role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="pages__count" id="analysis-count" hidden></span></button></li>
         <li role="presentation"><button class="fr-tabs__tab fr-tabs__tab--icon-left fr-icon-file-text-line" id="tab-report" type="button"
@@ -113,6 +115,11 @@
         </div>
       </div>
       <div class="page__body" id="access-body"></div>
+    </section>
+
+    <!-- Widgets -->
+    <section class="page" id="tabpanel-widgets" role="tabpanel" aria-labelledby="tab-widgets" hidden>
+      <div class="page__body" id="widgets-body"></div>
     </section>
 
     <!-- Analyse -->

@@ -9,8 +9,9 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=2.3.0';
-import { structureSmells } from './datacheck.js?v=2.3.0';
+import { accessInsights } from './access.js?v=2.4.0';
+import { structureSmells } from './datacheck.js?v=2.4.0';
+import { pageInsights } from './pages.js?v=2.4.0';
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -25,7 +26,7 @@ export const LEVELS = Object.keys(SEVERITIES);
 const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
 
 /** Domaines des constats. */
-export const AREAS = { structure: 'Structure', access: 'Droits d\'accès' };
+export const AREAS = { structure: 'Structure', access: 'Droits d\'accès', pages: 'Pages et widgets' };
 
 /** Clé d'un constat, pour mémoriser qu'il est « voulu » : change si les éléments concernés changent. */
 export function insightKey(it) {
@@ -38,7 +39,7 @@ export function insightKey(it) {
  * @param {object} [opts]  { profiles: profileTables(), accepted: Set de insightKey() }
  * @returns {{ verdict, counts, items, accepted, checks }}
  */
-export function buildInsights(tables, access = null, { profiles = null, accepted = null } = {}) {
+export function buildInsights(tables, access = null, { profiles = null, accepted = null, pages = null } = {}) {
   const items = [];
   const names = new Set(tables.map((t) => t.name));
 
@@ -174,6 +175,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   for (const it of items) it.area = 'structure';
   items.push(...structureSmells(tables, profiles, access));
   items.push(...accessInsights(access));
+  items.push(...pageInsights(pages));
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
 
   const acceptedItems = accepted ? items.filter((it) => it.severity === 'choice' && accepted.has(insightKey(it))) : [];

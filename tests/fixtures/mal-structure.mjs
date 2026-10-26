@@ -274,5 +274,33 @@ export function metadataFromDefinition(def) {
     colRef++;
     cols.push({ id: colRef, parentId: id, parentPos: colRef, colId: 'count', type: 'Int', isFormula: true, formula: 'len($group)', reverseCol: 0, label: 'count', description: '', widgetOptions: '', recalcWhen: 0, recalcDeps: null });
   }
-  return { tables, cols, sections: [], aclResources: def.acl.resources, aclRules: def.acl.rules, records };
+  // Pages : une par table (comme Grist à la création), la synthèse sur une « New page », et le widget d'audit.
+  const views = []; const pages = []; const sections = [];
+  let sec = 1000;
+  tables.forEach((t, i) => {
+    const vid = i + 1;
+    views.push({ id: vid, name: t.summarySourceTable ? 'New page' : t.tableId });
+    pages.push({ id: vid, viewRef: vid, pagePos: vid, indentation: 0 });
+    sections.push({ id: ++sec, parentId: vid, parentKey: 'record', tableRef: t.id, title: '', linkSrcSectionRef: 0, options: '', chartType: '', description: '' });
+  });
+  const clients = tables.find((t) => t.tableId === 'Clients').id;
+  const cmd = tables.find((t) => t.tableId === 'Commandes').id;
+  views.push({ id: 900, name: 'Suivi clients' }, { id: 901, name: 'Audit (widget)' });
+  pages.push({ id: 900, viewRef: 900, pagePos: 900, indentation: 0 }, { id: 901, viewRef: 901, pagePos: 901, indentation: 1 });
+  sections.push(
+    { id: 2001, parentId: 900, parentKey: 'record', tableRef: clients, title: 'Clients', linkSrcSectionRef: 0, options: '', chartType: '', description: '' },
+    { id: 2002, parentId: 900, parentKey: 'single', tableRef: clients, title: 'Fiche client', linkSrcSectionRef: 2001, options: '', chartType: '', description: '' },
+    { id: 2003, parentId: 900, parentKey: 'chart', tableRef: cmd, title: 'Commandes par mois', linkSrcSectionRef: 0, options: '', chartType: 'bar', description: '' },
+    { id: 2004, parentId: 901, parentKey: 'custom', tableRef: clients, title: 'Audit du document', linkSrcSectionRef: 0,
+      options: JSON.stringify({ customView: JSON.stringify({ mode: 'url', url: 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html', access: 'full' }) }), chartType: '', description: '' },
+  );
+  // Tables sans page : on retire Brouillon et Test des pages créées par défaut.
+  for (const name of ['Brouillon', 'Test']) {
+    const tid = tables.find((t) => t.tableId === name).id;
+    const k = sections.findIndex((x) => x.tableRef === tid && x.id < 2000);
+    const vid = sections[k].parentId;
+    sections.splice(k, 1);
+    pages.splice(pages.findIndex((x) => x.viewRef === vid), 1);
+  }
+  return { tables, cols, sections, views, pages, aclResources: def.acl.resources, aclRules: def.acl.rules, records };
 }

@@ -21,7 +21,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const cols = await frame.evaluate(() => window.__ready?.columns);
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Analyse,Rapport', `ordre des onglets (${tabs.join(', ')})`);
+  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Widgets,Analyse,Rapport', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
   for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png', '#btn-goto-report', '[data-goto-line]']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
@@ -113,6 +113,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#tab-report').focus();
   await frame.locator('#tab-report').press('ArrowLeft');
   check(await frame.locator('#tab-analysis').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
+  check(await frame.locator('.doc__toc a').count() >= 5 && xml.includes('w:bookmarkStart'), 'rapport : sommaire cliquable (aperçu et Word)');
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -203,6 +204,16 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     check(text.includes(t), `mal structuré : « ${t} »`);
   }
   check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');
+  check(text.includes('au nom par défaut') && text.includes('widget externe avec accès complet') && text.includes('affichées sur aucune page'), 'mal structuré : constats sur les pages et widgets');
+  await frame.locator('#tab-widgets').click();
+  const w = await frame.locator('#widgets-body').textContent();
+  check(await frame.locator('.page-card').count() >= 8 && w.includes('Suivi clients') && w.includes('Fiche') && w.includes('Graphique (barres)') && w.includes('raw.githack.com') && w.includes('Brouillon'), 'onglet Widgets : pages, types, widget personnalisé, tables sans page');
+  await shot(page, '17-widgets.png');
+  await frame.locator('#tab-report').click();
+  await frame.waitForSelector('.doc__toc', { timeout: 30000 });
+  const doc = await frame.locator('.doc').textContent();
+  check(doc.includes('Pages et widgets') && doc.includes('Sommaire'), 'rapport : section Pages et widgets');
+  await frame.locator('#tab-analysis').click();
   await page.waitForTimeout(600);
   await shot(page, '16-mal-structure-analyse.png');
   await frame.locator('label[for="level-choice"]').click();

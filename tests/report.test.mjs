@@ -96,3 +96,12 @@ test('document complexe : droits d\'accès, formules et détails dans le Word', 
   assert.ok(xml.includes('Données RH sensibles'), 'description de table');
   assert.ok(xml.includes('user.Profil'), 'attribut inexistant signalé');
 });
+
+test('sommaire cliquable : liens internes vers des signets sur chaque titre', async () => {
+  const { xml } = await docxXml(buildReport(context()));
+  const anchors = [...xml.matchAll(/w:hyperlink[^>]*w:anchor="(sec\d+)"/g)].map((m) => m[1]);
+  const marks = new Set([...xml.matchAll(/w:bookmarkStart[^>]*w:name="(sec\d+)"/g)].map((m) => m[1]));
+  assert.ok(anchors.length >= 5, `${anchors.length} entrées`);
+  assert.ok(anchors.every((a) => marks.has(a)), 'chaque entrée mène à un signet');
+  assert.ok(xml.includes('>Sommaire<'));
+});

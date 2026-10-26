@@ -1,12 +1,13 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.3.0';
-import { ErdViewer } from './erd.js?v=2.3.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.3.0';
-import { profileTables } from './datacheck.js?v=2.3.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.3.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.3.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.4.0';
+import { ErdViewer } from './erd.js?v=2.4.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.4.0';
+import { profileTables } from './datacheck.js?v=2.4.0';
+import { buildPages } from './pages.js?v=2.4.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.4.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.4.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.3.0';
+} from './report.js?v=2.4.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -20,13 +21,13 @@ for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-coun
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
   'find-table', 'find-table-list', 'btn-svg', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
-  'access-filter', 'btn-access-csv', 'access-body',
+  'access-filter', 'btn-access-csv', 'access-body', 'widgets-body',
   'level-all', 'level-blocking', 'level-improve', 'level-choice', 'level-accepted', 'level-info',
   'level-all-label', 'level-blocking-label', 'level-improve-label', 'level-choice-label', 'level-accepted-label', 'level-info-label', 'analysis-body',
   'report-sections', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
-const tabs = ['schema', 'tables', 'access', 'analysis', 'report'];
+const tabs = ['schema', 'tables', 'access', 'widgets', 'analysis', 'report'];
 
 const state = {
   schema: null,
@@ -37,6 +38,8 @@ const state = {
   insights: null,
   acl: null, // { resources, rules } lus dans le document, ou null si illisibles
   access: null, // buildAccess()
+  pages: null, // buildPages() : pages et widgets
+  pagesMeta: null,
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
@@ -134,7 +137,8 @@ darkQuery?.addEventListener?.('change', syncTheme);
 function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted }) : null;
+  state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages }) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -148,13 +152,16 @@ async function loadSchema({ manual = false } = {}) {
   renderHeader();
   try {
     const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
-    const [tables, columns, sections, resources, rules] = await Promise.all([
+    const [tables, columns, sections, resources, rules, pages, views] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
       gristApi.docApi.fetchTable('_grist_Tables_column'),
       optional('_grist_Views_section'),
       optional('_grist_ACLResources'),
       optional('_grist_ACLRules'),
+      optional('_grist_Pages'),
+      optional('_grist_Views'),
     ]);
+    state.pagesMeta = pages && views && sections ? { pages, views, sections, tables } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
     await loadData({ force: manual });
@@ -221,6 +228,7 @@ function render() {
   renderTables();
   renderAnalysis();
   renderAccess();
+  renderWidgets();
   if (state.tab === 'schema') renderDiagram();
   if (state.tab === 'report') renderReport();
 }
@@ -562,6 +570,34 @@ function renderAccess() {
     ${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
 }
 
+const WIDGET_ICONS = { record: 'fr-icon-table-line', single: 'fr-icon-file-text-line', detail: 'fr-icon-list-unordered', chart: 'fr-icon-lightbulb-line', custom: 'fr-icon-code-s-slash-line', form: 'fr-icon-edit-line' };
+
+function renderWidgets() {
+  const body = els['widgets-body'];
+  if (!state.out) { body.innerHTML = unavailableMessage(); return; }
+  const m = state.pages;
+  if (!m) { body.innerHTML = emptyState('<p>Les pages du document n\'ont pas pu être lues.</p>'); return; }
+  const known = new Set(state.out.tables.map((t) => t.name));
+  const issues = (state.insights?.items || []).filter((i) => i.area === 'pages' && i.severity !== 'info');
+  const counts = {};
+  for (const p of m.pages) for (const w of p.widgets) counts[w.typeLabel] = (counts[w.typeLabel] || 0) + 1;
+  const summary = `${plural(m.pages.length, 'page', 'pages')} · ${plural(m.widgetCount, 'widget', 'widgets')}${Object.keys(counts).length ? ` (${Object.entries(counts).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')})` : ''}`;
+  const cards = m.pages.map((p) => `<article class="acl-table page-card${p.indentation ? ' page-card--sub' : ''}">
+      <header class="acl-table__head"><h3>${esc(p.name || '(sans nom)')}</h3><p class="fr-badge fr-badge--sm fr-badge--no-icon">${esc(plural(p.widgets.length, 'widget', 'widgets'))}</p></header>
+      <ul class="widget-list">${p.widgets.map((w) => `<li class="widget-item">
+        <span class="widget-item__icon ${WIDGET_ICONS[w.type] || 'fr-icon-layout-grid-line'}" aria-hidden="true"></span>
+        <span class="widget-item__main"><strong>${esc(w.title || w.table || w.typeLabel)}</strong>
+          <span class="widget-item__meta">${esc(w.typeLabel)}${w.table ? ` · table ${known.has(w.table) ? `<button class="fr-link widget-item__link" type="button" data-goto-table="${esc(w.table)}">${esc(w.table)}</button>` : esc(w.table)}` : ''}${w.summary ? ' (synthèse)' : ''}${w.linkedTo ? ` · suit la sélection de « ${esc(w.linkedTo)} »` : ''}</span>
+          ${w.custom ? `<span class="widget-item__meta">${esc(w.custom.widgetId || w.custom.host || w.custom.url)} · accès ${esc({ full: 'complet', 'read table': 'lecture de la table', none: 'aucun' }[w.custom.access] || w.custom.access)}</span>` : ''}
+          ${w.description ? `<span class="widget-item__meta">${esc(w.description)}</span>` : ''}
+        </span></li>`).join('') || '<li class="widget-item widget-item--empty">Page vide</li>'}</ul></article>`).join('');
+  const orphan = m.tablesWithoutPage.length ? `<div class="acl-open">Tables affichées sur aucune page :
+      <ul>${m.tablesWithoutPage.map((t) => `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-table="${esc(t)}">${esc(t)}</button></li>`).join('')}</ul></div>` : '';
+  body.innerHTML = `<div class="access">
+    <section class="access__summary"><div><h2>Pages et widgets</h2><p>${esc(summary)}</p></div>${issues.length ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="pages">${esc(plural(issues.length, 'point d\'attention', 'points d\'attention'))}</button>` : ''}</section>
+    <section class="access__section"><h3>Pages, dans l'ordre du menu</h3><div class="pages-grid">${cards}</div>${orphan}</section></div>`;
+}
+
 function accessCsv() {
   const a = state.access;
   const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
@@ -581,6 +617,7 @@ function accessCsv() {
 function gotoAccess(table) {
   if (state.accessFilter) { state.accessFilter = ''; els['access-filter'].value = ''; }
   renderAccess();
+  renderWidgets();
   selectTab('access');
   const el = table && table !== '*' ? $(aclSlug(table)) : null;
   if (!el) { els['access-body'].scrollTop = 0; return; }
@@ -602,7 +639,7 @@ function renderReportSections() {
 async function schemaSnapshot() {
   const out = state.out;
   const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
-  const key = JSON.stringify([state.diagramKey || out.dbml, positions, state.diagram.detail]);
+  const key = JSON.stringify([state.diagramKey || out.dbml, positions]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -610,7 +647,7 @@ async function schemaSnapshot() {
   document.body.append(host);
   const v = new ErdViewer(host);
   try {
-    await v.setData(out.tables, { positions, detail: state.diagram.detail });
+    await v.setData(out.tables, { positions, detail: 'all' });
     const blob = await v.toPng(2);
     const b = v.bounds();
     const png = new Uint8Array(await blob.arrayBuffer());
@@ -632,6 +669,7 @@ function reportContext(schema) {
     insights: state.insights,
     access: state.access,
     profiles: state.profiles,
+    pages: state.pages,
     dbml: state.out.dbml,
     schema,
   };

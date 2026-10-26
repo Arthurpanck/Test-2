@@ -89,6 +89,7 @@ export async function start(outDir) {
             await new Promise((r) => setTimeout(r, 30));
             if (cfg.fail) throw new Error('Access denied');
             const extra = { _grist_Views_section: cfg.meta.sections, _grist_ACLResources: cfg.meta.aclResources, _grist_ACLRules: cfg.meta.aclRules };
+            if (cfg.meta.pages) Object.assign(extra, { _grist_Pages: cfg.meta.pages, _grist_Views: cfg.meta.views });
             if (t in extra) return extra[t] || [];
             if (t === '_grist_Tables') return cfg.meta.tables;
             if (t === '_grist_Tables_column') return cfg.meta.cols;

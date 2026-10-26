@@ -12,9 +12,9 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.3.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.3.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.3.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.4.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.4.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.4.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -106,17 +106,14 @@ export function ruleTable(rules, bits) {
 
 /**
  * Sections du rapport, dans l'ordre des pages du widget. Chacune renvoie des blocs.
- * `ctx` : { docName, date, stats, tables, insights, access, profiles, dbml, schema: { png, width, height } | null }
+ * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schema: { png, width, height } | null }
  */
 export const REPORT_SECTIONS = [
   {
     id: 'summary',
     title: 'Résumé',
-    description: 'Chiffres clés, état de l\'import et liste des tables',
+    description: 'Chiffres clés, verdict de l\'analyse et liste des tables',
     build(ctx) {
-      const rel = relationsOf(ctx.tables);
-      const incoming = new Map();
-      for (const r of rel) incoming.set(r.to, (incoming.get(r.to) || 0) + 1);
       return [
         { type: 'stats', items: [
           { value: ctx.stats.tables, label: ctx.stats.tables > 1 ? 'tables' : 'table' },
@@ -126,13 +123,11 @@ export const REPORT_SECTIONS = [
         ] },
         { type: 'callout', level: ctx.insights.verdict.level, title: ctx.insights.verdict.title, text: ctx.insights.verdict.text },
         { type: 'heading', level: 2, text: 'Tables du document' },
-        { type: 'table', columns: [{ label: 'Table', width: 36 }, { label: 'Colonnes', width: 14 }, { label: 'Lignes', width: 14 }, { label: 'Liens sortants', width: 18 }, { label: 'Référencée par', width: 18 }],
+        { type: 'table', columns: [{ label: 'Table', width: 60 }, { label: 'Lignes', width: 20 }, { label: 'Colonnes', width: 20 }],
           rows: ctx.tables.map((t) => [
             { text: t.name, bold: true, color: t.kind === 'summary' ? 'summary' : undefined },
+            ctx.profiles?.has(t.name) ? String(ctx.profiles.get(t.name).rows) : '—',
             String(t.columns.length + 1),
-            ctx.profiles?.has(t.name) ? String(ctx.profiles.get(t.name).rows) : '',
-            String(t.columns.filter((c) => c.ref).length),
-            String(incoming.get(t.name) || 0),
           ]) },
       ];
     },
@@ -173,6 +168,26 @@ export const REPORT_SECTIONS = [
           ] });
         if (refs.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Référencée par : ${refs.join(', ')}.` });
       }
+      return blocks;
+    },
+  },
+  {
+    id: 'pages',
+    title: 'Pages et widgets',
+    description: 'Les pages du document, dans l\'ordre du menu, et les widgets de chacune',
+    build(ctx) {
+      const m = ctx.pages;
+      if (!m) return [{ type: 'paragraph', color: 'muted', text: 'Les pages du document n\'ont pas pu être lues.' }];
+      const blocks = [{ type: 'paragraph', text: `${plural(m.pages.length, 'page', 'pages')}, ${plural(m.widgetCount, 'widget', 'widgets')}.` }];
+      blocks.push({ type: 'table', columns: [{ label: 'Page', width: 22 }, { label: 'Widget', width: 26 }, { label: 'Type', width: 18 }, { label: 'Table', width: 18 }, { label: 'Lié à', width: 16 }],
+        rows: m.pages.flatMap((p) => (p.widgets.length ? p.widgets : [null]).map((w, i) => [
+          i === 0 ? { text: `${p.indentation ? '↳ ' : ''}${p.name || '(sans nom)'}`, bold: true } : '',
+          w ? (w.title || w.table || '') : { text: 'Page vide', color: 'muted' },
+          w ? { lines: [{ text: w.typeLabel }, ...(w.custom ? [{ text: `${w.custom.widgetId || w.custom.host || w.custom.url} · accès ${{ full: 'complet', 'read table': 'lecture', none: 'aucun' }[w.custom.access] || w.custom.access}`, color: 'muted' }] : [])] } : '',
+          w ? `${w.table}${w.summary ? ' (synthèse)' : ''}` : '',
+          w ? w.linkedTo : '',
+        ])) });
+      if (m.tablesWithoutPage.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Tables affichées sur aucune page : ${m.tablesWithoutPage.join(', ')}.` });
       return blocks;
     },
   },
@@ -262,12 +277,22 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
     subtitle: ctx.docName || 'Document Grist',
     meta: `Rapport généré le ${ctx.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${ctx.date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${plural(ctx.stats.tables, 'table', 'tables')}, ${plural(ctx.stats.relations, 'relation', 'relations')}`,
   }];
+  const body = [];
   chosen.forEach((s, i) => {
-    if (i > 0 && s.id !== 'summary') blocks.push({ type: 'pagebreak' });
-    blocks.push({ type: 'heading', level: 1, text: s.title });
-    blocks.push(...s.build(ctx));
+    if (i > 0) body.push({ type: 'pagebreak' });
+    body.push({ type: 'heading', level: 1, text: s.title });
+    body.push(...s.build(ctx));
   });
-  return blocks;
+  // Table des matières cliquable : chaque titre reçoit une ancre (signet dans le Word).
+  let n = 0;
+  const entries = [];
+  for (const b of body) {
+    if (b.type !== 'heading') continue;
+    b.anchor = `sec${++n}`;
+    entries.push({ level: b.level, text: b.text, anchor: b.anchor });
+  }
+  if (entries.length > 1) blocks.push({ type: 'toc', title: 'Sommaire', entries }, { type: 'pagebreak' });
+  return blocks.concat(body);
 }
 
 // ---------------------------------------------------------------------------
@@ -298,7 +323,8 @@ export function renderHtml(blocks, { imageUrl } = {}) {
   return blocks.map((b) => {
     switch (b.type) {
       case 'title': return `<header class="doc__title"><p class="doc__kicker">${esc(b.subtitle)}</p><h1>${esc(b.text)}</h1><p class="doc__meta">${esc(b.meta)}</p></header>`;
-      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}">${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
+      case 'toc': return `<nav class="doc__toc" aria-label="Sommaire"><p class="doc__toc-title">${esc(b.title)}</p><ol>${b.entries.map((e) => `<li class="doc__toc-l${e.level}"><a href="#doc-${e.anchor}" data-doc-anchor="doc-${e.anchor}">${esc(e.text)}</a></li>`).join('')}</ol></nav>`;
+      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}"${b.anchor ? ` id="doc-${b.anchor}"` : ''}>${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
       case 'paragraph': return `<p class="doc__p${b.color ? ` doc--${b.color}` : ''}${b.size === 'small' ? ' doc__p--small' : ''}">${runsHtml(b)}</p>`;
       case 'stats': return `<div class="doc__stats">${b.items.map((s) => `<div><strong>${esc(s.value)}</strong><span>${esc(s.label)}</span></div>`).join('')}</div>`;
       case 'callout': return `<div class="doc__callout doc__callout--${b.level}"><p><strong>${esc(b.title)}</strong></p><p>${esc(b.text)}</p></div>`;
@@ -350,9 +376,23 @@ export function renderDocx(blocks, theme, d) {
         const runs = [];
         if (b.badge) runs.push(new d.TextRun({ text: ` ${b.badge.text.toUpperCase()} `, bold: true, size: pt(8), color: hex(theme.onPrimary), shading: { type: d.ShadingType.CLEAR, fill: color(b.badge.level), color: 'auto' } }), new d.TextRun({ text: '  ' }));
         runs.push(new d.TextRun({ text: b.text }));
-        children.push(new d.Paragraph({ heading: b.level === 1 ? d.HeadingLevel.HEADING_1 : d.HeadingLevel.HEADING_2, children: runs, keepNext: true }));
+        children.push(new d.Paragraph({
+          heading: b.level === 1 ? d.HeadingLevel.HEADING_1 : d.HeadingLevel.HEADING_2,
+          children: b.anchor ? [new d.Bookmark({ id: b.anchor, children: runs })] : runs,
+          keepNext: true,
+        }));
         break;
       }
+      case 'toc':
+        children.push(new d.Paragraph({ children: [new d.TextRun({ text: b.title, bold: true, size: pt(16), color: color('primary') })], spacing: { after: 160 } }));
+        for (const e of b.entries) {
+          children.push(new d.Paragraph({
+            indent: { left: e.level === 1 ? 0 : 400 },
+            spacing: { before: e.level === 1 ? 120 : 20, after: 20 },
+            children: [new d.InternalHyperlink({ anchor: e.anchor, children: [new d.TextRun({ text: e.text, bold: e.level === 1, color: e.level === 1 ? color('primary') : color('text'), size: e.level === 1 ? pt(11) : pt(9.5), underline: e.level === 1 ? undefined : {} })] })],
+          }));
+        }
+        break;
       case 'paragraph':
         children.push(new d.Paragraph({
           children: (b.runs || [{ text: b.text }]).map((r) => run(r, { color: b.color ? color(b.color) : undefined, size: b.size === 'small' ? pt(9) : undefined })),
