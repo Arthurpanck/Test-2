@@ -96,7 +96,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
   const preview = await frame.locator('.doc').textContent();
   check(!preview.includes('swd2QJ') && preview.includes('Document Grist'), 'rapport : identifiant interne masqué');
-  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Analyse'].every((t) => preview.includes(t)) && !preview.includes('Code DBML'), 'rapport : aperçu des sections, sans DBML');
+  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Widgets', 'Analyse', 'Droits d\'accès', 'Code DBML'].every((t) => preview.includes(t)) && preview.lastIndexOf('Code DBML') > preview.lastIndexOf('Droits d\'accès'), 'rapport : sections, code DBML à la fin');
   await shot(page, '05-rapport.png');
   await frame.locator('[data-section="access"]').click();
   check(!(await frame.locator('.doc').textContent()).includes('aucune règle d\'accès avancée : chaque'), 'rapport : section retirée de l\'aperçu');

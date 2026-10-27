@@ -12,10 +12,10 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.7.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.7.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.7.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.7.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.8.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.8.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.8.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.8.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -325,7 +325,18 @@ export const REPORT_SECTIONS = [
       return blocks;
     },
   },
-
+  {
+    id: 'dbml',
+    title: 'Code DBML',
+    description: 'Le code complet, à coller dans dbdiagram.io ou un autre outil',
+    build(ctx) {
+      if (!ctx.dbml) return [{ type: 'paragraph', color: 'muted', text: 'Le code DBML n\'a pas pu être produit.' }];
+      return [
+        { type: 'paragraph', color: 'muted', size: 'small', text: 'À coller dans un éditeur DBML (dbdiagram.io, par exemple) pour retrouver le schéma.' },
+        { type: 'code', lines: ctx.dbml.replace(/\n+$/, '').split('\n') },
+      ];
+    },
+  },
 ];
 
 /** Blocs du rapport complet pour les sections choisies. */

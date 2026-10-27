@@ -52,7 +52,7 @@ test('le rapport Word contient toutes les sections et les données du document',
   for (const t of ctx.tables) assert.ok(xml.includes(`>${t.name}<`) || xml.includes(`>${t.name} (synthèse)<`), `table ${t.name}`);
   assert.ok(xml.includes('Aucun problème bloquant détecté'), 'verdict');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
-  assert.ok(!xml.includes('>Code DBML<'), 'plus de section DBML');
+  assert.ok(xml.includes('>Code DBML<') && xml.includes('Table '), 'section DBML à la fin');
   assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple<') && xml.includes('>Date et Heure<'), 'types de colonnes en français');
   assert.ok(Object.keys(zip.files).some((f) => f.startsWith('word/media/')), 'image du schéma intégrée');
 });

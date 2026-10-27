@@ -1,15 +1,15 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.7.0';
-import { ErdViewer } from './erd.js?v=2.7.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.7.0';
-import { validateAuditConfig } from './audit-config.js?v=2.7.0';
-import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=2.7.0';
-import { profileTables } from './datacheck.js?v=2.7.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.7.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.7.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.7.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.8.0';
+import { ErdViewer } from './erd.js?v=2.8.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.8.0';
+import { validateAuditConfig } from './audit-config.js?v=2.8.0';
+import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=2.8.0';
+import { profileTables } from './datacheck.js?v=2.8.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.8.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.8.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.8.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.7.0';
+} from './report.js?v=2.8.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
