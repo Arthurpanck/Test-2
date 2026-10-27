@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.8.0';
+import { columnarToRows } from './converter.js?v=2.8.1';
 
 /** Types de widgets, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
@@ -244,3 +244,4 @@ export function pageInsights(model) {
   }
   return items;
 }
+

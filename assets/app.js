@@ -1,15 +1,15 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.8.0';
-import { ErdViewer } from './erd.js?v=2.8.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.8.0';
-import { validateAuditConfig } from './audit-config.js?v=2.8.0';
-import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=2.8.0';
-import { profileTables } from './datacheck.js?v=2.8.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.8.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.8.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.8.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.8.1';
+import { ErdViewer } from './erd.js?v=2.8.1';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.8.1';
+import { validateAuditConfig } from './audit-config.js?v=2.8.1';
+import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=2.8.1';
+import { profileTables } from './datacheck.js?v=2.8.1';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.8.1';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.8.1';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.8.1';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.8.0';
+} from './report.js?v=2.8.1';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -166,7 +166,7 @@ async function loadSchema({ manual = false } = {}) {
       optional('_grist_Filters'),
       optional('_grist_Attachments'),
     ]);
-    state.auditMeta = {filters, attachments};
+    state.auditMeta = {filters, attachments, sections, tables, columns, views};
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
@@ -1040,3 +1040,4 @@ syncTheme();
 selectTab('schema');
 if (inGrist) connectGrist();
 recompute();
+

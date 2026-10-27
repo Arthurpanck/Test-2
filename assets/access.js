@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=2.8.0';
-import { columnarToRows } from './converter.js?v=2.8.0';
+import { effectivePermission } from './audit-engine.js?v=2.8.1';
+import { columnarToRows } from './converter.js?v=2.8.1';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -366,3 +366,4 @@ export function permissionCells(rule, bits) {
 }
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
 export const PERMISSION_LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.bit, p.label]));
+

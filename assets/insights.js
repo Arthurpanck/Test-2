@@ -9,10 +9,10 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=2.8.0';
-import { structureSmells } from './datacheck.js?v=2.8.0';
-import { runAudit } from './audit-engine.js?v=2.8.0';
-import { pageInsights } from './pages.js?v=2.8.0';
+import { accessInsights } from './access.js?v=2.8.1';
+import { structureSmells } from './datacheck.js?v=2.8.1';
+import { runAudit } from './audit-engine.js?v=2.8.1';
+import { pageInsights } from './pages.js?v=2.8.1';
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -235,3 +235,4 @@ export function stepsAfterIntended(it) {
 export function targetLabel(t) {
   return t.column ? `${t.table}.${t.column}` : t.table;
 }
+

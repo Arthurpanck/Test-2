@@ -286,3 +286,4 @@ for (const [name, viewport, dark] of [['07-etroit', { width: 420, height: 860 },
 
 await h.finish();
 console.log('\nTous les contrôles d\'interface passent.');
+

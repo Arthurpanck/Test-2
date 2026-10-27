@@ -1,4 +1,4 @@
-/** Catalogue arbitré et méthodes de la version 2.7.0. */
+/** Catalogue arbitré et méthodes de la version 2.8.1. */
 export const AUDIT_CATALOG = [
   {
     "id": "N01",
@@ -2136,6 +2136,94 @@ export const AUDIT_CATALOG = [
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
     "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+  },
+  {
+    "id": "X13",
+    "title": "Une vue affiche beaucoup de filtres à régler",
+    "level": "Choix à confirmer",
+    "severity": "choice",
+    "domain": "Pages et vues",
+    "status": "implémenté",
+    "decision": "Retenu",
+    "typology": "Ergonomie de navigation",
+    "summary": "Au moins cinq champs de filtre sont affichés dans une même vue Tableau. Vérifiez si des vues préparées rendraient les listes habituelles plus faciles à retrouver.",
+    "why": "Des vues préparées pour les usages récurrents peuvent être plus faciles à retrouver et à utiliser. Plusieurs vues peuvent afficher la même table, sans dupliquer les données.",
+    "intended": "Une vue Exploration destinée à combiner librement de nombreux critères peut être adaptée. Gardez ses filtres si cette souplesse est utile et confirmez « C’est voulu ».",
+    "steps": [
+      "Dans la page concernée, repérez les listes utilisées régulièrement : dossiers à traiter, dossiers terminés, dossiers d’un service.",
+      "Avec « Ajouter une page » ou « Ajouter un widget à la page », choisissez Tableau et la même table existante. Donnez à chaque vue un nom correspondant à son usage ; ne créez pas de copie de la table.",
+      "Dans chaque vue, réglez les filtres voulus depuis les en-têtes des colonnes. Enregistrez les filtres pour que cette liste soit retrouvée ensuite.",
+      "Dans les réglages des tris et filtres de la vue, désépinglez de la barre les filtres fixes. Ils restent appliqués ; gardez visibles les filtres que les personnes doivent souvent modifier.",
+      "Conservez une vue Exploration si les personnes ont besoin de combiner librement tous les critères, puis utilisez « Relire le document » dans l’audit."
+    ],
+    "example": "Une seule vue Dossiers affiche six filtres : Statut, Service, Responsable, Année, Priorité, Commune. Chaque matin, l’équipe doit remettre Statut = Ouvert et Service = Accueil pour retrouver sa liste de travail.",
+    "detection": "Joindre _grist_Filters à _grist_Views_section par viewSectionRef, aux colonnes par colRef et aux tables par tableRef. Garder les vues Tableau (parentKey = record) placées sur une page (parentId > 0), les tables et colonnes nommées lisibles et les colonnes de cette même table. Compter les colRef distincts dont pinned vaut true ou 1 et dont filter est une chaîne différente de chaîne vide et de « null » (ancien filtre vide Grist). Dès cinq champs affichés dans une même vue, signaler cette vue et son nombre de champs. Ne pas compter les valeurs sélectionnées, les filtres masqués, les vues brutes hors page ou les autres types de widgets. Coût linéaire dans les métadonnées, aucune ligne métier lue pour ce contrôle. Sources absentes : non vérifiable ; propriété pinned absente ou filtre censuré : contrôle limité, aucune valeur devinée. Les réglages temporaires non enregistrés dans Grist ne sont pas visibles.",
+    "calculationSteps": [
+      "Relier les filtres à leur vue Tableau, à la table et à la colonne lisible correspondantes.",
+      "Ne conserver que les filtres enregistrés, épinglés (pinned = true ou 1) et actifs (filter différent de chaîne vide et de « null »).",
+      "Compter les colonnes distinctes par vue, jamais les valeurs choisies dans un filtre ni les filtres de toute la page.",
+      "Déclencher à partir de cinq champs dans une vue ; indiquer page, titre de vue, numéro, nombre et champs lisibles.",
+      "Ignorer les filtres masqués et les vues brutes. Signaler la limite de lecture si pinned ou une colonne ne peut pas être lu. Aucun calcul sur les lignes métier.",
+      "Exemple réellement vérifié via MCP : Audit_Imports, page 28, vue 79 ; Code, Nom, Email, Montant, Date_brute et Statut sont épinglés. Après désépinglage de Code et Nom : quatre champs affichés, aucun X13."
+    ],
+    "false_positives": "Une vue d’exploration peut légitimement afficher six critères. Le seuil de cinq est un choix du widget, pas une limite Grist. Le nombre ne prouve pas que des réglages sont refaits au quotidien. Les réglages temporaires non enregistrés et les champs masqués par les droits ne sont pas comptés. Masquer un filtre conserve son effet et ne modifie pas les droits d’accès.",
+    "justification": "Choix à confirmer : cinq filtres affichés constituent un indice d’ergonomie, sans prouver une gêne réelle.",
+    "source": "Métadonnées seulement : _grist_Filters, _grist_Views_section, _grist_Tables, _grist_Tables_column et noms des pages dans _grist_Views si lisibles.",
+    "implementation": "Automatique sur les filtres enregistrés et lisibles",
+    "reviewNote": "Retenue et intégrée au widget 2.8.1 le 27 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": true,
+      "correctionMCP": true
+    },
+    "testEvidence": "11 tests automatisés spécifiques : seuil 4/5/6, filtres masqués, comptage par vue et par champ, données censurées, métadonnées colonnaires, budget nul et rapport HTML/Word. Sur Audit_Imports (page 28, vue 79), lecture MCP de six filtres affichés : X13 présent. Deux filtres désépinglés via MCP : quatre affichés, X13 absent, six filtres enregistrés conservés. Exemple rétabli à six champs puis relu. Ce test de calcul sur les lectures MCP ne valide pas le rendu visuel dans Grist.",
+    "exampleDetail": {
+      "context": "La table Dossiers contient toutes les demandes de l’association. La même table peut être présentée dans plusieurs vues.",
+      "before": {
+        "title": "Avant — une seule vue, six filtres visibles",
+        "headers": [
+          "Vue",
+          "Filtres affichés",
+          "Réglage répété"
+        ],
+        "rows": [
+          [
+            "Dossiers",
+            "Statut · Service · Responsable · Année · Priorité · Commune",
+            "Chaque matin : Statut = Ouvert et Service = Accueil"
+          ]
+        ]
+      },
+      "after": {
+        "title": "Après — des vues prêtes pour les usages courants",
+        "headers": [
+          "Vue ou page",
+          "Filtre préparé",
+          "Filtres laissés visibles"
+        ],
+        "rows": [
+          [
+            "À traiter — Accueil",
+            "Statut = Ouvert ; Service = Accueil",
+            "Responsable · Priorité"
+          ],
+          [
+            "Dossiers terminés",
+            "Statut = Terminé",
+            "Année"
+          ],
+          [
+            "Exploration",
+            "Aucun périmètre imposé",
+            "Les six filtres, si utiles"
+          ]
+        ]
+      },
+      "explanation": "Ces trois vues utilisent la même table Dossiers. Les filtres fixes restent appliqués lorsqu’on masque leur affichage. On évite de refaire les mêmes réglages, sans créer trois copies de données.",
+      "counterexample": "Un analyste qui combine souvent les six critères a intérêt à conserver sa vue Exploration. Le constat demande de confirmer le besoin, pas de supprimer automatiquement des filtres."
+    },
+    "area": "pages",
+    "ruleVersion": 1
   }
 ];
 export const RETAINED_IDS = AUDIT_CATALOG.filter(x => x.decision === "Retenu").map(x => x.id);

@@ -77,7 +77,7 @@ pos('N67',one(Array.from({length:20},(_,i)=>c('Champ_'+i)),[{}]));
 pos('N69',ctx(undefined,{meta:{filters:[{id:1,filter:'{"included":["RH"]}'}]}}));
 pos('N70',one([c('Pieces','Attachments')],[{Pieces:['L',1]}],{meta:{attachments:[{id:1,fileName:'recu.pdf',fileSize:25*1024*1024}]}}));
 
-test('58 identifiants retenus, aucun des 12 écartés activé',()=>{assert.equal(RETAINED_IDS.length,58);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
+test('59 identifiants retenus, aucun des 12 écartés activé',()=>{assert.equal(RETAINED_IDS.length,59);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
 test('zéro, faux, listes, erreurs et censures ne sont pas confondus',()=>{const r=runAudit(one([c('N','Numeric'),c('B','Bool'),c('L','RefList:T')],[{N:0,B:false,L:['L']},{N:['C'],B:['C'],L:['C']} ]));assert.ok(!r.items.some(i=>i.id==='N02'));});
 test('clés composées : la même référence dans deux années est légitime',()=>assert.ok(!hit(one([c('Code'),c('Annee','Int')],[{Code:'A',Annee:2025},{Code:'A',Annee:2026}],{config:{keys:[{table:'T',columns:['Code','Annee']}]}}),'N04')));
 test('absence de clé ou de convention ne devient pas une anomalie',()=>{const r=runAudit(one([c('Code')],[{Code:'A'},{Code:'A'}]));for(const id of ['N04','N19','N27','N65','N66'])assert.equal(r.checks.find(c=>c.id===id).state,'configuration');});

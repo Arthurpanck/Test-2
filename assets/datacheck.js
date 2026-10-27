@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.8.0';
+import { columnarToRows } from './converter.js?v=2.8.1';
 
 const MAX_DISTINCT = 2000;
 
@@ -365,3 +365,4 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   return items.map((it) => ({ area: 'structure', ...it }));
 }
+
