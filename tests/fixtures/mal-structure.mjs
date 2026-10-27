@@ -293,6 +293,17 @@ export function metadataFromDefinition(def) {
     { id: 2003, parentId: 900, parentKey: 'chart', tableRef: cmd, title: 'Commandes par mois', linkSrcSectionRef: 0, options: '', chartType: 'bar', description: '' },
     { id: 2004, parentId: 901, parentKey: 'custom', tableRef: clients, title: 'Audit du document', linkSrcSectionRef: 0,
       options: JSON.stringify({ customView: JSON.stringify({ mode: 'url', url: 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html', access: 'full' }) }), chartType: '', description: '' },
+    { id: 2005, parentId: 900, parentKey: 'custom', tableRef: clients, title: 'Carte des clients', linkSrcSectionRef: 0, chartType: '', description: 'Où sont nos clients.',
+      options: JSON.stringify({ customView: JSON.stringify({ mode: 'url', url: null, widgetId: '@gristlabs/widget-map#map', access: 'read table', columnsMapping: null,
+        widgetDef: { name: 'Map', url: 'https://gristlabs.github.io/grist-widget/map/index.html', isGristLabsMaintained: true, authors: [{ name: 'Grist Labs' }],
+          columns: ['Name', { name: 'Longitude', type: 'Numeric' }, { name: 'Latitude', type: 'Numeric' }, { name: 'Address', optional: true }] } }) }) },
+    { id: 2006, parentId: 900, parentKey: 'custom', tableRef: cmd, title: '', linkSrcSectionRef: 0, chartType: '', description: '',
+      options: JSON.stringify({ customView: JSON.stringify({ mode: 'url', url: null, widgetId: '@gristlabs/widget-pivottable', access: 'read table',
+        widgetDef: { name: 'Pivot table', url: 'https://gristlabs.github.io/grist-widget/pivottable/index.html', authors: [{ name: 'jperon' }] } }) }) },
+    { id: 2007, parentId: 901, parentKey: 'creator', tableRef: clients, title: 'Compteur', linkSrcSectionRef: 0, chartType: '', description: '',
+      options: JSON.stringify({ customView: JSON.stringify({ access: 'read table' }), html: '<script src="grist-plugin-api.js"></script>\n<div id="n"></div>\n<script>grist.ready()</script>' }) },
+    { id: 2008, parentId: 901, parentKey: 'custom', tableRef: clients, title: 'Organigramme', linkSrcSectionRef: 0, chartType: '', description: '',
+      options: JSON.stringify({ customView: JSON.stringify({ mode: 'url', url: 'https://widgets.exemple.fr/orga/', access: 'full' }) }) },
   );
   // Tables sans page : on retire Brouillon et Test des pages créées par défaut.
   for (const name of ['Brouillon', 'Test']) {

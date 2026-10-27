@@ -105,3 +105,17 @@ test('sommaire cliquable : liens internes vers des signets sur chaque titre', as
   assert.ok(anchors.every((a) => marks.has(a)), 'chaque entrée mène à un signet');
   assert.ok(xml.includes('>Sommaire<'));
 });
+
+test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dans le sommaire', async () => {
+  const { buildPages, pageInsights } = await import('../assets/pages.js');
+  const { definition, metadataFromDefinition } = await import('./fixtures/mal-structure.mjs');
+  const m = metadataFromDefinition(definition);
+  const pages = buildPages({ pages: m.pages, views: m.views, sections: m.sections, tables: m.tables });
+  const ctx = { ...context(), pages, insights: { ...context().insights, items: pageInsights(pages) } };
+  const blocks = buildReport(ctx, ['summary', 'pages']);
+  const toc = blocks.find((b) => b.type === 'toc');
+  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Widgets personnalisés', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
+  const { xml } = await docxXml(blocks);
+  for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', 'À associer : Name, Longitude, Latitude', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
+  assert.ok(!xml.includes('>Tableau<'), 'aucun widget « Tableau » listé');
+});

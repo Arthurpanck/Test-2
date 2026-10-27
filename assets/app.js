@@ -1,13 +1,13 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.4.0';
-import { ErdViewer } from './erd.js?v=2.4.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.4.0';
-import { profileTables } from './datacheck.js?v=2.4.0';
-import { buildPages } from './pages.js?v=2.4.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.4.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.4.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.5.0';
+import { ErdViewer } from './erd.js?v=2.5.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.5.0';
+import { profileTables } from './datacheck.js?v=2.5.0';
+import { buildPages, originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.5.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.5.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.5.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.4.0';
+} from './report.js?v=2.5.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -161,7 +161,7 @@ async function loadSchema({ manual = false } = {}) {
       optional('_grist_Pages'),
       optional('_grist_Views'),
     ]);
-    state.pagesMeta = pages && views && sections ? { pages, views, sections, tables } : null;
+    state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
     await loadData({ force: manual });
@@ -570,7 +570,8 @@ function renderAccess() {
     ${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
 }
 
-const WIDGET_ICONS = { record: 'fr-icon-table-line', single: 'fr-icon-file-text-line', detail: 'fr-icon-list-unordered', chart: 'fr-icon-lightbulb-line', custom: 'fr-icon-code-s-slash-line', form: 'fr-icon-edit-line' };
+const WIDGET_ICONS = { record: 'fr-icon-table-line', single: 'fr-icon-file-text-line', detail: 'fr-icon-list-unordered', chart: 'fr-icon-line-chart-line', custom: 'fr-icon-code-s-slash-line', creator: 'fr-icon-code-s-slash-line', form: 'fr-icon-edit-line' };
+const ORIGIN_BADGE = { gallery: 'fr-badge--info', external: 'fr-badge--warning', document: 'fr-badge--new', self: 'fr-badge--success' };
 
 function renderWidgets() {
   const body = els['widgets-body'];
@@ -579,23 +580,50 @@ function renderWidgets() {
   if (!m) { body.innerHTML = emptyState('<p>Les pages du document n\'ont pas pu être lues.</p>'); return; }
   const known = new Set(state.out.tables.map((t) => t.name));
   const issues = (state.insights?.items || []).filter((i) => i.area === 'pages' && i.severity !== 'info');
-  const counts = {};
-  for (const p of m.pages) for (const w of p.widgets) counts[w.typeLabel] = (counts[w.typeLabel] || 0) + 1;
-  const summary = `${plural(m.pages.length, 'page', 'pages')} · ${plural(m.widgetCount, 'widget', 'widgets')}${Object.keys(counts).length ? ` (${Object.entries(counts).map(([k, v]) => `${v} ${k.toLowerCase()}`).join(', ')})` : ''}`;
-  const cards = m.pages.map((p) => `<article class="acl-table page-card${p.indentation ? ' page-card--sub' : ''}">
-      <header class="acl-table__head"><h3>${esc(p.name || '(sans nom)')}</h3><p class="fr-badge fr-badge--sm fr-badge--no-icon">${esc(plural(p.widgets.length, 'widget', 'widgets'))}</p></header>
-      <ul class="widget-list">${p.widgets.map((w) => `<li class="widget-item">
+  const tableLink = (t) => (known.has(t) ? `<button class="fr-link widget-item__link" type="button" data-goto-table="${esc(t)}">${esc(t)}</button>` : esc(t));
+  const where = (w) => `page « ${esc(w.page || '(sans nom)')} »${w.table ? ` · table ${tableLink(w.table)}${w.summary ? ' (synthèse)' : ''}` : ''}${w.linkedTo ? ` · suit la sélection de « ${esc(w.linkedTo)} »` : ''}`;
+  const n = m.custom.length + m.views.length;
+  const summary = n
+    ? `${plural(n, 'widget', 'widgets')} hors tableaux${typeCounts(m) ? ` : ${typeCounts(m)}` : ''} · ${plural(m.tableWidgetCount, 'tableau', 'tableaux')} non détaillés`
+    : `Aucun widget hors tableaux · ${plural(m.tableWidgetCount, 'tableau', 'tableaux')}`;
+
+  const customCards = m.custom.map((w) => {
+    const c = w.custom || {};
+    const rows = [
+      ['Origine', esc(originText(c))],
+      ['Accès', `<span class="${c.access === 'full' && c.origin === 'external' ? 'perm--deny' : ''}">${esc(ACCESS_LABELS[c.access] || c.access || '—')}</span>`],
+      c.mapping?.length ? ['Colonnes', esc(c.mapping.map((x) => `${x.name} → ${x.column}`).join(' · '))] : null,
+      c.missingColumns?.length ? ['À associer', `<span class="perm--deny">${esc(c.missingColumns.join(', '))}</span>`] : null,
+      c.url && c.origin !== 'document' ? ['Adresse', `<span class="widget-url">${esc(c.url)}</span>`] : null,
+      w.description ? ['Description', esc(w.description)] : null,
+    ].filter(Boolean);
+    return `<article class="acl-table widget-card">
+      <header class="acl-table__head"><h3>${esc(w.title || c.name || 'Widget personnalisé')}</h3>
+        ${c.origin ? `<p class="fr-badge fr-badge--sm fr-badge--no-icon ${ORIGIN_BADGE[c.origin] || ''}">${esc({ gallery: 'Galerie', external: 'Externe', document: 'Dans le document', self: 'Ce widget' }[c.origin])}</p>` : ''}</header>
+      <p class="widget-card__where">${where(w)}</p>
+      <dl class="widget-card__props">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></article>`;
+  }).join('');
+
+  const byPage = new Map();
+  for (const w of m.views) { if (!byPage.has(w.page)) byPage.set(w.page, []); byPage.get(w.page).push(w); }
+  const viewCards = [...byPage.entries()].map(([page, list]) => `<article class="acl-table page-card">
+      <header class="acl-table__head"><h3>${esc(page || '(sans nom)')}</h3><p class="fr-badge fr-badge--sm fr-badge--no-icon">${esc(plural(list.length, 'vue', 'vues'))}</p></header>
+      <ul class="widget-list">${list.map((w) => `<li class="widget-item">
         <span class="widget-item__icon ${WIDGET_ICONS[w.type] || 'fr-icon-layout-grid-line'}" aria-hidden="true"></span>
         <span class="widget-item__main"><strong>${esc(w.title || w.table || w.typeLabel)}</strong>
-          <span class="widget-item__meta">${esc(w.typeLabel)}${w.table ? ` · table ${known.has(w.table) ? `<button class="fr-link widget-item__link" type="button" data-goto-table="${esc(w.table)}">${esc(w.table)}</button>` : esc(w.table)}` : ''}${w.summary ? ' (synthèse)' : ''}${w.linkedTo ? ` · suit la sélection de « ${esc(w.linkedTo)} »` : ''}</span>
-          ${w.custom ? `<span class="widget-item__meta">${esc(w.custom.widgetId || w.custom.host || w.custom.url)} · accès ${esc({ full: 'complet', 'read table': 'lecture de la table', none: 'aucun' }[w.custom.access] || w.custom.access)}</span>` : ''}
+          <span class="widget-item__meta">${esc(w.typeLabel)}${w.table ? ` · table ${tableLink(w.table)}${w.summary ? ' (synthèse)' : ''}` : ''}${w.linkedTo ? ` · suit la sélection de « ${esc(w.linkedTo)} »` : ''}</span>
           ${w.description ? `<span class="widget-item__meta">${esc(w.description)}</span>` : ''}
-        </span></li>`).join('') || '<li class="widget-item widget-item--empty">Page vide</li>'}</ul></article>`).join('');
-  const orphan = m.tablesWithoutPage.length ? `<div class="acl-open">Tables affichées sur aucune page :
-      <ul>${m.tablesWithoutPage.map((t) => `<li><button class="fr-tag fr-tag--sm" type="button" data-goto-table="${esc(t)}">${esc(t)}</button></li>`).join('')}</ul></div>` : '';
+        </span></li>`).join('')}</ul></article>`).join('');
+
+  const tagList = (items, goto) => `<ul>${items.map((t) => `<li>${goto ? `<button class="fr-tag fr-tag--sm" type="button" data-goto-table="${esc(t)}">${esc(t)}</button>` : `<span class="fr-tag fr-tag--sm">${esc(t)}</span>`}</li>`).join('')}</ul>`;
   body.innerHTML = `<div class="access">
-    <section class="access__summary"><div><h2>Pages et widgets</h2><p>${esc(summary)}</p></div>${issues.length ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="pages">${esc(plural(issues.length, 'point d\'attention', 'points d\'attention'))}</button>` : ''}</section>
-    <section class="access__section"><h3>Pages, dans l'ordre du menu</h3><div class="pages-grid">${cards}</div>${orphan}</section></div>`;
+    <section class="access__summary"><div><h2>Widgets</h2><p>${esc(summary)}</p></div>${issues.length ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="pages">${esc(plural(issues.length, 'point d\'attention', 'points d\'attention'))}</button>` : ''}</section>
+    <section class="access__section"><h3>Widgets personnalisés</h3>${customCards ? `<div class="pages-grid">${customCards}</div>` : '<p class="fr-hint-text">Aucun widget personnalisé dans ce document.</p>'}</section>
+    <section class="access__section"><h3>Fiches, listes, graphiques et formulaires</h3>${viewCards ? `<div class="pages-grid">${viewCards}</div>` : '<p class="fr-hint-text">Aucune autre vue que des tableaux.</p>'}</section>
+    ${m.tableOnlyPages.length || m.tablesWithoutPage.length ? `<section class="access__section"><h3>Le reste</h3>
+      ${m.tableOnlyPages.length ? `<div class="acl-open">${esc(plural(m.tableOnlyPages.length, 'page ne contient', 'pages ne contiennent'))} que des tableaux :${tagList(m.tableOnlyPages)}</div>` : ''}
+      ${m.tablesWithoutPage.length ? `<div class="acl-open">Tables affichées sur aucune page :${tagList(m.tablesWithoutPage, true)}</div>` : ''}</section>` : ''}
+  </div>`;
 }
 
 function accessCsv() {

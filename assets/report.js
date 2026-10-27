@@ -12,9 +12,10 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.4.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.4.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.4.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.5.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.5.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.5.0';
+import { originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.5.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -173,21 +174,59 @@ export const REPORT_SECTIONS = [
   },
   {
     id: 'pages',
-    title: 'Pages et widgets',
-    description: 'Les pages du document, dans l\'ordre du menu, et les widgets de chacune',
+    title: 'Widgets',
+    description: 'Widgets personnalisés (origine, accès, colonnes), fiches, listes, graphiques et formulaires',
     build(ctx) {
       const m = ctx.pages;
       if (!m) return [{ type: 'paragraph', color: 'muted', text: 'Les pages du document n\'ont pas pu être lues.' }];
-      const blocks = [{ type: 'paragraph', text: `${plural(m.pages.length, 'page', 'pages')}, ${plural(m.widgetCount, 'widget', 'widgets')}.` }];
-      blocks.push({ type: 'table', columns: [{ label: 'Page', width: 22 }, { label: 'Widget', width: 26 }, { label: 'Type', width: 18 }, { label: 'Table', width: 18 }, { label: 'Lié à', width: 16 }],
-        rows: m.pages.flatMap((p) => (p.widgets.length ? p.widgets : [null]).map((w, i) => [
-          i === 0 ? { text: `${p.indentation ? '↳ ' : ''}${p.name || '(sans nom)'}`, bold: true } : '',
-          w ? (w.title || w.table || '') : { text: 'Page vide', color: 'muted' },
-          w ? { lines: [{ text: w.typeLabel }, ...(w.custom ? [{ text: `${w.custom.widgetId || w.custom.host || w.custom.url} · accès ${{ full: 'complet', 'read table': 'lecture', none: 'aucun' }[w.custom.access] || w.custom.access}`, color: 'muted' }] : [])] } : '',
-          w ? `${w.table}${w.summary ? ' (synthèse)' : ''}` : '',
-          w ? w.linkedTo : '',
-        ])) });
-      if (m.tablesWithoutPage.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Tables affichées sur aucune page : ${m.tablesWithoutPage.join(', ')}.` });
+      const n = m.custom.length + m.views.length;
+      const blocks = [{ type: 'paragraph', text: n
+        ? `${plural(m.pages.length, 'page', 'pages')}, ${plural(n, 'widget', 'widgets')} hors tableaux (${typeCounts(m)}). Les ${plural(m.tableWidgetCount, 'tableau', 'tableaux')} ne sont pas détaillés ici.`
+        : `${plural(m.pages.length, 'page', 'pages')}, uniquement des tableaux (${m.tableWidgetCount}).` }];
+      const where = (w) => ({ lines: [{ text: w.page || '(sans nom)', bold: true }, ...(w.table ? [{ text: `table ${w.table}${w.summary ? ' (synthèse)' : ''}`, color: 'muted' }] : []), ...(w.linkedTo ? [{ text: `suit « ${w.linkedTo} »`, color: 'muted' }] : [])] });
+
+      blocks.push({ type: 'heading', level: 2, text: 'Widgets personnalisés' });
+      if (!m.custom.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget personnalisé dans ce document.' });
+      else {
+        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 26 }, { label: 'Page', width: 20 }, { label: 'Origine', width: 32 }, { label: 'Accès', width: 22 }],
+          rows: m.custom.map((w) => {
+            const c = w.custom || {};
+            return [
+              { lines: [{ text: w.title || c.name || 'Widget personnalisé', bold: true },
+                ...(w.description ? [{ text: w.description, color: 'muted' }] : []),
+                ...(c.mapping?.length ? [{ label: 'Colonnes', text: c.mapping.map((x) => `${x.name} → ${x.column}`).join(', ') }] : []),
+                ...(c.missingColumns?.length ? [{ text: `À associer : ${c.missingColumns.join(', ')}`, color: 'blocking' }] : [])] },
+              where(w),
+              { lines: [{ text: originText(c) }, ...(c.url && c.origin !== 'document' ? [{ text: c.url, mono: true, color: 'muted' }] : [])] },
+              { text: ACCESS_LABELS[c.access] || c.access || '—', color: c.access === 'full' && c.origin === 'external' ? 'improve' : undefined },
+            ];
+          }) });
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : « Galerie Grist » — widget choisi dans la liste proposée par Grist ; « Site externe » — widget ajouté par son adresse ; « Code dans le document » — widget créé dans Grist, dont le code est enregistré dans le document. L\'accès complet permet au widget de lire et de modifier tout le document.' });
+      }
+
+      blocks.push({ type: 'heading', level: 2, text: 'Fiches, listes, graphiques et formulaires' });
+      if (!m.views.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucune autre vue que des tableaux.' });
+      else {
+        blocks.push({ type: 'table', columns: [{ label: 'Page', width: 22 }, { label: 'Widget', width: 28 }, { label: 'Type', width: 16 }, { label: 'Table', width: 16 }, { label: 'Suit la sélection de', width: 18 }],
+          rows: m.views.map((w, i) => [
+            i === 0 || m.views[i - 1].page !== w.page ? { text: w.page || '(sans nom)', bold: true } : '',
+            { lines: [{ text: w.title || w.table || w.typeLabel }, ...(w.description ? [{ text: w.description, color: 'muted' }] : [])] },
+            w.typeLabel,
+            `${w.table}${w.summary ? ' (synthèse)' : ''}`,
+            w.linkedTo || { text: '—', color: 'muted' },
+          ]) });
+      }
+
+      const issues = (ctx.insights?.items || []).filter((i) => i.area === 'pages');
+      if (issues.length) {
+        blocks.push({ type: 'heading', level: 2, text: 'Points d\'attention' });
+        blocks.push({ type: 'list', items: issues.map((i) => `${SEVERITIES[i.severity].label} — ${i.title}`) });
+        if (ctx.sections?.includes('analysis') ?? true) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Le détail et la marche à suivre sont dans la partie « Analyse ».' });
+      }
+      const rest = [];
+      if (m.tableOnlyPages.length) rest.push(`Pages qui ne contiennent que des tableaux : ${m.tableOnlyPages.join(', ')}.`);
+      if (m.tablesWithoutPage.length) rest.push(`Tables affichées sur aucune page : ${m.tablesWithoutPage.join(', ')}.`);
+      for (const t of rest) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: t });
       return blocks;
     },
   },
