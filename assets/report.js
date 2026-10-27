@@ -12,10 +12,10 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.5.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.5.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.5.0';
-import { originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.5.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.6.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.6.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.6.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.6.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -24,7 +24,7 @@ export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iif
 // ---------------------------------------------------------------------------
 
 export const THEME_KEYS = {
-  font: 'Marianne', mono: 'Consolas',
+  font: 'Calibri', mono: 'Consolas',
   primary: '#000091', onPrimary: '#ffffff', summary: '#6e445a',
   text: '#161616', muted: '#666666', border: '#dddddd', surface: '#f6f6f6',
   type: '#18753c', formula: '#a558a0', key: '#b34000',
@@ -185,23 +185,42 @@ export const REPORT_SECTIONS = [
         : `${plural(m.pages.length, 'page', 'pages')}, uniquement des tableaux (${m.tableWidgetCount}).` }];
       const where = (w) => ({ lines: [{ text: w.page || '(sans nom)', bold: true }, ...(w.table ? [{ text: `table ${w.table}${w.summary ? ' (synthèse)' : ''}`, color: 'muted' }] : []), ...(w.linkedTo ? [{ text: `suit « ${w.linkedTo} »`, color: 'muted' }] : [])] });
 
-      blocks.push({ type: 'heading', level: 2, text: 'Widgets personnalisés' });
-      if (!m.custom.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget personnalisé dans ce document.' });
+      const colLine = (l, muted) => (l.missing ? { text: `• ${l.field} → à associer`, color: 'blocking' } : { text: `• ${l.field} → ${l.column}`, color: muted ? 'muted' : undefined });
+      const accessCell = (c) => ({ text: ACCESS_LABELS[c.access] || c.access || '—', color: c.access === 'full' && c.origin === 'external' ? 'improve' : undefined });
+
+      blocks.push({ type: 'heading', level: 2, text: 'Widgets non officiels' });
+      if (!m.unofficial.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget non officiel dans ce document.' });
       else {
-        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 26 }, { label: 'Page', width: 20 }, { label: 'Origine', width: 32 }, { label: 'Accès', width: 22 }],
-          rows: m.custom.map((w) => {
-            const c = w.custom || {};
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Widgets ajoutés par leur adresse (site externe) ou créés dans Grist, dont le code est enregistré dans le document. L\'accès complet permet au widget de lire et de modifier tout le document.' });
+        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 24 }, { label: 'Page', width: 18 }, { label: 'Origine', width: 34 }, { label: 'Accès', width: 24 }],
+          rows: m.unofficial.map((w) => {
+            const c = w.custom;
             return [
-              { lines: [{ text: w.title || c.name || 'Widget personnalisé', bold: true },
-                ...(w.description ? [{ text: w.description, color: 'muted' }] : []),
-                ...(c.mapping?.length ? [{ label: 'Colonnes', text: c.mapping.map((x) => `${x.name} → ${x.column}`).join(', ') }] : []),
-                ...(c.missingColumns?.length ? [{ text: `À associer : ${c.missingColumns.join(', ')}`, color: 'blocking' }] : [])] },
+              { lines: [{ text: w.title || c.name || 'Widget', bold: true }, ...(w.description ? [{ text: w.description, color: 'muted' }] : []), ...columnLines(c).map((l) => colLine(l, true))] },
               where(w),
               { lines: [{ text: originText(c) }, ...(c.url && c.origin !== 'document' ? [{ text: c.url, mono: true, color: 'muted' }] : [])] },
-              { text: ACCESS_LABELS[c.access] || c.access || '—', color: c.access === 'full' && c.origin === 'external' ? 'improve' : undefined },
+              accessCell(c),
             ];
           }) });
-        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : « Galerie Grist » — widget choisi dans la liste proposée par Grist ; « Site externe » — widget ajouté par son adresse ; « Code dans le document » — widget créé dans Grist, dont le code est enregistré dans le document. L\'accès complet permet au widget de lire et de modifier tout le document.' });
+      }
+
+      blocks.push({ type: 'heading', level: 2, text: 'Widgets personnalisés' });
+      if (!m.gallery.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget de la galerie Grist dans ce document.' });
+      else {
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Widgets choisis dans la galerie de Grist, avec l\'accès accordé et la colonne associée à chaque champ attendu.' });
+        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 26 }, { label: 'Page', width: 20 }, { label: 'Accès', width: 20 }, { label: 'Colonnes', width: 34 }],
+          rows: m.gallery.map((w) => {
+            const c = w.custom;
+            const lines = columnLines(c);
+            return [
+              { lines: [{ text: w.title || c.name, bold: true },
+                ...(w.title && w.title !== c.name ? [{ text: c.name, color: 'muted' }] : []),
+                ...(c.maintained ? [] : [{ text: `Communauté${c.author ? ` (${c.author})` : ''}`, color: 'muted' }])] },
+              where(w),
+              accessCell(c),
+              lines.length ? { lines: lines.map((l) => colLine(l, false)) } : { text: 'Aucune colonne à associer', color: 'muted' },
+            ];
+          }) });
       }
 
       blocks.push({ type: 'heading', level: 2, text: 'Fiches, listes, graphiques et formulaires' });
@@ -323,14 +342,16 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
     body.push(...s.build(ctx));
   });
   // Table des matières cliquable : chaque titre reçoit une ancre (signet dans le Word).
-  let n = 0;
+  // Titres numérotés « 1. », « 1.1 » ; chacun reçoit une ancre (signet dans le Word).
+  let n = 0; let h1 = 0; let h2 = 0;
   const entries = [];
   for (const b of body) {
     if (b.type !== 'heading') continue;
+    if (b.level === 1) { h1 += 1; h2 = 0; b.number = `${h1}.`; } else { h2 += 1; b.number = `${h1}.${h2}`; }
     b.anchor = `sec${++n}`;
-    entries.push({ level: b.level, text: b.text, anchor: b.anchor });
+    entries.push({ level: b.level, number: b.number, text: b.text, anchor: b.anchor });
   }
-  if (entries.length > 1) blocks.push({ type: 'toc', title: 'Sommaire', entries }, { type: 'pagebreak' });
+  if (entries.length > 1) blocks.push({ type: 'toc', title: 'Table des matières', entries }, { type: 'pagebreak' });
   return blocks.concat(body);
 }
 
@@ -362,8 +383,8 @@ export function renderHtml(blocks, { imageUrl } = {}) {
   return blocks.map((b) => {
     switch (b.type) {
       case 'title': return `<header class="doc__title"><p class="doc__kicker">${esc(b.subtitle)}</p><h1>${esc(b.text)}</h1><p class="doc__meta">${esc(b.meta)}</p></header>`;
-      case 'toc': return `<nav class="doc__toc" aria-label="Sommaire"><p class="doc__toc-title">${esc(b.title)}</p><ol>${b.entries.map((e) => `<li class="doc__toc-l${e.level}"><a href="#doc-${e.anchor}" data-doc-anchor="doc-${e.anchor}">${esc(e.text)}</a></li>`).join('')}</ol></nav>`;
-      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}"${b.anchor ? ` id="doc-${b.anchor}"` : ''}>${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
+      case 'toc': return `<nav class="doc__toc" aria-label="${esc(b.title)}"><p class="doc__toc-title">${esc(b.title)}</p><ol>${b.entries.map((e) => `<li class="doc__toc-l${e.level}"><a href="#doc-${e.anchor}" data-doc-anchor="doc-${e.anchor}"><span class="doc__toc-num">${esc(e.number || '')}</span><span class="doc__toc-text">${esc(e.text)}</span></a></li>`).join('')}</ol></nav>`;
+      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}"${b.anchor ? ` id="doc-${b.anchor}"` : ''}>${b.number ? `<span class="doc__num">${esc(b.number)}</span> ` : ''}${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
       case 'paragraph': return `<p class="doc__p${b.color ? ` doc--${b.color}` : ''}${b.size === 'small' ? ' doc__p--small' : ''}">${runsHtml(b)}</p>`;
       case 'stats': return `<div class="doc__stats">${b.items.map((s) => `<div><strong>${esc(s.value)}</strong><span>${esc(s.label)}</span></div>`).join('')}</div>`;
       case 'callout': return `<div class="doc__callout doc__callout--${b.level}"><p><strong>${esc(b.title)}</strong></p><p>${esc(b.text)}</p></div>`;
@@ -382,6 +403,7 @@ export function renderHtml(blocks, { imageUrl } = {}) {
 // Rendu Word (.docx)
 // ---------------------------------------------------------------------------
 
+const PAGE_CONTENT_TWIPS = 11906 - 2 * 1134; // largeur utile, pour la tabulation des numéros de page
 const PAGE_CONTENT_PX = 642; // A4, marges de 2 cm : 17 cm utiles à 96 ppp
 const MAX_IMAGE_PX = 880;
 
@@ -413,6 +435,7 @@ export function renderDocx(blocks, theme, d) {
         break;
       case 'heading': {
         const runs = [];
+        if (b.number) runs.push(new d.TextRun({ text: `${b.number}  `, color: color('primary') }));
         if (b.badge) runs.push(new d.TextRun({ text: ` ${b.badge.text.toUpperCase()} `, bold: true, size: pt(8), color: hex(theme.onPrimary), shading: { type: d.ShadingType.CLEAR, fill: color(b.badge.level), color: 'auto' } }), new d.TextRun({ text: '  ' }));
         runs.push(new d.TextRun({ text: b.text }));
         children.push(new d.Paragraph({
@@ -423,18 +446,29 @@ export function renderDocx(blocks, theme, d) {
         break;
       }
       case 'toc':
-        children.push(new d.Paragraph({ children: [new d.TextRun({ text: b.title, bold: true, size: pt(16), color: color('primary') })], spacing: { after: 160 } }));
+        children.push(new d.Paragraph({
+          children: [new d.TextRun({ text: b.title, bold: true, size: pt(20), color: color('primary') })],
+          spacing: { after: 240 },
+          border: { bottom: { style: d.BorderStyle.SINGLE, size: 8, color: color('primary'), space: 6 } },
+        }));
         for (const e of b.entries) {
+          const top = e.level === 1;
+          const style = { bold: top, color: top ? color('primary') : color('text'), size: top ? pt(12) : pt(11) };
           children.push(new d.Paragraph({
-            indent: { left: e.level === 1 ? 0 : 400 },
-            spacing: { before: e.level === 1 ? 120 : 20, after: 20 },
-            children: [new d.InternalHyperlink({ anchor: e.anchor, children: [new d.TextRun({ text: e.text, bold: e.level === 1, color: e.level === 1 ? color('primary') : color('text'), size: e.level === 1 ? pt(11) : pt(9.5), underline: e.level === 1 ? undefined : {} })] })],
+            indent: { left: top ? 454 : 1191, hanging: top ? 454 : 624 },
+            spacing: { before: top ? 200 : 30, after: top ? 60 : 30 },
+            tabStops: [{ type: d.TabStopType.LEFT, position: top ? 454 : 1191 }, { type: d.TabStopType.RIGHT, position: PAGE_CONTENT_TWIPS, leader: d.LeaderType.DOT }],
+            keepNext: top,
+            children: [new d.InternalHyperlink({ anchor: e.anchor, children: [
+              new d.TextRun({ ...style, text: `${e.number || ''}\t${e.text}\t` }),
+              new d.SimpleField(`PAGEREF ${e.anchor} \\h`, '', ),
+            ] })],
           }));
         }
         break;
       case 'paragraph':
         children.push(new d.Paragraph({
-          children: (b.runs || [{ text: b.text }]).map((r) => run(r, { color: b.color ? color(b.color) : undefined, size: b.size === 'small' ? pt(9) : undefined })),
+          children: (b.runs || [{ text: b.text }]).map((r) => run(r, { color: b.color ? color(b.color) : undefined, size: b.size === 'small' ? pt(9.5) : undefined })),
           spacing: { after: 120 },
         }));
         break;
@@ -477,11 +511,11 @@ export function renderDocx(blocks, theme, d) {
             ? (c.lines.length ? c.lines : [{ text: '' }]).map((l) => new d.Paragraph({
               spacing: { after: 20 },
               children: [
-                ...(l.label ? [new d.TextRun({ text: `${l.label} : `, bold: true, size: pt(8.5), color: color('muted') })] : []),
-                run(l, { size: pt(l.mono ? 8.5 : 9) }),
+                ...(l.label ? [new d.TextRun({ text: `${l.label} : `, bold: true, size: pt(9.5), color: color('muted') })] : []),
+                run(l, { size: pt(l.mono ? 9 : 10) }),
               ],
             }))
-            : [new d.Paragraph({ children: [run({ ...c, color: head ? undefined : c.color }, { color: head ? hex(theme.onPrimary) : undefined, size: pt(9), bold: head })] })];
+            : [new d.Paragraph({ children: [run({ ...c, color: head ? undefined : c.color }, { color: head ? hex(theme.onPrimary) : undefined, size: pt(10), bold: head })] })];
           return new d.TableCell({
             width: { size: w, type: d.WidthType.PERCENTAGE },
             shading: head ? { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' } : undefined,
@@ -541,8 +575,9 @@ export function renderDocx(blocks, theme, d) {
     creator: 'Widget Grist « Audit de structure »',
     title: blocks.find((b) => b.type === 'title')?.text || 'Structure du document',
     description: 'Rapport de structure d\'un document Grist',
+    features: { updateFields: true },
     styles: {
-      default: { document: { run: { font: theme.font, size: pt(10.5), color: color('text') }, paragraph: { spacing: { line: 276 } } } },
+      default: { document: { run: { font: theme.font, size: pt(11), color: color('text') }, paragraph: { spacing: { line: 264 } } } },
       paragraphStyles: [
         { id: 'Title', name: 'Title', basedOn: 'Normal', next: 'Normal', run: { font: theme.font, size: pt(26), bold: true, color: color('text') }, paragraph: { spacing: { after: 80 } } },
         { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: theme.font, size: pt(18), bold: true, color: color('primary') }, paragraph: { spacing: { before: 240, after: 160 } } },

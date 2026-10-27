@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.5.0';
+import { columnarToRows } from './converter.js?v=2.6.0';
 
 /** Types de widgets, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
@@ -33,6 +33,14 @@ const GALLERY_NAMES = {
 };
 
 export const ACCESS_LABELS = { full: 'Accès complet au document', 'read table': 'Lecture de la table sélectionnée', none: 'Aucun accès' };
+/** Colonnes d'un widget de la galerie : « Champ attendu → colonne », puis les champs encore à associer. */
+export function columnLines(c) {
+  return [
+    ...(c?.mapping || []).map((m) => ({ field: m.title || m.name, column: m.column })),
+    ...(c?.missingColumns || []).map((f) => ({ field: f, column: '', missing: true })),
+  ];
+}
+
 export const ORIGIN_LABELS = { gallery: 'Galerie Grist', external: 'Site externe', document: 'Code dans le document', self: 'Ce widget d\'audit' };
 
 function parseJson(value) {
@@ -55,6 +63,8 @@ function customInfo(section, colName, selfUrl) {
     .map(([name, v]) => ({ name, column: (Array.isArray(v) ? v : [v]).map((x) => colName(x) || String(x)).join(', ') }));
   const mapped = new Set(mapping.map((m) => m.name));
   const declared = Array.isArray(def?.columns) ? def.columns.map((c) => (typeof c === 'string' ? { name: c } : c)).filter((c) => c && c.name) : [];
+  const titles = new Map(declared.map((c) => [c.name, c.title || c.name]));
+  for (const m of mapping) m.title = titles.get(m.name) || m.name;
   const missingColumns = declared.filter((c) => !c.optional && !mapped.has(c.name)).map((c) => c.title || c.name);
 
   if (section.parentKey === 'creator') {
@@ -104,16 +114,17 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
       if (table) shown.add(table);
       const src = secById.get(s.linkSrcSectionRef);
       const type = s.parentKey || 'record';
+      const custom = type === 'custom' || type === 'creator' ? customInfo(s, colName, selfUrl) : null;
       return {
         id: s.id,
         type,
         page: pageName,
-        typeLabel: (WIDGET_TYPES[type] || type || 'Widget') + (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
+        typeLabel: custom && custom.origin !== 'gallery' ? 'Widget non officiel' : (WIDGET_TYPES[type] || type || 'Widget') + (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
         title: s.title || '',
         table,
         summary: Boolean(tableById.get(s.tableRef)?.summarySourceTable),
         linkedTo: src ? sectionLabel(src) : '',
-        custom: type === 'custom' || type === 'creator' ? customInfo(s, colName, selfUrl) : null,
+        custom,
         description: s.description || '',
       };
     });
@@ -127,6 +138,8 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
     widgetCount: all.length,
     tableWidgetCount: all.length - notable.length,
     custom: notable.filter((w) => w.custom),
+    unofficial: notable.filter((w) => w.custom && w.custom.origin !== 'gallery'),
+    gallery: notable.filter((w) => w.custom && w.custom.origin === 'gallery'),
     views: notable.filter((w) => !w.custom),
     tableOnlyPages: result.filter((p) => p.widgets.length && p.widgets.every((w) => w.type === 'record')).map((p) => p.name || '(sans nom)'),
     tablesWithoutPage: userTables.filter((t) => !shown.has(t)).sort((a, b) => a.localeCompare(b, 'fr')),
@@ -149,7 +162,7 @@ export function typeCounts(model) {
   return [...counts.entries()].map(([label, n]) => `${n} ${n > 1 ? pluralLabel(label) : label.toLowerCase()}`).join(', ');
 }
 function pluralLabel(label) {
-  return { Fiche: 'fiches', 'Liste de fiches': 'listes de fiches', 'Widget personnalisé': 'widgets personnalisés', Formulaire: 'formulaires' }[label]
+  return { Fiche: 'fiches', 'Liste de fiches': 'listes de fiches', 'Widget personnalisé': 'widgets personnalisés', 'Widget non officiel': 'widgets non officiels', Formulaire: 'formulaires' }[label]
     || (label.startsWith('Graphique') ? label.replace('Graphique', 'graphiques') : label.toLowerCase());
 }
 

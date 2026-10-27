@@ -76,7 +76,7 @@ test('le Word suit le thème du design (variables --doc-*)', async () => {
 
 test('l\'aperçu HTML reprend les mêmes blocs', () => {
   const html = renderHtml(buildReport(context()), { imageUrl: () => 'schema.png' });
-  for (const s of REPORT_SECTIONS) assert.ok(has(html, `>${s.title}</h2>`), s.title);
+  for (const s of REPORT_SECTIONS) assert.ok(has(html, ` ${s.title}</h2>`), s.title);
   assert.ok(html.includes('<img src="schema.png"'));
 });
 
@@ -103,7 +103,9 @@ test('sommaire cliquable : liens internes vers des signets sur chaque titre', as
   const marks = new Set([...xml.matchAll(/w:bookmarkStart[^>]*w:name="(sec\d+)"/g)].map((m) => m[1]));
   assert.ok(anchors.length >= 5, `${anchors.length} entrées`);
   assert.ok(anchors.every((a) => marks.has(a)), 'chaque entrée mène à un signet');
-  assert.ok(xml.includes('>Sommaire<'));
+  assert.ok(xml.includes('>Table des matières<'));
+  assert.ok(xml.includes('PAGEREF sec1') && xml.includes('w:leader="dot"'), 'numéros de page et points de conduite');
+  assert.ok(xml.includes('>1.  <') || xml.includes('1.\t'), 'titres numérotés');
 });
 
 test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dans le sommaire', async () => {
@@ -114,8 +116,8 @@ test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dan
   const ctx = { ...context(), pages, insights: { ...context().insights, items: pageInsights(pages) } };
   const blocks = buildReport(ctx, ['summary', 'pages']);
   const toc = blocks.find((b) => b.type === 'toc');
-  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Widgets personnalisés', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
+  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Widgets non officiels', 'Widgets personnalisés', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
   const { xml } = await docxXml(blocks);
-  for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', 'À associer : Name, Longitude, Latitude', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
+  for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', '• Name → à associer', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
   assert.ok(!xml.includes('>Tableau<'), 'aucun widget « Tableau » listé');
 });

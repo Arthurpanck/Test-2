@@ -1,13 +1,13 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.5.0';
-import { ErdViewer } from './erd.js?v=2.5.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.5.0';
-import { profileTables } from './datacheck.js?v=2.5.0';
-import { buildPages, originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.5.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.5.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.5.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.6.0';
+import { ErdViewer } from './erd.js?v=2.6.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.6.0';
+import { profileTables } from './datacheck.js?v=2.6.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.6.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.6.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.6.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.5.0';
+} from './report.js?v=2.6.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -587,21 +587,33 @@ function renderWidgets() {
     ? `${plural(n, 'widget', 'widgets')} hors tableaux${typeCounts(m) ? ` : ${typeCounts(m)}` : ''} · ${plural(m.tableWidgetCount, 'tableau', 'tableaux')} non détaillés`
     : `Aucun widget hors tableaux · ${plural(m.tableWidgetCount, 'tableau', 'tableaux')}`;
 
-  const customCards = m.custom.map((w) => {
-    const c = w.custom || {};
-    const rows = [
+  const columnsList = (c) => {
+    const lines = columnLines(c);
+    return lines.length ? `<ul class="widget-cols">${lines.map((l) => `<li${l.missing ? ' class="widget-cols--missing"' : ''}><span class="widget-cols__field">${esc(l.field)}</span> <span aria-hidden="true">→</span> ${l.missing ? 'à associer' : `<strong>${esc(l.column)}</strong>`}</li>`).join('')}</ul>` : '';
+  };
+  const card = (w, rows, badge) => `<article class="acl-table widget-card">
+      <header class="acl-table__head"><h3>${esc(w.title || w.custom?.name || 'Widget personnalisé')}</h3>${badge || ''}</header>
+      <p class="widget-card__where">${where(w)}</p>
+      <dl class="widget-card__props">${rows.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></article>`;
+  const accessText = (c) => `<span class="${c.access === 'full' && c.origin === 'external' ? 'perm--deny' : ''}">${esc(ACCESS_LABELS[c.access] || c.access || '—')}</span>`;
+  const badgeOf = (label, cls) => `<p class="fr-badge fr-badge--sm fr-badge--no-icon ${cls}">${esc(label)}</p>`;
+
+  const unofficialCards = m.unofficial.map((w) => {
+    const c = w.custom;
+    return card(w, [
       ['Origine', esc(originText(c))],
-      ['Accès', `<span class="${c.access === 'full' && c.origin === 'external' ? 'perm--deny' : ''}">${esc(ACCESS_LABELS[c.access] || c.access || '—')}</span>`],
-      c.mapping?.length ? ['Colonnes', esc(c.mapping.map((x) => `${x.name} → ${x.column}`).join(' · '))] : null,
-      c.missingColumns?.length ? ['À associer', `<span class="perm--deny">${esc(c.missingColumns.join(', '))}</span>`] : null,
+      ['Accès', accessText(c)],
+      columnLines(c).length ? ['Colonnes', columnsList(c)] : null,
       c.url && c.origin !== 'document' ? ['Adresse', `<span class="widget-url">${esc(c.url)}</span>`] : null,
       w.description ? ['Description', esc(w.description)] : null,
-    ].filter(Boolean);
-    return `<article class="acl-table widget-card">
-      <header class="acl-table__head"><h3>${esc(w.title || c.name || 'Widget personnalisé')}</h3>
-        ${c.origin ? `<p class="fr-badge fr-badge--sm fr-badge--no-icon ${ORIGIN_BADGE[c.origin] || ''}">${esc({ gallery: 'Galerie', external: 'Externe', document: 'Dans le document', self: 'Ce widget' }[c.origin])}</p>` : ''}</header>
-      <p class="widget-card__where">${where(w)}</p>
-      <dl class="widget-card__props">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></article>`;
+    ], badgeOf({ external: 'Externe', document: 'Dans le document', self: 'Ce widget' }[c.origin], ORIGIN_BADGE[c.origin]));
+  }).join('');
+  const galleryCards = m.gallery.map((w) => {
+    const c = w.custom;
+    return card(w, [
+      ['Accès', accessText(c)],
+      ['Colonnes', columnsList(c) || '<span class="widget-cols__none">Aucune colonne à associer</span>'],
+    ], c.maintained ? '' : badgeOf(`Communauté${c.author ? ` · ${c.author}` : ''}`, 'fr-badge--purple-glycine'));
   }).join('');
 
   const byPage = new Map();
@@ -618,7 +630,8 @@ function renderWidgets() {
   const tagList = (items, goto) => `<ul>${items.map((t) => `<li>${goto ? `<button class="fr-tag fr-tag--sm" type="button" data-goto-table="${esc(t)}">${esc(t)}</button>` : `<span class="fr-tag fr-tag--sm">${esc(t)}</span>`}</li>`).join('')}</ul>`;
   body.innerHTML = `<div class="access">
     <section class="access__summary"><div><h2>Widgets</h2><p>${esc(summary)}</p></div>${issues.length ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="pages">${esc(plural(issues.length, 'point d\'attention', 'points d\'attention'))}</button>` : ''}</section>
-    <section class="access__section"><h3>Widgets personnalisés</h3>${customCards ? `<div class="pages-grid">${customCards}</div>` : '<p class="fr-hint-text">Aucun widget personnalisé dans ce document.</p>'}</section>
+    <section class="access__section"><h3>Widgets non officiels</h3><p class="fr-hint-text widget-section__hint">Ajoutés par leur adresse ou créés dans le document, hors de la galerie de Grist.</p>${unofficialCards ? `<div class="pages-grid">${unofficialCards}</div>` : '<p class="fr-hint-text">Aucun widget non officiel dans ce document.</p>'}</section>
+    <section class="access__section"><h3>Widgets personnalisés</h3><p class="fr-hint-text widget-section__hint">Choisis dans la galerie de Grist.</p>${galleryCards ? `<div class="pages-grid">${galleryCards}</div>` : '<p class="fr-hint-text">Aucun widget de la galerie dans ce document.</p>'}</section>
     <section class="access__section"><h3>Fiches, listes, graphiques et formulaires</h3>${viewCards ? `<div class="pages-grid">${viewCards}</div>` : '<p class="fr-hint-text">Aucune autre vue que des tableaux.</p>'}</section>
     ${m.tableOnlyPages.length || m.tablesWithoutPage.length ? `<section class="access__section"><h3>Le reste</h3>
       ${m.tableOnlyPages.length ? `<div class="acl-open">${esc(plural(m.tableOnlyPages.length, 'page ne contient', 'pages ne contiennent'))} que des tableaux :${tagList(m.tableOnlyPages)}</div>` : ''}

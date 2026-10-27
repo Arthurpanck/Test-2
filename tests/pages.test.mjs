@@ -15,7 +15,8 @@ test('les tableaux sont comptés mais pas détaillés', () => {
   assert.equal(m.views[0].linkedTo, 'Clients');
   assert.ok(m.tableOnlyPages.includes('Commandes') && !m.tableOnlyPages.includes('Suivi clients'));
   assert.deepEqual(m.tablesWithoutPage, ['Brouillon', 'Test']);
-  assert.match(typeCounts(m), /1 fiche, 1 graphique \(barres\), 5 widgets personnalisés/);
+  assert.equal(typeCounts(m), '1 fiche, 1 graphique (barres), 2 widgets personnalisés, 3 widgets non officiels');
+  assert.deepEqual([m.unofficial.length, m.gallery.length], [3, 2]);
 });
 
 test('widgets personnalisés : origine, auteur, accès, colonnes manquantes', () => {
