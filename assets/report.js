@@ -12,10 +12,10 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.5.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.5.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=2.5.0';
-import { originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.5.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=2.6.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.6.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=2.6.0';
+import { originText, typeCounts, ACCESS_LABELS } from './pages.js?v=2.6.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -246,6 +246,7 @@ export const REPORT_SECTIONS = [
         blocks.push({ type: 'paragraph', text: it.summary });
         blocks.push({ type: 'paragraph', runs: [{ text: 'Pourquoi c\'est important : ', bold: true }, { text: it.why }] });
         if (it.targets.length) blocks.push({ type: 'paragraph', runs: [{ text: 'Concerné : ', bold: true }, { text: it.targets.map((t) => targetLabel(t) + (t.note ? ` (${t.note})` : '')).join(', ') }] });
+        if (it.method) { blocks.push({type:'paragraph',runs:[{text:'Comment ce constat est calculé : ',bold:true},{text:it.method}]}); blocks.push({type:'paragraph',runs:[{text:'Observation et limites : ',bold:true},{text:(it.calculation || '') + ' ' + (it.limitations || '')}]}); }
         if (it.intended) blocks.push({ type: 'paragraph', runs: [{ text: 'Si c\'est voulu : ', bold: true }, { text: it.intended }] });
         if (it.steps.length) {
           blocks.push({ type: 'paragraph', runs: [{ text: it.intended ? 'Sinon, dans Grist' : 'Comment corriger dans Grist', bold: true }] });
@@ -257,6 +258,7 @@ export const REPORT_SECTIONS = [
         blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Points marqués « C\'est voulu » dans le widget.' });
         blocks.push({ type: 'list', items: accepted.map((it) => `${it.title} — ${it.targets.map((t) => targetLabel(t)).join(', ')}`) });
       }
+      if (ctx.insights.audit) { blocks.push({type:'heading',level:2,text:'Couverture des contrôles détaillés'}); blocks.push({type:'list',items:ctx.insights.audit.checks.map(c=>`${c.id} — ${c.state} : ${c.reason}`)}); }
       blocks.push({ type: 'heading', level: 2, text: 'Ce qui a été vérifié' });
       blocks.push({ type: 'list', plain: true, items: checks.map((c) => `${c.ok ? '✓' : '✗'}  ${c.label}`) });
       return blocks;

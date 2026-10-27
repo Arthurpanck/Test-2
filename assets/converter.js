@@ -361,6 +361,7 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
       columns.set(c.colId, {
         colId: c.colId,
         type: c.type || 'Any',
+        visibleCol: colIdByRef.get(c.visibleCol || 0) || (typeof c.visibleCol === 'string' ? c.visibleCol : null),
         isFormula: Boolean(c.isFormula),
         formula: c.formula || '',
         reverseColId: colIdByRef.get(c.reverseCol || 0) || null,

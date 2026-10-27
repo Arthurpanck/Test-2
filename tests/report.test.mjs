@@ -50,7 +50,7 @@ test('le rapport Word contient toutes les sections et les données du document',
   writeFileSync(path.join(here, '..', 'captures', 'rapport-test.docx'), buf);
   for (const s of REPORT_SECTIONS) assert.ok(has(xml, `>${s.title}<`), `section « ${s.title} »`);
   for (const t of ctx.tables) assert.ok(xml.includes(`>${t.name}<`) || xml.includes(`>${t.name} (synthèse)<`), `table ${t.name}`);
-  assert.ok(xml.includes('Aucun point bloquant'), 'verdict');
+  assert.ok(xml.includes('Aucun problème bloquant détecté'), 'verdict');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
   assert.ok(!xml.includes('>Code DBML<'), 'plus de section DBML');
   assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple<') && xml.includes('>Date et Heure<'), 'types de colonnes en français');

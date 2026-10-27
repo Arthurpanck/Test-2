@@ -692,3 +692,12 @@ html, body { overflow: hidden; }
 .doc__toc .doc__toc-l1 { font-weight: 700; margin-top: .375rem; }
 .doc__toc .doc__toc-l2 { padding-left: 1rem; font-size: .8125rem; }
 .doc__toc a { color: var(--doc-primary); background-image: none; }
+
+/* Explications et conventions métier de l’audit. */
+.insight__method { margin-top: 1rem; border-top: 1px solid var(--border-default-grey); padding-top: .75rem; }
+.insight__method summary, .audit-settings summary { cursor: pointer; font-weight: 600; }
+.insight__method p { margin-top: .75rem; font-size: .875rem; overflow-wrap: anywhere; }
+.audit-settings { margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid var(--border-default-grey); }
+.audit-settings pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
+.audit-settings textarea { font-family: monospace; margin-bottom: .75rem; }
+.audit-settings ul { max-height: 18rem; overflow: auto; font-size: .875rem; }
