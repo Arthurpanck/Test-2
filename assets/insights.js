@@ -9,9 +9,10 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=2.6.0';
-import { structureSmells } from './datacheck.js?v=2.6.0';
-import { pageInsights } from './pages.js?v=2.6.0';
+import { accessInsights } from './access.js?v=2.7.0';
+import { structureSmells } from './datacheck.js?v=2.7.0';
+import { runAudit } from './audit-engine.js?v=2.7.0';
+import { pageInsights } from './pages.js?v=2.7.0';
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -26,11 +27,11 @@ export const LEVELS = Object.keys(SEVERITIES);
 const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
 
 /** Domaines des constats. */
-export const AREAS = { structure: 'Structure', access: 'Droits d\'accès', pages: 'Pages et widgets' };
+export const AREAS = { structure: 'Structure', access: 'Droits d\'accès', data: 'Données', pages: 'Pages et widgets' };
 
 /** Clé d'un constat, pour mémoriser qu'il est « voulu » : change si les éléments concernés changent. */
 export function insightKey(it) {
-  return `${it.id}:${it.targets.map((t) => `${t.table}.${t.column || ''}`).sort().join('|')}`;
+  return `${it.id}${it.evidence ? ':v' + it.evidence.version + ':' + it.evidence.signature : ''}:${it.targets.map((t) => `${t.table}.${t.column || ''}`).sort().join('|')}`;
 }
 
 /**
@@ -39,7 +40,7 @@ export function insightKey(it) {
  * @param {object} [opts]  { profiles: profileTables(), accepted: Set de insightKey() }
  * @returns {{ verdict, counts, items, accepted, checks }}
  */
-export function buildInsights(tables, access = null, { profiles = null, accepted = null, pages = null } = {}) {
+export function buildInsights(tables, access = null, { profiles = null, accepted = null, pages = null, audit = null } = {}) {
   const items = [];
   const names = new Set(tables.map((t) => t.name));
 
@@ -50,10 +51,11 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   }
   if (brokenRefs.length) {
     items.push({
-      id: 'broken-ref', severity: 'blocking',
+      id: 'broken-ref', severity: 'choice',
+      intended: 'La destination peut être masquée pour vous. Demandez sa vérification à une personne habilitée sans changer les droits de lecture.',
       title: brokenRefs.length > 1 ? `${brokenRefs.length} liens vers une table introuvable` : 'Un lien vers une table introuvable',
       summary: 'Ces colonnes de référence pointent vers une table qui n\'apparaît pas (supprimée, renommée ou masquée pour vous).',
-      why: 'Les cellules ne mènent nulle part : les formules qui s\'appuient sur ce lien renvoient des erreurs.',
+      why: 'Le widget ne peut pas vérifier cette destination. Une table absente de votre lecture peut exister et être protégée.',
       steps: [
         'Ouvrez la table concernée et sélectionnez la colonne.',
         'Dans le panneau de droite, rubrique Colonne, choisissez une table existante dans « Tableau de référence », ou changez le type de la colonne.',
@@ -69,7 +71,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     if (!IDENTIFIER.test(t.name)) badNames.push({ table: t.name });
     for (const c of t.columns) if (!IDENTIFIER.test(c.name)) badNames.push({ table: t.name, column: c.name });
   }
-  if (badNames.length) {
+  if (false && badNames.length) {
     items.push({
       id: 'bad-name', severity: 'blocking',
       title: badNames.length > 1 ? `${badNames.length} identifiants avec accents ou espaces` : 'Un identifiant avec accent ou espace',
@@ -93,7 +95,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
       seen.add(c.name);
     }
   }
-  if (dups.length) {
+  if (false && dups.length) {
     items.push({
       id: 'duplicate', severity: 'blocking',
       title: dups.length > 1 ? `${dups.length} colonnes présentes deux fois` : 'Une colonne présente deux fois',
@@ -175,7 +177,11 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   for (const it of items) it.area = 'structure';
   items.push(...structureSmells(tables, profiles, access));
   items.push(...accessInsights(access));
-  items.push(...pageInsights(pages));
+  const auditResult = audit ? runAudit({ ...audit, access, pages }) : null;
+  items.push(...pageInsights(pages).filter(i => !(auditResult && i.id === 'table-without-page')));
+  if (auditResult) items.push(...auditResult.items);
+  // Les doublons de choix multiples remplacent la carte générique sur les mêmes colonnes.
+  if (auditResult?.items.some(i => i.id === 'N64')) { /* ChoiceList est traité uniquement par le moteur détaillé. */ }
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
 
   const acceptedItems = accepted ? items.filter((it) => it.severity === 'choice' && accepted.has(insightKey(it))) : [];
@@ -186,7 +192,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const has = (id) => items.some((i) => i.id === id);
   const checks = [
     { label: 'Les liens pointent vers des tables existantes', ok: !has('broken-ref') },
-    { label: 'Les identifiants sont sans accent ni espace', ok: !has('bad-name') },
     { label: 'Les relations utilisent des colonnes de référence', ok: !has('text-ref') },
   ];
   if (profiles) checks.push({ label: 'Nombres, dates et oui/non ont le bon type', ok: !has('typed-as-text') });
@@ -206,6 +211,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     const n = blockingItems.reduce((s, i) => s + Math.max(1, i.targets.length), 0);
     const parts = [
       blockingItems.some((i) => i.area === 'structure') ? 'des liens ou des colonnes ne fonctionnent pas comme prévu' : '',
+      blockingItems.some((i) => i.area === 'data') ? 'des valeurs ou des calculs doivent être corrigés' : '',
       blockingItems.some((i) => i.area === 'access') ? 'des règles d\'accès ne protègent pas comme prévu' : '',
     ].filter(Boolean).join(', et ');
     verdict = { level: 'blocking', title: `${n} point${n > 1 ? 's' : ''} à corriger`, text: `${parts.charAt(0).toUpperCase()}${parts.slice(1)}. Suivez les étapes ci-dessous.` };
@@ -214,9 +220,9 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
       counts.improve ? `${counts.improve} point${counts.improve > 1 ? 's' : ''} à améliorer` : '',
       counts.choice ? `${counts.choice} choix à confirmer` : '',
     ].filter(Boolean);
-    verdict = { level: 'ready', title: 'Aucun point bloquant', text: rest.length ? `Le document fonctionne. ${rest.join(' et ')} ci-dessous.` : 'La structure et les droits d\'accès sont cohérents.' };
+    verdict = { level: 'ready', title: 'Aucun problème bloquant détecté', text: rest.length ? `${rest.join(' et ')} dans les éléments analysés.` : 'Aucun problème détecté dans les éléments analysés.' };
   }
-  return { verdict, counts, items: active, accepted: acceptedItems, checks };
+  return { verdict, counts, items: active, accepted: acceptedItems, checks, audit: auditResult };
 }
 
 /** Étapes affichées sous « Sinon » : sans le « Sinon : » de tête, qui ferait doublon. */

@@ -142,3 +142,26 @@ Le test différentiel exécute la formule d'origine (`tests/reference/grist_dbml
 - [DSFR](https://www.systeme-de-design.gouv.fr/) v1.15.4 — usage réservé aux services de l'État (voir ses conditions d'utilisation).
 - [ELK.js](https://github.com/kieler/elkjs) (Eclipse Layout Kernel, EPL-2.0) pour la disposition automatique du schéma, chargé à la demande.
 - [docx](https://github.com/dolanmiu/docx) (MIT) pour le rapport Word, chargé à la demande.
+
+## Audit enrichi 2.7.0
+
+L’analyse applique les 58 propositions retenues lors de la revue du 27 octobre 2026. Les 12 propositions écartées ne sont pas activées. `assets/audit-engine.js` porte les calculs, `assets/audit-catalog.js` les explications et méthodes, `assets/audit-config.js` valide les seules conventions métier acceptées. Les anciennes cartes impossibles à produire dans l’interface normale (identifiants invalides ou dupliqués) sont retirées du verdict.
+
+Chaque nouvelle carte expose sa méthode, l’observation et les limites ; le rapport Word reprend ces informations. Le domaine Données est distinct de Structure, Accès et Pages. Une table ou une ligne non visible n’est jamais déclarée supprimée. Une ressemblance de copie n’est plus considérée comme une fuite prouvée. Les confirmations « C’est voulu » sont invalidées si la version ou la preuve change.
+
+Le profilage est borné : 2000 lignes par table, 100000 cellules pour le document, 200000 caractères de formules. Les ids sont sélectionnés par hachage déterministe, répartis sur les lignes ; cela limite le calcul, pas la quantité transférée par fetchTable. Deux tables sont lues simultanément. Les formules et conditions d’accès ne sont jamais exécutées par le widget. L’analyse des droits reste inconnue pour les expressions non comprises.
+
+Dans Analyse, ouvrir « Règles métier et couverture des contrôles ». Déclarer une clé avec la table et ses colonnes (une seule fiche par tuple). Les règles avancées des options du widget utilisent :
+
+```json
+{
+  "keys": [{"table": "Clients", "columns": ["Code"]}],
+  "dateBounds": [{"table": "Cotisations", "column": "Date", "min": "2024-01-01", "max": "2030-12-31"}],
+  "totals": [{"table": "Commandes", "total": "Total_saisi", "quantity": "Quantite", "price": "Prix"}],
+  "copies": [{"table": "Commandes", "column": "Ville_actuelle", "reference": "Client", "source": "Ville"}]
+}
+```
+
+Ces exemples doivent être adaptés aux identifiants réels. Aucune clé, période, formule de total ou obligation de synchroniser une copie n’est déduite silencieusement des noms de champs. Une copie historique n’est pas une copie courante. Sans règle déclarée, le contrôle est « À configurer », pas « correct ». Les contrôles de pièces jointes demandent leurs métadonnées facultatives. Les montants, courriels et jetons observés ne sont pas ajoutés aux preuves : seulement des ids de lignes et des comptes.
+
+Validation : `npm test` exécute les tests existants, les 58 déclencheurs et leurs cas limites. La vérification MCP utilise les trois documents d’essai ; une correction aller-retour a été contrôlée sur N01, N03, N04 et N29, avec restauration des données. Les 58 contrôles n’ont pas tous un scénario de manipulation réelle des ACL : les cas sensibles sont simulés et le périmètre des vérifications doit rester explicite.

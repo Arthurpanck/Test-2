@@ -1,13 +1,15 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.6.0';
-import { ErdViewer } from './erd.js?v=2.6.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.6.0';
-import { profileTables } from './datacheck.js?v=2.6.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.6.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.6.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.6.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=2.7.0';
+import { ErdViewer } from './erd.js?v=2.7.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=2.7.0';
+import { validateAuditConfig } from './audit-config.js?v=2.7.0';
+import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=2.7.0';
+import { profileTables } from './datacheck.js?v=2.7.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=2.7.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=2.7.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=2.7.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=2.6.0';
+} from './report.js?v=2.7.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -40,6 +42,7 @@ const state = {
   access: null, // buildAccess()
   pages: null, // buildPages() : pages et widgets
   pagesMeta: null,
+  data: {}, failedTables: [], auditMeta: {}, auditConfig: {}, auditConfigError: '',
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
@@ -138,7 +141,7 @@ function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
   state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages }) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, meta: state.auditMeta, failedTables: state.failedTables, config: state.auditConfig} }) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -152,7 +155,7 @@ async function loadSchema({ manual = false } = {}) {
   renderHeader();
   try {
     const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
-    const [tables, columns, sections, resources, rules, pages, views] = await Promise.all([
+    const [tables, columns, sections, resources, rules, pages, views, filters, attachments] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
       gristApi.docApi.fetchTable('_grist_Tables_column'),
       optional('_grist_Views_section'),
@@ -160,7 +163,10 @@ async function loadSchema({ manual = false } = {}) {
       optional('_grist_ACLRules'),
       optional('_grist_Pages'),
       optional('_grist_Views'),
+      optional('_grist_Filters'),
+      optional('_grist_Attachments'),
     ]);
+    state.auditMeta = {filters, attachments};
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
@@ -182,19 +188,23 @@ const loadSchemaSoon = debounce(() => loadSchema(), 1200);
  * Relu à l'ouverture, sur « Relire le document », ou quand la liste des tables ou colonnes change.
  */
 async function loadData({ force = false } = {}) {
-  const ids = [...state.schema.values()].filter((t) => !t.summarySourceTable && !t.tableId.startsWith('_grist_')).map((t) => t.tableId);
+  const ids = [...state.schema.values()].filter((t) => !t.tableId.startsWith('_grist_')).map((t) => t.tableId);
   const key = JSON.stringify(ids.map((id) => [id, [...state.schema.get(id).columns.keys()]]));
   if (!force && key === state.profileKey && state.profiles) return;
   const data = {};
+  state.failedTables = [];
   const queue = ids.slice();
   const worker = async () => {
     while (queue.length) {
       const id = queue.shift();
-      try { data[id] = await gristApi.docApi.fetchTable(id); } catch { /* table illisible pour cette personne */ }
+      try { data[id] = await gristApi.docApi.fetchTable(id); } catch { state.failedTables.push(id); }
     }
   };
-  await Promise.all([worker(), worker(), worker(), worker()]);
-  state.profiles = profileTables(data);
+  await Promise.all([worker(), worker()]);
+  state.data = data;
+  const sampled = sampleAuditData(data);
+  state.profiles = profileTables(sampled.data);
+  for (const c of sampled.coverage) { const p = state.profiles.get(c.table); if(p) { p.rows=c.visibleRows; p.sampled=c.sampled; } }
   state.profileKey = key;
 }
 
@@ -209,6 +219,7 @@ function saveOption(key, value) {
 const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
 
 function applyOptions(options) {
+  if (options?.auditConfig && typeof options.auditConfig === 'object' && !Array.isArray(options.auditConfig)) { try { state.auditConfig = validateAuditConfig(options.auditConfig); } catch(err) { state.auditConfigError=err.message; } }
   if (Array.isArray(options?.accepted)) state.accepted = new Set(options.accepted.map(String));
   const d = options?.diagram;
   if (d && typeof d === 'object') {
@@ -377,6 +388,22 @@ function columnsCsv() {
 
 const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', improve: 'fr-icon-warning-line', choice: 'fr-icon-question-line', info: 'fr-icon-information-line' };
 
+function auditConfigurationPanel(audit) {
+  if (!audit) return '';
+  const missing = audit.checks.filter(c=>c.state==='configuration');
+  const counts = audit.coverage.reduce((a,c)=>({visible:a.visible+c.visibleRows,inspected:a.inspected+c.inspectedRows}),{visible:0,inspected:0});
+  return `<p class="fr-text--sm">${counts.inspected} lignes examinées sur ${counts.visible} lignes lisibles chargées. ${audit.cells} cellules analysées. ${state.failedTables.length ? `${state.failedTables.length} tables n’ont pas pu être lues.` : ''}</p>
+  <details class="audit-settings"><summary>Règles métier et couverture des contrôles (${missing.length} à configurer)</summary>
+  <p>Déclarez uniquement les règles réellement attendues. Sans configuration, un contrôle métier n’affiche pas d’anomalie.</p>
+  <div class="fr-grid-row fr-grid-row--gutters"><div class="fr-col-12 fr-col-md-5"><label for="audit-key-table">Table dont les fiches doivent avoir un code unique</label><select id="audit-key-table" class="fr-select"><option value="">Choisir une table</option>${[...state.schema.keys()].filter(t=>!t.startsWith('_grist_')).map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div><div class="fr-col-12 fr-col-md-5"><label for="audit-key-columns">Colonnes qui distinguent une fiche (séparées par une virgule)</label><input id="audit-key-columns" class="fr-input" placeholder="Code ou Code, Annee"></div><div class="fr-col-12"><button type="button" class="fr-btn fr-btn--sm fr-btn--secondary" data-action="audit-key-add">Déclarer cette clé</button></div></div>
+  <p>Exemple : dans Cotisations, Adherent et Annee ensemble peuvent désigner une cotisation unique. Un même adhérent sur deux années différentes n’est alors pas un doublon.</p>
+  <label for="audit-config">Configuration avancée des clés, bornes de dates, totaux et copies courantes</label>
+  <p class="fr-text--sm">Exemple à adapter avec vos identifiants de tables et colonnes. Une clé peut combiner plusieurs colonnes.</p>
+  <pre>{"keys":[{"table":"Clients","columns":["Code"]}],"dateBounds":[{"table":"Cotisations","column":"Date","min":"2024-01-01","max":"2030-12-31"}],"totals":[{"table":"Commandes","total":"Total_saisi","quantity":"Quantite","price":"Prix"}],"copies":[{"table":"Commandes","column":"Ville_actuelle","reference":"Client","source":"Ville"}]}</pre>
+  <textarea id="audit-config" class="fr-input" rows="7">${esc(JSON.stringify(state.auditConfig,null,2))}</textarea><button type="button" class="fr-btn fr-btn--sm" data-action="audit-config-save">Enregistrer les règles métier</button><p role="status">${esc(state.auditConfigError)}</p>
+  <ul>${audit.checks.map(c=>`<li>${esc(c.id)} — ${esc(({detected:'Constat observé',checked:'Examiné sans signal',configuration:'À configurer',unavailable:'Non vérifiable',limited:'Vérification limitée'})[c.state])} : ${esc(c.reason)}</li>`).join('')}</ul></details>`;
+}
+
 function renderAnalysis() {
   const count = els['analysis-count'];
   const ins = state.insights;
@@ -424,6 +451,7 @@ function renderAnalysis() {
         <p class="insight__why">${esc(it.why)}</p>
         ${chips ? `<p class="insight__label">Concerné</p><ul class="insight__targets">${chips}</ul>` : ''}
         ${accepted ? '' : intended + steps}
+        ${it.method ? `<details class="insight__method"><summary>Comment ce constat est calculé</summary><p>${esc(it.method)}</p><p><strong>Observation :</strong> ${esc(it.calculation || '')}</p><p><strong>Limites :</strong> ${esc(it.limitations || '')}</p></details>` : ''}
         ${actions.length ? `<div class="insight__actions">${actions.join('')}</div>` : ''}
       </div>
     </article>`;
@@ -440,7 +468,7 @@ function renderAnalysis() {
     ? shown.map((it) => card(it, { accepted: state.level === 'accepted' })).join('')
     : emptyState(`<p>${state.level === 'all' ? 'Rien à signaler.' : state.level === 'accepted' ? 'Aucun choix confirmé. Sur une carte « Choix à confirmer », le bouton « C\'est voulu » la range ici.' : `Aucun point « ${esc(SEVERITIES[state.level].label)} ».`}</p>`);
   const checks = ins.checks.map((c) => `<li class="${c.ok ? '' : 'is-ko'}">${esc(c.label)}</li>`).join('');
-  els['analysis-body'].innerHTML = `${verdict}
+  els['analysis-body'].innerHTML = `${verdict}${auditConfigurationPanel(ins.audit)}
     <div class="analysis">
       <div class="insights">${list}</div>
       <aside class="checks" aria-label="Ce qui a été vérifié"><h3>Ce qui a été vérifié</h3><ul>${checks}</ul></aside>
@@ -957,6 +985,13 @@ function bindEvents() {
     const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-action]');
     if (!target) return;
     ev.preventDefault();
+    if (target.dataset.action === 'audit-key-add') {
+      try { const table=document.getElementById('audit-key-table').value; const columns=document.getElementById('audit-key-columns').value.split(',').map(c=>c.trim()).filter(Boolean); if(!state.schema.has(table)||columns.some(c=>!state.schema.get(table).columns.has(c))) throw new Error('Choisissez une table et ses identifiants de colonnes existants.'); const value=validateAuditConfig({...state.auditConfig,keys:[...(state.auditConfig.keys||[]).filter(k=>k.table!==table),{table,columns}]}); state.auditConfig=value; state.auditConfigError=''; saveOption('auditConfig',value);recompute(); } catch(err) {state.auditConfigError=err.message;renderAnalysis();} return;
+    }
+    if (target.dataset.action === 'audit-config-save') {
+      try { const value=validateAuditConfig(JSON.parse(document.getElementById('audit-config').value)); state.auditConfig=value; state.auditConfigError=''; saveOption('auditConfig',value); recompute(); } catch(err) { state.auditConfigError='Configuration non enregistrée : '+err.message; renderAnalysis(); }
+      return;
+    }
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
     else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {
       if (target.dataset.action === 'accept') state.accepted.add(target.dataset.key); else state.accepted.delete(target.dataset.key);
@@ -990,6 +1025,7 @@ function connectGrist() {
   gristApi.ready({ requiredAccess: 'full', allowSelectBy: false });
   gristApi.onOptions((options) => {
     applyOptions(options);
+    if (state.schema) recompute();
     if (state.tab === 'schema' && state.out && !viewer) renderDiagram();
   });
   gristApi.onRecords(() => loadSchemaSoon());

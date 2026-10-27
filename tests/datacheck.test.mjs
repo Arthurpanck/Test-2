@@ -61,7 +61,7 @@ test('mal structuré : noms par défaut, doublons, copie non protégée, tables 
   assert.ok(has(def, 'Table1') && has(def, 'Feuille1') && has(def, 'Table2', 'A') && has(def, 'Feuille1', 'Colonne1'));
   assert.ok(!has(def, 'Table1', 'A'), 'colonnes vides : signalées une seule fois (colonnes jamais utilisées)');
   const leak = item(ins, 'acl-copy-leak');
-  assert.equal(leak.severity, 'blocking');
+  assert.equal(leak.severity, 'choice', 'la ressemblance ne prouve pas une fuite');
   assert.ok(has(leak, 'Personnel_2024'), 'copie de Personnel (salaires) sans protection');
   const dup = item(ins, 'duplicate-table');
   assert.ok(has(dup, 'Commandes_copie') && has(dup, 'Produits_old'));

@@ -2,11 +2,11 @@
  * Défauts courants d'un document qui a grandi sans plan, repérés à partir de la structure
  * et, quand elles sont lisibles, des données : noms par défaut, liens écrits en texte,
  * nombres / dates / oui-non saisis en texte, valeurs répétées sans liste de choix, valeurs
- * hors liste, tables en double, tables vides, colonnes jamais remplies, tables très larges.
+ * hors liste, tables en double, tables vides, colonnes sans valeur dans les lignes lues, tables très larges.
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.6.0';
+import { columnarToRows } from './converter.js?v=2.7.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -219,7 +219,7 @@ export function structureSmells(tables, profiles = null, access = null) {
       id: 'choice-outside', severity: 'improve',
       title: outside.length > 1 ? `${outside.length} listes de choix contournées` : 'Une liste de choix contournée',
       summary: 'Des cellules contiennent une valeur qui n\'est pas dans la liste de choix de la colonne.',
-      why: 'Ces valeurs apparaissent en erreur et échappent aux filtres et aux totaux par choix.',
+      why: 'Ces valeurs personnalisées ne figurent pas parmi les choix proposés. Vérifiez s’il s’agit de nouvelles catégories utiles ou de variantes de saisie.',
       steps: steps('Ajoutez la valeur à la liste (panneau de droite, « Choix »), ou corrigez les cellules concernées.'),
       targets: outside,
     });
@@ -254,12 +254,12 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   if (leaks.length) {
     items.push({
-      id: 'acl-copy-leak', severity: 'blocking', area: 'access',
-      title: leaks.length > 1 ? `${leaks.length} copies de tables protégées laissées sans protection` : 'Une copie de table protégée laissée sans protection',
-      summary: 'Une table semble être la copie d\'une table protégée par les règles d\'accès, mais elle n\'a aucune règle.',
-      why: 'Les données cachées dans l\'originale sont lisibles par tous dans la copie.',
+      id: 'acl-copy-leak', severity: 'choice', intended: 'La copie peut être volontaire et les règles générales peuvent déjà la protéger. Vérifiez les accès avant toute modification.', area: 'access',
+      title: leaks.length > 1 ? `${leaks.length} copies possibles dont les accès sont à vérifier` : 'Une copie possible dont les accès sont à vérifier',
+      summary: 'Une table ressemble à une table protégée, sans règle qui lui soit propre. Ce contrôle compare leurs colonnes et leurs noms, pas leurs accès effectifs.',
+      why: 'Une ressemblance de colonnes ne prouve ni une copie de données ni un accès plus large. La table suit aussi les règles générales du document.',
       steps: steps(
-        'Si la copie ne sert plus : supprimez-la.',
+        'Comparez les données et vérifiez le rôle des deux tables avec leur responsable.',
         'Sinon : ouvrez « Règles d\'accès » et ajoutez à la copie les mêmes règles que l\'originale.',
       ),
       targets: leaks.map((d) => ({ table: d.copy, note: `copie de ${d.orig}` })),
@@ -278,7 +278,7 @@ export function structureSmells(tables, profiles = null, access = null) {
     });
   }
 
-  // 6. Tables vides, colonnes jamais remplies (d'après les données lisibles)
+  // 6. Tables vides, colonnes sans valeur dans les lignes lues (d'après les données lisibles)
   if (profiles) {
     const masked = (name) => (access?.tables || []).some((t) => t.tableId === name && [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.perms.R === 'deny'));
     const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name, note: masked(t.name) ? 'ou lignes masquées pour vous par les règles' : undefined }));
@@ -300,14 +300,14 @@ export function structureSmells(tables, profiles = null, access = null) {
       for (const c of t.columns) {
         if (c.isFormula || c.empty) continue;
         const cp = p.columns.get(c.name);
-        if (cp && cp.filled === 0) unused.push({ table: t.name, column: c.name });
+        if (cp && cp.filled === 0 && !p.sampled) unused.push({ table: t.name, column: c.name });
       }
     }
     if (unused.length) {
       items.push({
         id: 'never-filled', severity: 'choice',
-        title: unused.length > 1 ? `${unused.length} colonnes jamais remplies` : 'Une colonne jamais remplie',
-        summary: 'Ces colonnes de données sont vides sur toutes les lignes.',
+        title: unused.length > 1 ? `${unused.length} colonnes sans valeur dans les lignes lues` : 'Une colonne sans valeur dans les lignes lues',
+        summary: 'Ces colonnes sont vides parmi toutes les lignes que le widget a pu lire. Des valeurs peuvent exister sur des lignes masquées.',
         why: 'Elles alourdissent la saisie et les exports sans rien apporter.',
         intended: 'Colonne prévue pour plus tard, ou remplie seulement dans certains cas : rien à faire.',
         steps: steps('Sinon : clic droit sur l\'en-tête de la colonne ▸ « Supprimer la colonne ».'),

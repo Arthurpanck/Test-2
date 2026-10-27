@@ -9,7 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=2.6.0';
+import { effectivePermission } from './audit-engine.js?v=2.7.0';
+import { columnarToRows } from './converter.js?v=2.7.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -277,7 +278,7 @@ export function accessInsights(access) {
       intended: 'Même les propriétaires ne doivent pas lire ces données : rien à faire.',
       title: missingCols.length > 1 ? `${missingCols.length} éléments protégés que vous ne voyez pas` : 'Un élément protégé que vous ne voyez pas',
       summary: 'Des règles visent ces tables ou colonnes, mais Grist ne les montre pas au widget : elles vous sont masquées par les règles (ou ont été supprimées).',
-      why: 'Elles manquent alors au schéma, aux tables, au DBML et au rapport. Attention : une règle de colonne passe avant les règles de la table, propriétaires compris.',
+      why: 'Elles manquent alors au schéma, aux tables et au rapport. Attention : une règle de colonne passe avant les règles de la table, propriétaires compris.',
       steps: [
         OPEN_RULES,
         'Sinon, si les propriétaires doivent les voir : dans les règles de ces colonnes, ajoutez en premier une règle « user.Access in [OWNER] » avec Lire autorisé.',
@@ -288,9 +289,10 @@ export function accessInsights(access) {
     });
   }
 
-  if (access.restrictsRead && !access.structureRestricted) {
+  if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
     push({
-      id: 'acl-bypass', severity: 'improve',
+      id: 'acl-bypass', severity: 'choice',
+      intended: 'Les droits réels dépendent des profils et de l’ordre des règles. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
       title: 'Les éditeurs peuvent contourner les restrictions de lecture',
       summary: 'Des données sont cachées par des règles, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
       why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
@@ -308,8 +310,8 @@ export function accessInsights(access) {
     push({
       id: 'acl-full-copies', severity: 'choice',
       intended: 'Document de démonstration ou modèle à partager : rien à faire.',
-      title: 'Tout le monde peut copier le document complet',
-      summary: 'Le réglage « Copier le document entier » est accordé à tous, alors que certaines données sont protégées.',
+      title: 'La copie intégrale du document est à vérifier',
+      summary: 'Le réglage de copie intégrale contient une autorisation générale alors que des données sont protégées. Des règles précédentes peuvent limiter les profils concernés.',
       why: 'Une copie complète contient toutes les données, y compris celles que les règles cachent.',
       steps: [OPEN_RULES, 'Sinon : dans les règles spéciales, décochez l\'autorisation de copier le document entier.', REFRESH_STEP],
       targets: [],
@@ -350,7 +352,7 @@ export function accessInsights(access) {
       intended: 'Tables sans donnée sensible : rien à faire.',
       title: access.uncovered.length > 1 ? `${access.uncovered.length} tables sans règle propre` : 'Une table sans règle propre',
       summary: 'Ces tables suivent seulement les règles par défaut et les rôles de partage.',
-      why: 'Toute personne invitée les voit et les modifie selon son rôle de partage.',
+      why: 'Leurs accès dépendent des règles générales et des rôles de partage. Une absence de règle propre ne signifie pas une absence de protection.',
       steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],
       targets: access.uncovered.map((t) => ({ table: t })),
     });
