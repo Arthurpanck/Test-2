@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=2.8.1';
-import { readTheme } from './report.js?v=2.8.1';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=2.8.1';
+} from './erd-geometry.js?v=3.0.0';
+import { readTheme } from './report.js?v=3.0.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.0.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko

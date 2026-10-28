@@ -1,8 +1,8 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { validateAuditConfig } from './audit-config.js?v=2.8.1';
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=2.8.1';
-import { columnarToRows } from './converter.js?v=2.8.1';
-import { inspectVisibleFilters } from './filter-audit.js?v=2.8.1';
+import { validateAuditConfig } from './audit-config.js?v=3.0.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.0.0';
+import { columnarToRows } from './converter.js?v=3.0.0';
+import { inspectVisibleFilters } from './filter-audit.js?v=3.0.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
 const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

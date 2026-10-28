@@ -9,10 +9,10 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=2.8.1';
-import { structureSmells } from './datacheck.js?v=2.8.1';
-import { runAudit } from './audit-engine.js?v=2.8.1';
-import { pageInsights } from './pages.js?v=2.8.1';
+import { accessInsights } from './access.js?v=3.0.0';
+import { structureSmells } from './datacheck.js?v=3.0.0';
+import { runAudit } from './audit-engine.js?v=3.0.0';
+import { pageInsights } from './pages.js?v=3.0.0';
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -27,7 +27,7 @@ export const LEVELS = Object.keys(SEVERITIES);
 const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
 
 /** Domaines des constats. */
-export const AREAS = { structure: 'Structure', access: 'Droits d\'accès', data: 'Données', pages: 'Pages et widgets' };
+export const AREAS = { structure: 'Structure', data: 'Données', access: 'Droits d\'accès', pages: 'Widgets' };
 
 /** Clé d'un constat, pour mémoriser qu'il est « voulu » : change si les éléments concernés changent. */
 export function insightKey(it) {
@@ -191,30 +191,36 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
 
   const has = (id) => items.some((i) => i.id === id);
   const checks = [
-    { label: 'Les liens pointent vers des tables existantes', ok: !has('broken-ref') },
-    { label: 'Les relations utilisent des colonnes de référence', ok: !has('text-ref') },
+    { id: 'broken-ref', label: 'Les liens pointent vers des tables existantes' },
+    { id: 'text-ref', label: 'Les relations utilisent des colonnes de référence' },
   ];
-  if (profiles) checks.push({ label: 'Nombres, dates et oui/non ont le bon type', ok: !has('typed-as-text') });
-  if (profiles) checks.push({ label: 'Les listes de choix sont respectées', ok: !has('choice-outside') });
+  if (profiles) checks.push({ id: 'typed-as-text', label: 'Nombres, dates et oui/non ont le bon type' });
+  if (profiles) checks.push({ id: 'choice-outside', label: 'Les listes de choix sont respectées' });
   if (access && access.hasRules) {
     checks.push(
-      { label: 'Les conditions n\'utilisent que des attributs définis', ok: !has('acl-unknown-attribute') },
-      { label: 'Les copies de tables protégées sont protégées', ok: !has('acl-copy-leak') },
-      { label: 'Vous voyez tout ce que les règles protègent', ok: !has('acl-hidden') },
+      { id: 'acl-unknown-attribute', label: 'Les conditions n\'utilisent que des attributs définis' },
+      { id: 'acl-copy-leak', label: 'Les copies de tables protégées sont protégées' },
+      { id: 'acl-hidden', label: 'Vous voyez tout ce que les règles protègent' },
     );
-    if (access.restrictsRead) checks.push({ label: 'Les données cachées ne sont pas lisibles par formule', ok: !has('acl-bypass') });
+    if (access.restrictsRead) checks.push({ id: 'acl-bypass', label: 'Les données cachées ne sont pas lisibles par formule' });
   }
+  if (pages) checks.push({ id: 'widget-unmapped', label: 'Les widgets personnalisés ont leurs colonnes' });
+  // ok : aucun constat de ce contrôle (y compris les choix confirmés, qui restent des constats).
+  for (const c of checks) c.ok = !has(c.id);
 
   const blockingItems = active.filter((i) => i.severity === 'blocking');
   let verdict;
   if (counts.blocking) {
-    const n = blockingItems.reduce((s, i) => s + Math.max(1, i.targets.length), 0);
+    // Le titre compte les constats (les cartes) : le même chiffre que l'onglet et le compteur « À corriger ».
+    const n = counts.blocking;
     const parts = [
       blockingItems.some((i) => i.area === 'structure') ? 'des liens ou des colonnes ne fonctionnent pas comme prévu' : '',
       blockingItems.some((i) => i.area === 'data') ? 'des valeurs ou des calculs doivent être corrigés' : '',
       blockingItems.some((i) => i.area === 'access') ? 'des règles d\'accès ne protègent pas comme prévu' : '',
-    ].filter(Boolean).join(', et ');
-    verdict = { level: 'blocking', title: `${n} point${n > 1 ? 's' : ''} à corriger`, text: `${parts.charAt(0).toUpperCase()}${parts.slice(1)}. Suivez les étapes ci-dessous.` };
+      blockingItems.some((i) => i.area === 'pages') ? 'des widgets ne s\'affichent pas comme prévu' : '',
+    ].filter(Boolean);
+    const sentence = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}` : (parts[0] || 'des éléments ne fonctionnent pas comme prévu');
+    verdict = { level: 'blocking', title: `${n} point${n > 1 ? 's' : ''} à corriger`, text: `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. Suivez les étapes ci-dessous.` };
   } else {
     const rest = [
       counts.improve ? `${counts.improve} point${counts.improve > 1 ? 's' : ''} à améliorer` : '',

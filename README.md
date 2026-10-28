@@ -19,6 +19,17 @@ Les constats sur les données lisent les lignes des tables (pas des synthèses) 
 
 La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
 
+### Interface (v3)
+
+Tous les onglets suivent les mêmes règles, décrites en tête de `assets/styles.css` :
+- onglets soulignés, avec le nombre de points à corriger sur « Analyse » ; « Relire le document » sur la même ligne ;
+- une barre d'outils grise sous les onglets : recherche, filtres segmentés et boutons de 40 px, exports à droite ;
+- un en-tête de page (titre, une phrase, chiffres clés, « points d'attention ») et des en-têtes de section (titre, compteur, une ligne d'aide) ;
+- des cartes au même modèle ; les badges (MAJUSCULES) donnent un état, les pastilles (arrondies) désignent un élément du document, lilas quand elles mènent quelque part ;
+- 6 tailles de texte, des espacements sur une grille de 4 px, les couleurs du DSFR (le thème sombre suit).
+
+Particularités : un index des tables dans « Tables » ; dans « Analyse », les compteurs servent de filtres, un filtre par domaine, une recherche, et la « Couverture des contrôles » mène au constat concerné ; « Contrôles et règles métier » s'ouvre depuis la barre d'outils ; dans « Rapport », un panneau à cases à cocher choisit les sections.
+
 ## Installation dans Grist
 
 1. Ajoutez un widget à une page : **Ajouter un widget ▸ Personnalisé**, sur n'importe quelle table.
