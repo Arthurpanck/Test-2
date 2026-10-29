@@ -16,14 +16,43 @@ export function scalar(v) { return Array.isArray(v) && ['d','D'].includes(v[0]) 
 const kind = v => Array.isArray(v) && ['d','D'].includes(v[0]) ? 'date' : Array.isArray(v) && ['R','r'].includes(v[0]) ? 'reference' : Array.isArray(v) ? 'liste' : typeof v;
 const serial = v => JSON.stringify(v, (_,x) => typeof x === 'number' && !Number.isFinite(x) ? String(x) : x);
 function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0),16777619); return h >>> 0; }
+const PRESAMPLE = Symbol.for('grist-audit.presample');
+const byHash = (a, b) => a.h - b.h || a.i - b.i;
+/**
+ * Prépare l'échantillon d'une table dès sa lecture, pour libérer aussitôt la table complète :
+ * garde les ids (intégrité des références, nombre de lignes) et les `limits.rows` lignes de plus
+ * petit hachage, triées par hachage. sampleAuditData() en tire ensuite exactement les mêmes
+ * lignes que sur la table complète (les `take` plus petites forment un préfixe de cette liste).
+ */
+export function presampleTable(name, d, limits = AUDIT_LIMITS) {
+  if (!Array.isArray(d?.id) || d[PRESAMPLE]) return d;
+  const cols = Object.keys(d).filter(c => c !== 'id' && Array.isArray(d[c]) && !TECH.test(c));
+  const n = d.id.length, keep = Math.min(n, limits.rows);
+  let picked;
+  if (keep === n) picked = d.id.map((id, i) => ({ i, h: hash(name+':'+id) }));
+  else { const heap = []; const worse = (a,b) => a.h > b.h || (a.h === b.h && a.i > b.i); const down = () => { let p=0; for (;;) { let a=p*2+1; if(a>=heap.length)break;let b=a+1;if(b<heap.length&&worse(heap[b],heap[a]))a=b;if(!worse(heap[a],heap[p]))break;[heap[a],heap[p]]=[heap[p],heap[a]];p=a; } }; for(let i=0;keep&&i<n;i++){const x={i,h:hash(name+':'+d.id[i])};if(heap.length<keep){heap.push(x);let p=heap.length-1;while(p){let q=(p-1)>>1;if(!worse(heap[p],heap[q]))break;[heap[p],heap[q]]=[heap[q],heap[p]];p=q;}}else if(worse(heap[0],x)){heap[0]=x;down();}} picked = heap; }
+  picked.sort(byHash);
+  const rows = picked.map(x => x.i);
+  const out = { id: d.id };
+  Object.defineProperty(out, PRESAMPLE, { value: { cols, rows, values: Object.fromEntries(cols.map(c => [c, rows.map(i => d[c][i])])) } });
+  return out;
+}
 /** Échantillon déterministe, réparti par hachage d'ids ; coût de profilage global borné. */
 export function sampleAuditData(data, limits = AUDIT_LIMITS) {
   const result = {}, coverage = []; const entries = Object.entries(data || {}).filter(([,d]) => Array.isArray(d?.id));
   let remaining = limits.cells;
   for (let e = 0; e < entries.length; e++) {
-    const [name,d] = entries[e], cols = Object.keys(d).filter(c => c !== 'id' && Array.isArray(d[c]) && !TECH.test(c));
+    const [name,d] = entries[e], ps = d[PRESAMPLE], cols = ps ? ps.cols : Object.keys(d).filter(c => c !== 'id' && Array.isArray(d[c]) && !TECH.test(c));
     const allowance = Math.floor(remaining / (entries.length - e));
     const take = Math.min(d.id.length, limits.rows, cols.length ? Math.floor(allowance / cols.length) : limits.rows);
+    if (ps) {
+      // Positions dans l'échantillon préparé : les `take` premières par hachage, remises dans l'ordre des lignes.
+      const pos = ps.rows.map((_, p) => p).slice(0, take).sort((a, b) => ps.rows[a] - ps.rows[b]);
+      result[name] = Object.fromEntries([['id', pos.map(p => d.id[ps.rows[p]])], ...cols.map(c => [c, pos.map(p => ps.values[c][p])])]);
+      const cells = take * cols.length; remaining -= cells;
+      coverage.push({ table:name, visibleRows:d.id.length, inspectedRows:take, cells, sampled:take<d.id.length });
+      continue;
+    }
     // Une file triée bornée évite un tri de toutes les lignes d'une grande table.
     let idx;
     if (take === d.id.length) idx = d.id.map((_,i) => i);
