@@ -189,3 +189,16 @@ X13 compte les champs de filtre enregistrés, actifs et épinglés par vue Table
 Les contrôles N06, N10, N13, N14, N36 et N38 restent disponibles pour arbitrage avec leur calcul expliqué. N13 est maintenant fondé uniquement sur le nom et le type de la colonne. N06, N09, N10 et N14 examinent au plus 200 cellules courtes de l’échantillon par colonne. N31 indexe au plus 100 appels simples de lookupOne et vérifie au plus 200 recherches sources par appel. Aucun des calculs retirés ne s’exécute en arrière-plan.
 
 La récupération réseau reste inchangée : docApi.fetchTable lit la totalité des données que l’utilisateur peut lire, avant l’échantillonnage des calculs (2 000 lignes par table et 100 000 cellules globales). La réduction des calculs ne doit pas être présentée comme une réduction équivalente du téléchargement.
+
+## Qui peut faire quoi ? et gros documents — 3.2.0
+
+**Matrice des droits (onglet Accès).** Avant les réglages généraux, une matrice donne, pour chaque rôle métier, ce que permettent les règles à une personne de rôle Grist Éditeur : Lire, Modifier, Créer, Supprimer par table et, au choix, par colonne à règles, plus les droits de structure. Le rôle métier est la colonne d'attribut comparée au plus grand nombre de valeurs dans les règles (par exemple `user.Habilitation.Role`). Les conditions sont lues dans un langage fermé (`assets/rights-matrix.js`) : aucun `eval`, aucune exécution de Python. Une condition non comprise donne « ? ». Le widget ne lit aucune ligne métier pour cela. Il lit seulement la table de l'attribut, pour compter les valeurs d'une colonne filtrante (« 7 services »), et ne modifie aucune règle. Une case ouvre le détail des règles examinées, dans l'ordre. Les flèches passent d'une case à l'autre, Échap referme le détail.
+
+**Rapport Word.** La matrice ouvre la section « Droits d'accès », sur des pages en paysage (trois rôles par tableau). Les cas à vérifier dans Grist sont listés après la matrice.
+
+**Export Excel.** Le bouton « Exporter en Excel » de la matrice produit un classeur `.xlsx` écrit sans bibliothèque (`assets/xlsx.js`), avec trois feuilles :
+- la matrice, avec ses couleurs, des filtres, des volets figés et l'impression en paysage ;
+- « Détail par case », un tableau Excel filtrable avec une ligne par rôle, table, colonne et action : résultat, colonnes qui décident, explication, règle qui tranche, règles examinées ;
+- « Paramètres », avec les hypothèses, la légende et les cas à vérifier.
+
+**Gros documents.** Chaque table est réduite à son échantillon dès sa lecture : seuls ses ids restent en mémoire, avec la progression affichée et l'interface qui reste fluide entre deux tables. Le téléchargement par `fetchTable` est inchangé. La mémoire gardée et le temps d'analyse baissent nettement. Les constats sont identiques à ceux calculés sur les tables complètes.

@@ -12,10 +12,11 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.1.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.1.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.1.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.1.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.2.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.2.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.2.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.2.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.2.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -29,7 +30,10 @@ export const THEME_KEYS = {
   text: '#161616', muted: '#666666', border: '#dddddd', surface: '#f6f6f6',
   type: '#18753c', formula: '#a558a0', key: '#b34000',
   blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
+  neutral: '#3a3a3a', fillOk: '#dffee6', fillKo: '#ffe9e9', fillUk: '#eeeeee',
 };
+/** Cases colorées (matrice des droits) : fond et texte. */
+const FILLS = { ok: ['fillOk', 'ready'], ko: ['fillKo', 'blocking'], uk: ['fillUk', 'neutral'], surface: ['surface', 'text'] };
 
 const toKebab = (k) => k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 
@@ -103,6 +107,53 @@ export function ruleTable(rules, bits) {
       { text: r.memo || '', color: 'muted' },
     ]),
   };
+}
+
+const MX_GROUPS_PER_TABLE = 3; // 12 cases d'action : la largeur d'une page A4 en paysage
+
+/** Une case de la matrice, pour un tableau du rapport. */
+function matrixCell(c, span) {
+  if (!c || c.state === 'na') return { text: '—', color: 'muted', align: 'center' };
+  return { text: cellText(c), bold: true, fill: cellTone(c), align: 'center', ...(span ? { span } : {}) };
+}
+
+/**
+ * « Qui peut faire quoi ? » : la matrice de l'onglet Accès (tables puis colonnes à règles),
+ * en tableaux de trois rôles métier au plus, suivie des cases à vérifier dans Grist.
+ */
+export function matrixBlocks(mx) {
+  if (!mx?.hasRules) return [];
+  const blocks = [
+    { type: 'heading', level: 2, text: 'Qui peut faire quoi ?' },
+    { type: 'paragraph', color: 'muted', size: 'small', text: 'Pour chaque rôle métier, ce que permettent les règles à une personne de rôle Grist Éditeur. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne.' },
+  ];
+  for (let start = 0; start < mx.groups.length; start += MX_GROUPS_PER_TABLE) {
+    const part = mx.groups.slice(start, start + MX_GROUPS_PER_TABLE).map((g, k) => ({ g, gi: start + k }));
+    const n = part.length * MX_ACTIONS.length;
+    const w = Math.floor((76 / n) * 10) / 10;
+    const label = Math.round((100 - w * n) * 10) / 10;
+    blocks.push({
+      type: 'table', size: 'small', wide: true,
+      groups: [{ label: '', span: 1 }, ...part.map(({ g }) => ({ label: g.name, sub: g.sub, span: MX_ACTIONS.length }))],
+      columns: [{ label: 'Table', width: label }, ...part.flatMap(() => MX_ACTIONS.map(([, l]) => ({ label: l, width: w, align: 'center' })))],
+      rows: mx.rows.map((row) => {
+        if (row.kind === 'structure') {
+          return [{ lines: [{ text: row.label, bold: true }, { text: row.sub, color: 'muted' }], fill: 'surface' },
+            ...part.map(({ gi }) => matrixCell(mx.cell(row.key, gi, 'S'), MX_ACTIONS.length))];
+        }
+        const head = row.kind === 'column' ? { text: row.label, indent: true, color: 'neutral' } : { text: row.label, bold: true };
+        return [head, ...part.flatMap(({ gi }) => MX_ACTIONS.map(([bit]) => matrixCell(mx.cell(row.key, gi, bit))))];
+      }),
+    });
+  }
+  blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : Oui / Non pour toutes les lignes ; un nom de colonne en vert : seulement sur les lignes où cette colonne correspond à la personne ; en rouge : oui, sauf sur ces lignes ; « ? » : condition que le widget ne sait pas lire ; « — » : sans objet pour une colonne. Ordre appliqué : règles de la colonne, puis de la table, puis du document ; la première qui s\'applique décide, action par action.' });
+  const unknown = unknownCases(mx);
+  if (unknown.length) {
+    blocks.push({ type: 'paragraph', runs: [{ text: 'À vérifier dans Grist', bold: true }] });
+    blocks.push({ type: 'list', items: unknown.map((u) => `${u.row.kind === 'structure' ? 'Droits de structure' : u.row.kind === 'column' ? `${u.row.table}.${u.row.label}` : u.row.label} · ${u.actions.join(', ')}${u.groups.length < mx.groups.length ? ` (${u.groups.join(', ')})` : ''} : ${u.note || `la condition « ${u.formula} » utilise un attribut inexistant ou une forme non comprise`}.`) });
+  }
+  blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture des règles, sans connexion réelle : pour un cas sensible, vérifiez avec « Voir en tant que » dans Grist.' });
+  return blocks;
 }
 
 /**
@@ -286,7 +337,9 @@ export const REPORT_SECTIONS = [
   {
     id: 'access',
     title: 'Droits d\'accès',
-    description: 'Réglages généraux, attributs utilisateur et règles de chaque table',
+    description: 'Qui peut faire quoi, réglages généraux, attributs utilisateur et règles de chaque table',
+    // La matrice des droits tient sur des pages en paysage, au début de la section.
+    landscapeStart: (ctx) => Boolean(ctx.access?.hasRules && ctx.matrix?.hasRules),
     build(ctx) {
       const a = ctx.access;
       if (!a) return [{ type: 'paragraph', color: 'muted', text: 'Les règles d\'accès n\'ont pas pu être lues.' }];
@@ -294,6 +347,8 @@ export const REPORT_SECTIONS = [
         return [{ type: 'paragraph', text: 'Ce document n\'a aucune règle d\'accès avancée : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).' }];
       }
       const blocks = [{ type: 'paragraph', text: accessSummary(a) }];
+      const matrix = matrixBlocks(ctx.matrix);
+      if (matrix.length) blocks.push(...matrix, { type: 'orientation', landscape: false });
       blocks.push({ type: 'heading', level: 2, text: 'Réglages généraux' });
       blocks.push({ type: 'table', columns: [{ label: 'Réglage', width: 30 }, { label: 'Situation', width: 70 }], rows: generalRows(a) });
       if (a.attributes.length) {
@@ -350,7 +405,8 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
   }];
   const body = [];
   chosen.forEach((s, i) => {
-    if (i > 0) body.push({ type: 'pagebreak' });
+    if (s.landscapeStart?.(ctx)) body.push({ type: 'orientation', landscape: true }); // saut de section : nouvelle page
+    else if (i > 0) body.push({ type: 'pagebreak' });
     body.push({ type: 'heading', level: 1, text: s.title });
     body.push(...s.build(ctx));
   });
@@ -375,7 +431,7 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const cellOf = (c) => (typeof c === 'object' && c !== null ? c : { text: String(c ?? '') });
-const lineClass = (l) => [l.mono ? 'doc__mono' : '', l.color ? `doc--${l.color}` : '', l.bold ? 'doc__b' : ''].join(' ').trim();
+const lineClass = (l) => [l.mono ? 'doc__mono' : '', l.color ? `doc--${l.color}` : '', l.bold ? 'doc__b' : '', l.fill ? `doc__fill doc__fill--${l.fill}` : '', l.align === 'center' ? 'doc__center' : '', l.indent ? 'doc__indent' : ''].join(' ').trim();
 function cellHtml(c) {
   if (!c.lines) return esc(c.text);
   return c.lines.map((l) => `<div class="doc__line ${lineClass(l)}">${l.label ? `<span class="doc__label">${esc(l.label)} : </span>` : ''}${esc(l.text)}</div>`).join('');
@@ -401,8 +457,13 @@ export function renderHtml(blocks, { imageUrl } = {}) {
       case 'paragraph': return `<p class="doc__p${b.color ? ` doc--${b.color}` : ''}${b.size === 'small' ? ' doc__p--small' : ''}">${runsHtml(b)}</p>`;
       case 'stats': return `<div class="doc__stats">${b.items.map((s) => `<div><strong>${esc(s.value)}</strong><span>${esc(s.label)}</span></div>`).join('')}</div>`;
       case 'callout': return `<div class="doc__callout doc__callout--${b.level}"><p><strong>${esc(b.title)}</strong></p><p>${esc(b.text)}</p></div>`;
-      case 'table': return `<table class="doc__table doc__table--${b.header || 'primary'}"><thead><tr>${b.columns.map((c) => `<th style="width:${c.width}%">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${
-        b.rows.map((r) => `<tr>${r.map((raw) => { const c = cellOf(raw); return `<td class="${c.lines ? '' : lineClass(c)}">${cellHtml(c)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+      case 'table': {
+        const groups = b.groups ? `<tr>${b.groups.map((g) => `<th colspan="${g.span}" class="doc__th-group">${esc(g.label)}${g.sub ? `<span>${esc(g.sub)}</span>` : ''}</th>`).join('')}</tr>` : '';
+        const table = `<table class="doc__table doc__table--${b.header || 'primary'}${b.size === 'small' ? ' doc__table--small' : ''}"><thead>${groups}<tr>${b.columns.map((c) => `<th style="width:${c.width}%"${c.align === 'center' ? ' class="doc__center"' : ''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${
+          b.rows.map((r) => `<tr>${r.map((raw) => { const c = cellOf(raw); const cls = c.lines ? [c.fill ? `doc__fill doc__fill--${c.fill}` : ''].join('') : lineClass(c); return `<td${c.span ? ` colspan="${c.span}"` : ''} class="${cls}">${cellHtml(c)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+        return b.wide ? `<div class="doc__wide">${table}</div>` : table;
+      }
+      case 'orientation': return '';
       case 'image': return imageUrl ? `<figure class="doc__figure"><img src="${esc(imageUrl(b))}" alt="${esc(b.alt)}"></figure>` : '';
       case 'list': return `<${b.ordered ? 'ol' : 'ul'} class="doc__list${b.plain ? ' doc__list--plain' : ''}">${b.items.map((i) => `<li>${esc(i)}</li>`).join('')}</${b.ordered ? 'ol' : 'ul'}>`;
       case 'code': return `<pre class="doc__code">${esc(b.lines.join('\n'))}</pre>`;
@@ -436,7 +497,10 @@ export function renderDocx(blocks, theme, d) {
   });
   const thinBorder = { style: d.BorderStyle.SINGLE, size: 4, color: color('border') };
   const borders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
-  const children = [];
+  // Sections Word : une nouvelle à chaque changement d'orientation (matrice des droits en paysage).
+  const sections = [{ landscape: false, children: [] }];
+  let children = sections[0].children;
+  const pageBreaks = new WeakSet();
 
   for (const b of blocks) {
     switch (b.type) {
@@ -518,33 +582,70 @@ export function renderDocx(blocks, theme, d) {
       }
       case 'table': {
         const headFill = color(b.header === 'summary' ? 'summary' : 'primary');
-        const cell = (raw, w, head) => {
-          const c = head ? { text: raw.label, bold: true } : cellOf(raw);
+        const small = b.size === 'small';
+        const textSize = small ? pt(8.5) : pt(10);
+        const margins = small ? { top: 40, bottom: 40, left: 70, right: 70 } : { top: 60, bottom: 60, left: 100, right: 100 };
+        const widthOf = (i, span) => Math.round(b.columns.slice(i, i + span).reduce((n, c) => n + c.width, 0) * 10) / 10;
+        const cell = (raw, w, head, span = 1) => {
+          const c = head ? { text: raw.label, bold: true, align: raw.align } : cellOf(raw);
+          const fill = !head && c.fill ? FILLS[c.fill] : null;
+          const alignment = c.align === 'center' ? d.AlignmentType.CENTER : undefined;
+          const indent = c.indent ? { left: 227 } : undefined;
           const paragraphs = c.lines
             ? (c.lines.length ? c.lines : [{ text: '' }]).map((l) => new d.Paragraph({
-              spacing: { after: 20 },
+              spacing: { after: 20 }, alignment, indent,
               children: [
                 ...(l.label ? [new d.TextRun({ text: `${l.label} : `, bold: true, size: pt(9.5), color: color('muted') })] : []),
-                run(l, { size: pt(l.mono ? 9 : 10) }),
+                run(l, { size: small ? pt(8) : pt(l.mono ? 9 : 10) }),
               ],
             }))
-            : [new d.Paragraph({ children: [run({ ...c, color: head ? undefined : c.color }, { color: head ? hex(theme.onPrimary) : undefined, size: pt(10), bold: head })] })];
+            : [new d.Paragraph({ alignment, indent, children: [run({ ...c, color: head ? undefined : (fill ? fill[1] : c.color) }, { color: head ? hex(theme.onPrimary) : undefined, size: textSize, bold: head })] })];
           return new d.TableCell({
             width: { size: w, type: d.WidthType.PERCENTAGE },
-            shading: head ? { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' } : undefined,
-            margins: { top: 60, bottom: 60, left: 100, right: 100 },
+            columnSpan: span > 1 ? span : undefined,
+            verticalAlign: small ? d.VerticalAlign.CENTER : undefined,
+            shading: head ? { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' } : fill ? { type: d.ShadingType.CLEAR, fill: color(fill[0]), color: 'auto' } : undefined,
+            margins,
             borders,
             children: paragraphs,
           });
         };
-        children.push(new d.Table({
-          width: { size: 100, type: d.WidthType.PERCENTAGE },
-          rows: [
-            new d.TableRow({ tableHeader: true, children: b.columns.map((c) => cell(c, c.width, true)) }),
-            ...b.rows.map((r) => new d.TableRow({ cantSplit: !r.some((v) => v && v.lines && v.lines.length > 3), children: r.map((v, i) => cell(v, b.columns[i].width, false)) })),
-          ],
-        }));
+        const rows = [];
+        if (b.groups) {
+          let at = 0;
+          rows.push(new d.TableRow({ tableHeader: true, cantSplit: true, children: b.groups.map((g) => {
+            const w = widthOf(at, g.span); at += g.span;
+            return new d.TableCell({
+              width: { size: w, type: d.WidthType.PERCENTAGE },
+              columnSpan: g.span > 1 ? g.span : undefined,
+              shading: { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' },
+              margins, borders,
+              children: [
+                new d.Paragraph({ children: [new d.TextRun({ text: g.label, bold: true, size: pt(10), color: hex(theme.onPrimary) })] }),
+                ...(g.sub ? [new d.Paragraph({ children: [new d.TextRun({ text: g.sub, size: pt(7.5), color: hex(theme.onPrimary) })] })] : []),
+              ],
+            });
+          }) }));
+        }
+        rows.push(new d.TableRow({ tableHeader: true, cantSplit: true, children: b.columns.map((c) => cell(c, c.width, true)) }));
+        for (const r of b.rows) {
+          let at = 0;
+          rows.push(new d.TableRow({
+            cantSplit: !r.some((v) => v && v.lines && v.lines.length > 3),
+            children: r.map((v) => { const span = cellOf(v).span || 1; const w = widthOf(at, span); at += span; return cell(v, w, false, span); }),
+          }));
+        }
+        children.push(new d.Table({ width: { size: 100, type: d.WidthType.PERCENTAGE }, rows }));
         children.push(new d.Paragraph({ text: '', spacing: { after: 120 } }));
+        break;
+      }
+      case 'orientation': {
+        // Le saut de section ouvre une nouvelle page : un saut de page juste avant laisserait une page blanche.
+        const cur = sections[sections.length - 1];
+        if (pageBreaks.has(cur.children[cur.children.length - 1])) cur.children.pop();
+        if (!cur.children.length) cur.landscape = b.landscape;
+        else if (cur.landscape !== b.landscape) sections.push({ landscape: b.landscape, children: [] });
+        children = sections[sections.length - 1].children;
         break;
       }
       case 'image': {
@@ -577,9 +678,12 @@ export function renderDocx(blocks, theme, d) {
           }));
         }
         break;
-      case 'pagebreak':
-        children.push(new d.Paragraph({ children: [new d.PageBreak()] }));
+      case 'pagebreak': {
+        const p = new d.Paragraph({ children: [new d.PageBreak()] });
+        pageBreaks.add(p);
+        children.push(p);
         break;
+      }
       default:
     }
   }
@@ -597,16 +701,19 @@ export function renderDocx(blocks, theme, d) {
         { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { font: theme.font, size: pt(13), bold: true, color: color('text') }, paragraph: { spacing: { before: 240, after: 100 } } },
       ],
     },
-    sections: [{
-      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
+    sections: sections.filter((x, i) => i === 0 || x.children.length).map((x) => ({
+      properties: { page: {
+        size: { width: 11906, height: 16838, orientation: x.landscape ? d.PageOrientation.LANDSCAPE : d.PageOrientation.PORTRAIT },
+        margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 },
+      } },
       footers: {
         default: new d.Footer({ children: [new d.Paragraph({ alignment: d.AlignmentType.RIGHT, children: [
           new d.TextRun({ text: `${blocks.find((b) => b.type === 'title')?.text || 'Structure du document'} · page `, color: color('muted'), size: pt(8) }),
           new d.TextRun({ children: [d.PageNumber.CURRENT], color: color('muted'), size: pt(8) }),
         ] })] }),
       },
-      children,
-    }],
+      children: x.children,
+    })),
   });
 }
 

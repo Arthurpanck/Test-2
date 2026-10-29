@@ -121,3 +121,30 @@ test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dan
   for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', '• Name → à associer', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
   assert.ok(!xml.includes('>Tableau<'), 'aucun widget « Tableau » listé');
 });
+
+test('droits d\'accès : « Qui peut faire quoi ? » en paysage, cases colorées, cas à vérifier', async () => {
+  const { buildMatrix } = await import('../assets/rights-matrix.js');
+  const { habilitations } = await import('./fixtures/droits-complexe.mjs');
+  const meta = loadMeta('document-complexe.metadata.json');
+  const ctx = context('document-complexe.metadata.json');
+  ctx.matrix = buildMatrix(meta.acl, [...schemaFromMetadata(meta.tables, meta.columns).keys()].filter((t) => !t.startsWith('_grist')), habilitations);
+  const blocks = buildReport(ctx);
+  const { buf, xml } = await docxXml(blocks);
+  writeFileSync(path.join(here, '..', 'captures', 'rapport-matrice.docx'), buf);
+  assert.ok(xml.includes('>Qui peut faire quoi ?<'), 'sous-titre');
+  const sects = [...xml.matchAll(/<w:pgSz [^>]*>/g)].map((m) => m[0]);
+  assert.ok(sects.some((x) => x.includes('w:orient="landscape"') && x.includes('w:w="16838"')), `page en paysage (${sects.join(' ')})`);
+  assert.ok(sects.filter((x) => x.includes('w:orient="landscape"')).length === 1 && sects.length >= 3, 'retour au portrait après la matrice');
+  assert.ok(xml.includes('w:fill="DFFEE6"') && xml.includes('w:fill="FFE9E9"') && xml.includes('w:fill="EEEEEE"'), 'cases vertes, rouges et grises');
+  assert.ok(xml.includes('<w:gridSpan w:val="4"/>'), 'droits de structure sur quatre cases');
+  assert.ok(xml.includes('>Habilitation.Role = « RH » · 7 services<') && xml.includes('>Tous les autres<'), 'groupes');
+  assert.ok(xml.includes('>Email<') && xml.includes('>Service<') && xml.includes('>Quotite<'), 'colonnes qui décident, colonnes à règles');
+  assert.ok(xml.includes('>À vérifier dans Grist<') && xml.includes('user.Profil.Niveau &gt; 2'), 'cases indéterminées listées');
+  // Pas de page blanche : aucun saut de page juste avant un changement de section
+  assert.ok(!/<w:br w:type="page"\/><\/w:r><\/w:p><w:p><w:pPr><w:sectPr/.test(xml), 'pas de saut de page avant le saut de section');
+  const html = renderHtml(blocks);
+  assert.ok(html.includes('doc__fill--ok') && html.includes('colspan="4"') && html.includes('doc__th-group'), 'aperçu HTML');
+  // Sans règle : ni matrice ni paysage
+  const plain = await docxXml(buildReport(context()));
+  assert.ok(!plain.xml.includes('w:orient="landscape"') && !plain.xml.includes('Qui peut faire quoi'));
+});

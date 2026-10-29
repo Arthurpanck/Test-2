@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.1.0';
+import { columnarToRows } from './converter.js?v=3.2.0';
 
 const MAX_DISTINCT = 2000;
 

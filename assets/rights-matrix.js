@@ -10,7 +10,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.1.0';
+import { columnarToRows } from './converter.js?v=3.2.0';
 
 export const ACTIONS = [['R', 'Lire'], ['U', 'Modifier'], ['C', 'Créer'], ['D', 'Supprimer']];
 const ACTION_LABEL = { R: 'Lire', U: 'Modifier', C: 'Créer', D: 'Supprimer', S: 'Structure' };
@@ -445,3 +445,59 @@ export function cellSteps(cell, bit) {
 }
 
 export { ACTION_LABEL };
+
+// ---------------------------------------------------------------------------
+// Matrice complète (onglet Accès, rapport Word, export Excel)
+// ---------------------------------------------------------------------------
+
+/**
+ * Toutes les cases d'un document, calculées une fois.
+ * @param {object} acl       { resources, rules } lus dans le document
+ * @param {string[]} tableIds tables dans l'ordre du document
+ * @param {object} attrData  table de l'attribut du rôle (facultatif, pour « 7 services »)
+ */
+export function buildMatrix(acl, tableIds, attrData = null) {
+  const model = prepareMatrixModel(acl);
+  const { role, groups } = matrixGroups(model, attrData);
+  const rows = matrixRows(model, tableIds);
+  const cells = new Map();
+  for (const row of rows) groups.forEach((g, gi) => rowCells(model, row, g, role).forEach((c) => cells.set(`${row.key}|${gi}|${c.bit}`, c)));
+  return {
+    model, role, groups, rows, cells,
+    hasRules: model.resources.some((g) => g.rules.length),
+    tableCount: rows.filter((r) => r.kind === 'table').length,
+    cell: (rowKey, gi, bit) => cells.get(`${rowKey}|${gi}|${bit}`),
+  };
+}
+
+/** Catégorie de la case, pour filtrer : Oui, Non, Sous condition, Sauf exception, Indéterminé, Sans objet. */
+export function cellCategory(cell) {
+  return { allow: 'Oui', deny: 'Non', 'rows-allow': 'Sous condition', 'rows-deny': 'Sauf exception', unknown: 'Indéterminé', na: 'Sans objet' }[cell.state] || '';
+}
+
+/** Règle qui tranche : « Règle 7 · refuse tout » ou « Droit par défaut d'un éditeur ». */
+export function decisiveRule(cell) {
+  const s = (cell.steps || []).find((x) => x.effect === 'decide' || x.effect === 'default');
+  if (!s) return '';
+  return s.effect === 'default' ? 'Droit par défaut d\'un éditeur' : `Règle ${s.rule.id} · ${ruleEffect(s.rule)}`;
+}
+
+/** Cases indéterminées, regroupées par table et par condition (pour « À vérifier dans Grist »). */
+export function unknownCases(mx) {
+  const out = new Map();
+  for (const row of mx.rows) {
+    mx.groups.forEach((g, gi) => {
+      for (const [bit] of row.kind === 'structure' ? [['S']] : ACTIONS) {
+        const c = mx.cell(row.key, gi, bit);
+        if (!c || c.state !== 'unknown') continue;
+        const step = c.steps.find((s) => s.effect === 'unknown');
+        const formula = step?.rule?.formula || '';
+        const key = `${row.key}|${formula}|${c.note || ''}`;
+        if (!out.has(key)) out.set(key, { row, formula, note: c.note || '', actions: new Set(), groups: new Set() });
+        out.get(key).actions.add(ACTION_LABEL[bit]);
+        out.get(key).groups.add(g.name);
+      }
+    });
+  }
+  return [...out.values()].map((x) => ({ ...x, actions: [...x.actions], groups: [...x.groups] }));
+}

@@ -663,6 +663,10 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
   --doc-choice: #a558a0;
   --doc-info: #0063cb;
   --doc-ready: #18753c;
+  --doc-neutral: #3a3a3a;
+  --doc-fill-ok: #dffee6;
+  --doc-fill-ko: #ffe9e9;
+  --doc-fill-uk: #eeeeee;
 }
 
 /* ===================================================================
@@ -910,11 +914,27 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .doc__toc .doc__toc-l1 a { color: var(--doc-primary); }
 .doc__toc .doc__toc-l2 { padding-left: 1.75rem; font-size: .875rem; margin-top: .125rem; }
 .doc__num { color: var(--doc-primary); margin-right: .25rem; }
+/* Rapport : matrice « Qui peut faire quoi ? » */
+.doc__wide { overflow-x: auto; margin: 0 0 .75rem; }
+.doc__wide .doc__table { margin: 0; }
+.doc__table--small { font-size: .6875rem; line-height: 1.25; }
+.doc__table--small th, .doc__table--small td { padding: .1875rem .3125rem; vertical-align: middle; }
+.doc__th-group { border-left: 1px solid var(--doc-on-primary); }
+.doc__th-group span { display: block; font-weight: 400; font-size: .625rem; opacity: .9; }
+.doc__table th.doc__center, .doc__center { text-align: center; }
+.doc__indent { padding-left: 1.25rem !important; }
+.doc--neutral { color: var(--doc-neutral); }
+.doc__fill { font-weight: 700; }
+.doc__fill--ok { background: var(--doc-fill-ok); color: var(--doc-ready); }
+.doc__fill--ko { background: var(--doc-fill-ko); color: var(--doc-blocking); }
+.doc__fill--uk { background: var(--doc-fill-uk); color: var(--doc-neutral); }
+.doc__fill--surface { background: var(--doc-surface); font-weight: 400; }
 
 /* ------------------------------------------------------------------------
  * Accès · Qui peut faire quoi ? (matrice des droits par rôle métier)
  * ---------------------------------------------------------------------- */
 .mx__bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .5rem 1rem; border-bottom: 1px solid var(--border-default-grey); }
+.mx__export { margin: 0 0 0 auto !important; }
 .mx__bar-label { font-size: .75rem; font-weight: 700; color: var(--text-mention-grey); }
 .seg-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: var(--background-default-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
 .seg-toggle button { height: 2rem; padding: 0 1rem; border: 0; border-radius: 3px; background: transparent; font-size: .9375rem; line-height: 1; color: var(--text-title-grey); cursor: pointer; }

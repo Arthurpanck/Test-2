@@ -270,6 +270,27 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
     const bodyBox = await frame.locator('#access-body').boundingBox();
     check(card && card.y >= bodyBox.y - 2 && card.y < bodyBox.y + 200, 'matrice : « Voir les règles de Depenses » mène à la carte');
     check(await frame.locator('#access-body .sec__title').allTextContents().then((t) => t.includes('Droits d’accès par table')), 'matrice : le reste de l\'onglet est inchangé');
+    // Export Excel : matrice, détail filtrable, paramètres
+    const [xl] = await Promise.all([page.waitForEvent('download'), mx.locator('[data-matrix-xlsx]').click()]);
+    check(xl.suggestedFilename().startsWith('qui-peut-faire-quoi-') && xl.suggestedFilename().endsWith('.xlsx'), `matrice : nom du fichier Excel (${xl.suggestedFilename()})`);
+    const xz = await JSZip.loadAsync(await readFile(await xl.path()));
+    const wbx = await xz.file('xl/workbook.xml').async('string');
+    const sst = await xz.file('xl/sharedStrings.xml').async('string');
+    check(['Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) => wbx.includes(`name="${n}"`)) && wbx.includes('_xlnm._FilterDatabase') && Boolean(xz.file('xl/tables/table1.xml')), 'matrice : classeur à trois feuilles, filtres et tableau Excel');
+    check(sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Oui, seulement sur les lignes de son Email.'), 'matrice : groupes et explications dans le classeur');
+    // Rapport : la matrice au début des droits d'accès
+    await frame.locator('#tab-report').click();
+    await frame.waitForSelector('.doc', { timeout: 30000 });
+    const docText = await frame.locator('.doc').textContent();
+    check(docText.includes('Qui peut faire quoi ?') && await frame.locator('.doc .doc__fill--ok').count() > 50 && await frame.locator('.doc td[colspan="4"]').count() === 3, 'rapport : matrice dans l\'aperçu');
+    await frame.locator('#access-body').evaluate(() => {});
+    await frame.locator('.doc .doc__h2', { hasText: 'Qui peut faire quoi' }).scrollIntoViewIfNeeded();
+    await shot(page, '20-rapport-matrice.png');
+    const [wd] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
+    const wz = await JSZip.loadAsync(await readFile(await wd.path()));
+    const wxml = await wz.file('word/document.xml').async('string');
+    check(wxml.includes('>Qui peut faire quoi ?<') && wxml.includes('w:orient="landscape"') && wxml.includes('w:fill="DFFEE6"'), 'rapport Word : matrice en paysage');
+    await frame.locator('#tab-access').click();
     // Le filtre des règles masque la matrice (comme les réglages)
     await frame.locator('#access-filter').fill('Email');
     await page.waitForTimeout(250);

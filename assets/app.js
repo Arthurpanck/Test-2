@@ -1,17 +1,18 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.1.0';
-import { ErdViewer } from './erd.js?v=3.1.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.1.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.1.0';
-import { profileTables } from './datacheck.js?v=3.1.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.1.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.1.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.1.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.2.0';
+import { ErdViewer } from './erd.js?v=3.2.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.2.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.2.0';
+import { profileTables } from './datacheck.js?v=3.2.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.2.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.2.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.2.0';
+import { matrixXlsx } from './rights-export.js?v=3.2.0';
 import {
-  ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, matrixGroups, matrixRows, rowCells, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.1.0';
+  ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
+} from './rights-matrix.js?v=3.2.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.1.0';
+} from './report.js?v=3.2.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -660,28 +661,41 @@ function accessMatches(q, ...values) {
 
 const SETTING_KIND = { success: 'ok', warning: 'improve', info: 'info' };
 
+/** Nom de fichier tiré du nom du document (sans accents ni ponctuation). */
+const fileBase = () => (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'document';
+
+/** « Qui peut faire quoi ? » en classeur Excel : matrice, détail filtrable, paramètres. */
+function downloadMatrixXlsx() {
+  const mx = matrixData();
+  if (!mx?.hasRules) return;
+  try {
+    const bytes = matrixXlsx(mx, { docName: state.docName, date: new Date() });
+    downloadFile(`qui-peut-faire-quoi-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('Classeur Excel téléchargé.');
+  } catch (err) {
+    console.error(err);
+    toast(`L'export Excel n'a pas pu être produit : ${err.message || err}`, 'error');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Qui peut faire quoi ? (matrice des droits par rôle métier, rôle Grist Éditeur)
 // ---------------------------------------------------------------------------
 
-let matrixCache = null; // { key, model, role, groups, rows, cells: Map("row|g|bit" → case) }
+let matrixCache = null; // { key, mx: buildMatrix() }
+/** Matrice des droits du document (calculée une fois par lecture des règles), ou null. */
 function matrixData() {
   const key = state.acl && state.schema ? [state.acl, state.schema, state.matrixAttrData] : null;
   if (!key) return null;
-  if (matrixCache && matrixCache.key.every((x, i) => x === key[i])) return matrixCache;
-  const model = prepareMatrixModel(state.acl);
-  const { role, groups } = matrixGroups(model, state.matrixAttrData);
+  if (matrixCache && matrixCache.key.every((x, i) => x === key[i])) return matrixCache.mx;
   const tables = [...state.schema.keys()].filter((t) => t && !t.startsWith('_grist'));
-  const rows = matrixRows(model, tables);
-  const cells = new Map();
-  for (const row of rows) groups.forEach((g, gi) => rowCells(model, row, g, role).forEach((c) => cells.set(`${row.key}|${gi}|${c.bit}`, c)));
-  matrixCache = { key, model, role, groups, rows, cells };
-  return matrixCache;
+  matrixCache = { key, mx: buildMatrix(state.acl, tables, state.matrixAttrData) };
+  return matrixCache.mx;
 }
 
 function rightsMatrixHtml() {
   const mx = matrixData();
-  if (!mx || !mx.model.resources.some((g) => g.rules.length)) return '';
+  if (!mx || !mx.hasRules) return '';
   const { role, groups, rows, cells } = mx;
   const showCols = state.matrixDetail === 'columns';
   const shown = rows.filter((r) => r.kind !== 'column' || showCols);
@@ -740,7 +754,9 @@ function rightsMatrixHtml() {
         <div class="seg-toggle" role="group" aria-labelledby="mx-detail-label">
           <button type="button" data-matrix-detail="tables" aria-pressed="${!showCols}">Par table</button>
           <button type="button" data-matrix-detail="columns" aria-pressed="${showCols}">Par table et par colonne</button>
-        </div></div>
+        </div>
+        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-download-line mx__export" data-matrix-xlsx="1"
+          title="Matrice, détail de chaque case (filtrable) et paramètres de lecture">Exporter en Excel</button></div>
       <div class="mx__scroll" role="region" aria-label="Droits par rôle métier et par action" tabindex="0" style="${gridVars}">${head}${body}</div>
       <div class="mx__detail" aria-live="polite"${detail ? '' : ' hidden'}>${detail}</div>
     </div>
@@ -1042,6 +1058,7 @@ function reportContext(schema) {
     tables: state.out.tables,
     insights: state.insights,
     access: state.access,
+    matrix: matrixData(),
     profiles: state.profiles,
     pages: state.pages,
     dbml: state.out.dbml,
@@ -1084,8 +1101,7 @@ async function downloadReport() {
     ]);
     const blocks = buildReport(reportContext(schema), [...state.reportSections]);
     const blob = await d.Packer.toBlob(renderDocx(blocks, readTheme(), d));
-    const base = (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-    downloadFile(`structure-${base || 'document'}.docx`, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    downloadFile(`structure-${fileBase()}.docx`, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     toast('Rapport Word téléchargé.');
   } catch (err) {
     console.error(err);
@@ -1334,9 +1350,10 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-goto-finding],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close]');
+    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-goto-finding],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close],[data-matrix-xlsx]');
     if (!target) return;
     ev.preventDefault();
+    if (target.dataset.matrixXlsx) { downloadMatrixXlsx(); return; }
     if (target.dataset.matrixDetail) {
       state.matrixDetail = target.dataset.matrixDetail;
       if (state.matrixDetail === 'tables' && state.matrixPick?.row.includes('.')) state.matrixPick = null;
