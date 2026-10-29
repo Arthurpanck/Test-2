@@ -12,10 +12,10 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.0.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.0.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.0.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.0.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.1.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.1.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.1.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.1.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -61,10 +61,10 @@ function relationsOf(tables) {
 export function accessSummary(a) {
   const protectedTables = a.tables.length;
   return [
-    plural(a.ruleCount, 'règle', 'règles'),
+    plural(a.ruleCount, 'condition de droits d’accès', 'conditions de droits d’accès'),
     protectedTables ? `${plural(protectedTables, 'table protégée', 'tables protégées')}` : 'aucune table protégée en particulier',
     a.attributes.length ? plural(a.attributes.length, 'attribut utilisateur', 'attributs utilisateur') : '',
-    a.rowRules ? `${plural(a.rowRules, 'règle', 'règles')} par ligne` : '',
+    a.rowRules ? `${plural(a.rowRules, 'condition de droits d’accès', 'conditions de droits d’accès')} par ligne` : '',
   ].filter(Boolean).join(' · ') + '.';
 }
 
@@ -81,7 +81,7 @@ export function generalRows(a) {
     const who = sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text);
     rows.push([{ text: sp.label, bold: true }, who.length ? `${sp.allowed} Personnes visées : ${who.join(' ; ')}.` : sp.byDefault]);
   }
-  for (const [id, label, byDefault] of [['FullCopies', 'Copier le document entier', 'Seuls les propriétaires peuvent copier le document entier.'], ['AccessRules', 'Voir les règles d\'accès', 'Seuls les propriétaires voient les règles d\'accès.']]) {
+  for (const [id, label, byDefault] of [['FullCopies', 'Copier le document entier', 'Seuls les propriétaires peuvent copier le document entier.'], ['AccessRules', 'Voir les droits d’accès', 'Seuls les propriétaires voient les règles d\'accès.']]) {
     if (!a.special.some((sp) => sp.id === id)) rows.push([{ text: label, bold: true }, byDefault]);
   }
   return rows;
@@ -308,7 +308,7 @@ export const REPORT_SECTIONS = [
           ]) });
       }
       if (a.defaults.length) {
-        blocks.push({ type: 'heading', level: 2, text: 'Règles par défaut (toutes les tables)' });
+        blocks.push({ type: 'heading', level: 2, text: 'Droits d’accès par défaut (toutes les tables)' });
         blocks.push(ruleTable(a.defaults, BITS.defaults));
       }
       for (const t of a.tables) {
@@ -321,7 +321,7 @@ export const REPORT_SECTIONS = [
         }
       }
       if (a.uncovered.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Sans règle propre (règles par défaut seulement) : ${a.uncovered.join(', ')}.` });
-      blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : les règles d\'une table s\'appliquent dans l\'ordre ; la première dont la condition est remplie décide pour chaque permission. « — » : la règle ne dit rien, la suivante décide.' });
+      blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : les règles d\'une table s\'appliquent dans l\'ordre ; la première dont la condition est remplie décide pour chaque permission. « — » : aucun droit n’est décidé ici pour cette action, la condition suivante s’applique.' });
       return blocks;
     },
   },
@@ -626,4 +626,5 @@ export function loadDocx(url = DOCX_URL) {
   }
   return docxPromise;
 }
+
 

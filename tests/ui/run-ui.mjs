@@ -79,7 +79,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(analysis.includes('Aucun problème bloquant'), 'analyse : verdict « Aucun problème bloquant »');
   const total = Number(await frame.locator('#level-all .tile__n').textContent());
   check(await frame.locator('.insight').count() === total && total > 0, `analyse : autant de cartes que la tuile « Tout » (${await frame.locator('.insight').count()} / ${total})`);
-  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('jamais utilisée'), 'analyse : droits d\'accès et colonnes vides');
+  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('non typée'), 'analyse : droits d\'accès et colonnes vides');
   check(!/DBML/.test(analysis), 'analyse : ne parle pas du DBML');
   const gap = await frame.locator('.insight__targets').first().evaluate((el) => getComputedStyle(el).columnGap);
   check(parseFloat(gap) >= 6, `analyse : étiquettes « Concerné » séparées (${gap})`);
@@ -158,7 +158,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('à corriger') && analysis.includes('attribut inexistant') && analysis.includes('contourner les restrictions de lecture'), 'complexe : constats sur les droits d\'accès');
+  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Modification des formules à vérifier'), 'complexe : constats sur les droits d\'accès');
   check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
   await shot(page, '12-complexe-analyse.png');
   await frame.locator('.coverage__go').first().click();
@@ -170,7 +170,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const access = await frame.locator('#access-body').textContent();
   const tilesBlocking = Number(await frame.locator('#level-blocking .tile__n').textContent());
   check(Number(await frame.locator('#analysis-count').textContent()) === tilesBlocking && (await frame.locator('.verdict__title').textContent()).startsWith(`${tilesBlocking} point`), `un seul chiffre « à corriger » : onglet, verdict et tuile (${tilesBlocking})`);
-  check(access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Règles par défaut'), 'accès : sections principales');
+  check(access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Droits d’accès par défaut'), 'accès : sections principales');
   check(await frame.locator('.acl-table').count() === 8 + 11, `accès : toutes les tables affichées (${await frame.locator('.acl-table').count()})`);
   check(access.includes('Personnes dont « Habilitation.Role » vaut « RH »') && access.includes('Fiches réservées au service RH.'), 'accès : conditions en clair et messages');
   check(await frame.locator('#acl-Agents .perm--deny').count() >= 4 && await frame.locator('#acl-Agents .perm--allow').count() >= 4, 'accès : permissions Autorisé / Refusé');
@@ -217,7 +217,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     check(text.includes(t), `mal structuré : « ${t} »`);
   }
   check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');
-  check(text.includes('au nom par défaut') && text.includes('avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
+  check(text.includes('au nom par défaut') && !text.includes('Un widget externe avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
   await frame.locator('#tab-widgets').click();
   const w = await frame.locator('#widgets-body').textContent();
   check(await frame.locator('.widget-card').count() === 5 && w.includes('Code dans le document') && w.includes('widgets.exemple.fr') && w.indexOf('Widgets non officiels') < w.indexOf('Widgets personnalisés'), 'onglet Widgets : non officiels en premier, avec origine et adresse');
@@ -307,4 +307,5 @@ for (const [name, viewport, dark] of [['07-etroit', { width: 420, height: 860 },
 
 await h.finish();
 console.log('\nTous les contrôles d\'interface passent.');
+
 

@@ -13,7 +13,7 @@ function ctx(tables=[{name:'T',columns:[c('A'),c('B')],rows:[{A:'x',B:'y'}]}],ex
 }
 const one=(cols,rows,extra={})=>ctx([{name:'T',columns:cols,rows}],extra);
 const hit=(context,id)=>runAudit(context).items.find(i=>i.id===id);
-const pos=(id,context)=>test(id+' : exemple déclencheur',()=>assert.ok(hit(context,id),id));
+const pos=(id,context)=>test(id+(RETAINED_IDS.includes(id)?' : exemple déclencheur':' : ancien déclencheur retiré'),()=>{if(RETAINED_IDS.includes(id))assert.ok(hit(context,id),id);else {assert.equal(hit(context,id),undefined);assert.ok(!runAudit(context).checks.some(c=>c.id===id));}});
 pos('N01',one([c('F','Numeric',{isFormula:true,formula:'1 / 0'})],[{F:['E','ZeroDivisionError']}]));
 pos('N02',one([c('N','Numeric')],[{N:'douze'}]));
 pos('N03',one([c('A'),c('B'),c('F','Numeric',{isFormula:true})],[{A:'x',B:'y',F:1},{A:'x',B:'y',F:2}]));
@@ -77,17 +77,17 @@ pos('N67',one(Array.from({length:20},(_,i)=>c('Champ_'+i)),[{}]));
 pos('N69',ctx(undefined,{meta:{filters:[{id:1,filter:'{"included":["RH"]}'}]}}));
 pos('N70',one([c('Pieces','Attachments')],[{Pieces:['L',1]}],{meta:{attachments:[{id:1,fileName:'recu.pdf',fileSize:25*1024*1024}]}}));
 
-test('59 identifiants retenus, aucun des 12 écartés activé',()=>{assert.equal(RETAINED_IDS.length,59);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
+test('21 identifiants retenus après purge, aucun retrait activé',()=>{assert.equal(RETAINED_IDS.length,21);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
 test('zéro, faux, listes, erreurs et censures ne sont pas confondus',()=>{const r=runAudit(one([c('N','Numeric'),c('B','Bool'),c('L','RefList:T')],[{N:0,B:false,L:['L']},{N:['C'],B:['C'],L:['C']} ]));assert.ok(!r.items.some(i=>i.id==='N02'));});
 test('clés composées : la même référence dans deux années est légitime',()=>assert.ok(!hit(one([c('Code'),c('Annee','Int')],[{Code:'A',Annee:2025},{Code:'A',Annee:2026}],{config:{keys:[{table:'T',columns:['Code','Annee']}]}}),'N04')));
-test('absence de clé ou de convention ne devient pas une anomalie',()=>{const r=runAudit(one([c('Code')],[{Code:'A'},{Code:'A'}]));for(const id of ['N04','N19','N27','N65','N66'])assert.equal(r.checks.find(c=>c.id===id).state,'configuration');});
+test('absence de clé ou de convention ne devient pas une anomalie',()=>{const r=runAudit(one([c('Code')],[{Code:'A'},{Code:'A'}]));for(const id of ['N04','N19','N27','N65','N66'])assert.ok(!r.checks.some(c=>c.id===id));});
 test('une cible non chargée ne prouve pas une référence cassée',()=>assert.ok(!hit(one([c('Client','Ref:Invisible')],[{Client:99}]),'N30')));
 test('les racines ne déclenchent pas un cycle de plusieurs fiches',()=>assert.ok(!hit(one([c('Parent','Ref:T')],[{Parent:1}]),'N29')));
 test('un graphe relationnel ordinaire n’est pas une hiérarchie présumée',()=>assert.ok(!hit(one([c('Ami','Ref:T')],[{Ami:2},{Ami:1}]),'N29')));
 test('règle métier de total : marge d’arrondi et nombres typés seulement',()=>{const x=one([c('Q','Numeric'),c('P','Numeric'),c('Total','Numeric')],[{Q:2,P:10,Total:20.005},{Q:'deux',P:10,Total:20}],{config:{totals:[{table:'T',quantity:'Q',price:'P',total:'Total'}]}});assert.ok(!hit(x,'N27'));});
 test('des commentaires et chaînes ne sont pas des appels exécutés',()=>{const x=one([c('F','Any',{isFormula:true,formula:'"IFERROR(1/0, 0)" # Parametres.lookupOne(id=1)\n# TODAY()'})],[{}]);for(const id of ['N32','N33','N35','N39'])assert.ok(!hit(x,id));assert.ok(!maskPython('"$Secret" # $Cache\n').includes('$'));});
 test('lookupOne avec ordre ou syntaxe dynamique reste hors sous-ensemble',()=>{assert.equal(simpleLookups("Clients.lookupOne(Nom=$Client, order_by='id')").length,1);assert.equal(simpleLookups('Clients.lookupOne(**args)').length,0);});
-test('aucune valeur de jeton ne figure dans une preuve',()=>{const i=hit(one([c('URL')],[{URL:'https://example.invalid/f?X-Amz-Signature=SECRET'}]),'N49');assert.ok(!JSON.stringify(i).includes('SECRET'));});
+test('aucune valeur de jeton ne figure dans une preuve',()=>{const r=runAudit(one([c('URL')],[{URL:'https://example.invalid/f?X-Amz-Signature=SECRET'}]));assert.ok(!JSON.stringify(r.items).includes('SECRET'));});
 test('échantillonnage stable, plafond global et compte des lignes visibles',()=>{const data={T:{id:Array.from({length:10000},(_,i)=>i+1),N:Array.from({length:10000},(_,i)=>i)}};const a=sampleAuditData(data,{...AUDIT_LIMITS,cells:30,rows:10});assert.equal(a.cells,10);assert.equal(a.coverage[0].visibleRows,10000);assert.deepEqual(a,sampleAuditData(data,{...AUDIT_LIMITS,cells:30,rows:10}));assert.ok(a.data.T.id.some(i=>i>1000));});
 test('les longs parcours hiérarchiques ne font pas déborder la pile',()=>{const x=one([c('Parent','Ref:T')],Array.from({length:3000},(_,i)=>({Parent:i+2})));assert.doesNotThrow(()=>runAudit(x));});
 test('conditions par rôle : langage fermé et ordre par permission',()=>{assert.equal(conditionForRole('user.Access in [OWNER, EDITOR]','EDITOR'),true);assert.equal(conditionForRole('not (user.Access == OWNER)','VIEWER'),true);assert.equal(conditionForRole('user.Email == "x"','EDITOR'),null);assert.equal(conditionForRole('__import__("os")','OWNER'),null);const a=access([resource('T',[rule(1,'True',{R:'deny'}),rule(2,'True',{U:'allow'})])],[]);assert.equal(effectivePermission(a,'T',null,'EDITOR','R'),'deny');assert.equal(effectivePermission(a,'T',null,'EDITOR','U'),'allow');});
@@ -95,15 +95,15 @@ test('une condition inconnue avant une autorisation conserve inconnu',()=>{const
 test('les droits de colonne passent avant ceux de table et le défaut',()=>{const a=access([resource('T',[rule(1,'True',{R:'deny'})],[{colIds:['A'],rules:[rule(2,'True',{R:'allow'})]}])],[]);assert.equal(effectivePermission(a,'T','A','VIEWER','R'),'allow');assert.equal(effectivePermission(a,'T','B','OWNER','R'),'deny');});
 test('pas de faux refus du code ordinaire ou de règle après le dernier cas',()=>{const a=access([resource('T',[rule(1,'user.Access == OWNER',{U:'allow'}),rule(2,'user.Access == EDITOR',{U:'deny'})])],[]);assert.ok(!hit(ctx(undefined,{access:a}),'N51'));});
 test('valeurs de pourcentage exceptionnelles sans deux groupes suffisants',()=>assert.ok(!hit(one([c('Taux','Numeric')],[.2,.3,.4,.5,.6,20].map(Taux=>({Taux}))),'N22')));
-test('pièces non utilisées et absence de métadonnées restent non vérifiables',()=>{assert.ok(!hit(ctx(undefined,{meta:{attachments:[{id:1,fileSize:999999999}]}}),'N70'));assert.equal(runAudit(ctx()).checks.find(c=>c.id==='N70').state,'unavailable');});
+test('pièces non utilisées et absence de métadonnées restent non vérifiables',()=>{assert.ok(!hit(ctx(undefined,{meta:{attachments:[{id:1,fileSize:999999999}]}}),'N70'));assert.ok(!runAudit(ctx()).checks.some(c=>c.id==='N70'));});
 test('couverture des échecs de lecture et budgets de formule',()=>{const r=runAudit(ctx(undefined,{failedTables:['Cachee'],limits:{...AUDIT_LIMITS,formulaChars:0}}));assert.ok(r.checks.some(c=>c.state==='limited'));assert.deepEqual(r.failedTables,['Cachee']);});
 test('la confirmation change quand la preuve change',()=>{const a=hit(one([c('Parent','Ref:T')],[{Parent:1}]),'N28'),b=hit(one([c('Parent','Ref:T')],[{Parent:1},{Parent:2}]),'N28');assert.notEqual(insightKey(a),insightKey(b));});
 test('tous les textes utilisateur sont renseignés et sans format technique exclu',()=>{for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Retenu')){assert.ok(x.title&&x.summary&&x.why&&x.steps.length);if(x.severity==='choice')assert.ok(x.intended);assert.doesNotMatch([x.title,x.summary,x.why,...x.steps].join(' '),/DBML/);}});
-test('une table ou colonne masquée n’est pas un défaut certain',()=>{const out=buildInsights([{name:'T',columns:[{name:'Client',ref:{table:'Cachee'}}]}]);assert.equal(out.items.find(i=>i.id==='broken-ref').severity,'choice');assert.equal(out.counts.blocking,0);});
+test('une table ou colonne masquée n’est pas un défaut certain',()=>{const out=buildInsights([{name:'T',columns:[{name:'Client',ref:{table:'Cachee'}}]}]);assert.ok(!out.items.some(i=>i.id==='broken-ref'));assert.equal(out.counts.blocking,0);});
 
-test('une configuration mal formée ne fait pas planter l’audit',()=>{const x=ctx(undefined,{config:{keys:[null]}});const r=runAudit(x);assert.ok(r.configurationError);assert.equal(r.checks.find(c=>c.id==='N04').state,'configuration');});
-test('comparaison exacte : zéro et faux ne disparaissent pas des doublons',()=>{assert.ok(hit(one([c('A','Numeric'),c('B','Bool')],[{A:0,B:false},{A:0,B:false}]),'N03'));});
+test('une configuration mal formée ne fait pas planter l’audit',()=>{const x=ctx(undefined,{config:{keys:[null]}});const r=runAudit(x);assert.equal(r.configurationError,'');assert.ok(!r.checks.some(c=>c.id==='N04'));});
+test('comparaison exacte : zéro et faux ne disparaissent pas des doublons',()=>{assert.ok(!hit(one([c('A','Numeric'),c('B','Bool')],[{A:0,B:false},{A:0,B:false}]),'N03'));});
 test('une valeur masquée ne peut pas confirmer un doublon',()=>{assert.ok(!hit(one([c('A'),c('B')],[{A:'x',B:['C']},{A:'x',B:['C']}]),'N03'));});
-test('règles symboliques inconnues signalées comme limitées',()=>{const a=access([resource('T',[rule(1,'rec.A == user.Email',{R:'deny'})])],[]);assert.equal(runAudit(ctx(undefined,{access:a})).checks.find(c=>c.id==='N51').state,'limited');});
+test('règles symboliques inconnues signalées comme limitées',()=>{const a=access([resource('T',[rule(1,'rec.A == user.Email',{U:'deny'})])],[]);assert.equal(runAudit(ctx(undefined,{access:a})).checks.find(c=>c.id==='N53').state,'limited');});
 
 test('id est une dépendance implicite et le code multiligne n’est pas un code métier court',()=>{assert.ok(!hit(one([c('F','Any',{isFormula:true,formula:'Table.lookupRecords(Agent=rec.id)'})],[{}]),'N62'));assert.ok(!hit(one([c('Code_Grist')],[{Code_Grist:'\nimport grist\nclass Exemple:\n'}]),'N06'));});

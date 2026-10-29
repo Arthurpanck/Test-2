@@ -180,3 +180,12 @@ Validation : `npm test` exécute les tests existants, les 58 déclencheurs et le
 ## Filtres visibles 2.8.1
 
 X13 compte les champs de filtre enregistrés, actifs et épinglés par vue Tableau affichée sur une page. À partir de cinq colonnes distinctes lisibles, un « Choix à confirmer » propose des vues préparées sur la même table. Les filtres masqués, les valeurs sélectionnées et les changements temporaires non enregistrés ne sont pas comptés. Le seuil est un indice d’ergonomie, pas une limite Grist. Aucun accès aux lignes métier supplémentaire. Les métadonnées absentes donnent « Non vérifiable », les propriétés ou colonnes censurées un contrôle limité. X04 (lignes vides d’espacement) est abandonné et n’est pas implémenté.
+
+
+## Revue et purge du 29 octobre 2026 — 3.1.0
+
+21 contrôles du catalogue enrichi restent actifs, dont X13. Les contrôles supprimés ne sont plus calculés : doublons de lignes et de clés, variantes de saisie, bornes de dates, comparaisons de totaux, graphes de cycles, divergences de copies et contrôles de droits d’accès retirés. N54 est fusionné dans N53. N67 quitte les constats et devient une section « Informations de la colonne » dans Tables, avec les métadonnées disponibles et la description. Les contrôles historiques retirés (référence non visible, copie possible, recherche de courriel d’habilitation, copie intégrale et deux alertes sur les widgets) sont également désactivés.
+
+Les contrôles N06, N10, N13, N14, N36 et N38 restent disponibles pour arbitrage avec leur calcul expliqué. N13 est maintenant fondé uniquement sur le nom et le type de la colonne. N06, N09, N10 et N14 examinent au plus 200 cellules courtes de l’échantillon par colonne. N31 indexe au plus 100 appels simples de lookupOne et vérifie au plus 200 recherches sources par appel. Aucun des calculs retirés ne s’exécute en arrière-plan.
+
+La récupération réseau reste inchangée : docApi.fetchTable lit la totalité des données que l’utilisateur peut lire, avant l’échantillonnage des calculs (2 000 lignes par table et 100 000 cellules globales). La réduction des calculs ne doit pas être présentée comme une réduction équivalente du téléchargement.

@@ -58,11 +58,11 @@ test('mal structuré : nombres, dates, oui/non en texte, choix répétés, valeu
 test('mal structuré : noms par défaut, doublons, copie non protégée, tables vides, colonnes jamais remplies, table large', () => {
   const { ins } = load();
   const def = item(ins, 'default-name');
-  assert.ok(has(def, 'Table1') && has(def, 'Feuille1') && has(def, 'Table2', 'A') && has(def, 'Feuille1', 'Colonne1'));
+  assert.ok(has(def, 'Table2', 'A') && has(def, 'Feuille1', 'Colonne1'));
+  assert.ok(def.targets.every(t=>t.column), 'seuls les noms de colonnes sont contrôlés');
   assert.ok(!has(def, 'Table1', 'A'), 'colonnes vides : signalées une seule fois (colonnes jamais utilisées)');
   const leak = item(ins, 'acl-copy-leak');
-  assert.equal(leak.severity, 'choice', 'la ressemblance ne prouve pas une fuite');
-  assert.ok(has(leak, 'Personnel_2024'), 'copie de Personnel (salaires) sans protection');
+  assert.equal(leak,undefined,'le constat de copie et d’accès est retiré');
   const dup = item(ins, 'duplicate-table');
   assert.ok(has(dup, 'Commandes_copie') && has(dup, 'Produits_old'));
   assert.ok(has(item(ins, 'empty-table'), 'Export_2023') && has(item(ins, 'empty-table'), 'Test'));
@@ -76,8 +76,8 @@ test('mal structuré : droits d\'accès en désordre', () => {
   assert.ok(has(item(ins, 'acl-unknown-attribute'), 'Clients'));
   assert.ok(item(ins, 'acl-emails').targets.length >= 4);
   assert.ok(item(ins, 'acl-bypass'));
-  assert.ok(item(ins, 'acl-full-copies'));
-  assert.ok(has(item(ins, 'acl-attr-mismatch'), 'Table2', 'A'), 'user.Role cherche une adresse dans Table2.A');
+  assert.equal(item(ins, 'acl-full-copies'),undefined);
+  assert.equal(item(ins,'acl-attr-mismatch'),undefined);
   assert.ok(item(ins, 'acl-attr-unused').targets.some((t) => t.note === 'user.Role'));
   assert.equal(ins.verdict.level, 'blocking');
 });
@@ -114,5 +114,5 @@ test('vu par le propriétaire : tables entièrement masquées (nom effacé par G
   const ins = buildInsights(out.tables, access, { profiles: profileTables(records) });
   assert.ok(!item(ins, 'bad-name'), 'pas de faux « identifiant invalide »');
   assert.ok(has(item(ins, 'acl-hidden'), 'Personnel') && has(item(ins, 'acl-hidden'), 'Factures'), 'tables invisibles signalées');
-  assert.ok(has(item(ins, 'acl-copy-leak'), 'Personnel_2024'), 'copie non protégée repérée même sans voir l\'originale');
+  assert.equal(item(ins,'acl-copy-leak'),undefined,'aucune alerte de copie même si la table source est masquée');
 });

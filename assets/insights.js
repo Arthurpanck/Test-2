@@ -9,12 +9,12 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=3.0.0';
-import { structureSmells } from './datacheck.js?v=3.0.0';
-import { runAudit } from './audit-engine.js?v=3.0.0';
-import { pageInsights } from './pages.js?v=3.0.0';
+import { accessInsights } from './access.js?v=3.1.0';
+import { structureSmells } from './datacheck.js?v=3.1.0';
+import { runAudit } from './audit-engine.js?v=3.1.0';
+import { pageInsights } from './pages.js?v=3.1.0';
+import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.1.0';
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export const SEVERITIES = {
   blocking: { label: 'À corriger', order: 0 },
@@ -42,78 +42,14 @@ export function insightKey(it) {
  */
 export function buildInsights(tables, access = null, { profiles = null, accepted = null, pages = null, audit = null } = {}) {
   const items = [];
-  const names = new Set(tables.map((t) => t.name));
-
-  // 1. Liens vers une table absente.
-  const brokenRefs = [];
-  for (const t of tables) {
-    for (const c of t.columns) if (c.ref && !names.has(c.ref.table)) brokenRefs.push({ table: t.name, column: c.name, target: c.ref.table });
-  }
-  if (brokenRefs.length) {
-    items.push({
-      id: 'broken-ref', severity: 'choice',
-      intended: 'La destination peut être masquée pour vous. Demandez sa vérification à une personne habilitée sans changer les droits de lecture.',
-      title: brokenRefs.length > 1 ? `${brokenRefs.length} liens vers une table introuvable` : 'Un lien vers une table introuvable',
-      summary: 'Ces colonnes de référence pointent vers une table qui n\'apparaît pas (supprimée, renommée ou masquée pour vous).',
-      why: 'Le widget ne peut pas vérifier cette destination. Une table absente de votre lecture peut exister et être protégée.',
-      steps: [
-        'Ouvrez la table concernée et sélectionnez la colonne.',
-        'Dans le panneau de droite, rubrique Colonne, choisissez une table existante dans « Tableau de référence », ou changez le type de la colonne.',
-        REFRESH_STEP,
-      ],
-      targets: brokenRefs.map((r) => ({ table: r.table, column: r.column, note: `vers « ${r.target} »` })),
-    });
-  }
-
-  // 2. Identifiants avec accents, espaces ou tirets.
-  const badNames = [];
-  for (const t of tables) {
-    if (!IDENTIFIER.test(t.name)) badNames.push({ table: t.name });
-    for (const c of t.columns) if (!IDENTIFIER.test(c.name)) badNames.push({ table: t.name, column: c.name });
-  }
-  if (false && badNames.length) {
-    items.push({
-      id: 'bad-name', severity: 'blocking',
-      title: badNames.length > 1 ? `${badNames.length} identifiants avec accents ou espaces` : 'Un identifiant avec accent ou espace',
-      summary: 'Ces identifiants contiennent des caractères (espace, accent, tiret…) mal acceptés par les formules et les outils externes.',
-      why: 'Les formules, l\'API et les exports qui utilisent ces identifiants risquent d\'échouer.',
-      steps: [
-        'Sélectionnez la colonne (ou la table) dans Grist.',
-        'Dans le panneau de droite, modifiez son identifiant : lettres sans accent, chiffres et « _ » uniquement. Le libellé affiché peut garder ses accents.',
-        REFRESH_STEP,
-      ],
-      targets: badNames,
-    });
-  }
-
-  // 3. Colonnes en double.
-  const dups = [];
-  for (const t of tables) {
-    const seen = new Set(['id']);
-    for (const c of t.columns) {
-      if (seen.has(c.name)) dups.push({ table: t.name, column: c.name });
-      seen.add(c.name);
-    }
-  }
-  if (false && dups.length) {
-    items.push({
-      id: 'duplicate', severity: 'blocking',
-      title: dups.length > 1 ? `${dups.length} colonnes présentes deux fois` : 'Une colonne présente deux fois',
-      summary: 'Une même table déclare deux colonnes avec le même identifiant.',
-      why: 'On ne sait plus laquelle une formule utilise.',
-      steps: ['Renommez l\'une des deux colonnes dans Grist.', REFRESH_STEP],
-      targets: dups,
-    });
-  }
-
   // 4. Colonnes vides (ni type ni formule), comme A, B, C d'une table créée par défaut.
   const empty = [];
   for (const t of tables) for (const c of t.columns) if (c.empty) empty.push({ table: t.name, column: c.name });
   if (empty.length) {
     items.push({
       id: 'empty', severity: 'improve',
-      title: empty.length > 1 ? `${empty.length} colonnes créées mais jamais utilisées` : 'Une colonne créée mais jamais utilisée',
-      summary: 'Ces colonnes n\'ont encore ni type ni formule, comme les colonnes A, B, C d\'une table créée par défaut.',
+      title: empty.length > 1 ? `${empty.length} colonnes non typées` : 'Une colonne non typée',
+      summary: 'Le type de ces colonnes est « Non défini » et elles ne contiennent pas de formule. Cela ne prouve pas qu’elles n’ont jamais servi.',
       why: 'Elles encombrent la saisie et le schéma. Grist leur choisira un type à la première saisie, pas forcément le bon.',
       steps: [
         'Si la colonne ne sert pas : clic droit sur son en-tête ▸ « Supprimer la colonne ».',
@@ -151,10 +87,10 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
       id: 'isolated', severity: 'choice',
       title: isolated.length > 1 ? `${isolated.length} tables reliées à aucune autre` : 'Une table reliée à aucune autre',
       summary: 'Aucune colonne de référence ne relie ces tables au reste du document.',
-      why: 'Sur le schéma, elles apparaissent seules ; si elles parlent des mêmes choses que d\'autres tables, il manque un lien.',
+      why: 'Dans Grist, contrairement à un tableur classique, une liste déroulante simple ne nécessite pas une table dédiée : les types Choix et Choix multiple suffisent. Une table de référence reste utile si chaque option possède ses propres informations.',
       intended: 'Table de paramètres, de notes ou journal indépendant : rien à faire.',
       steps: [
-        'Sinon : ajoutez une colonne de type « Référence » vers la table concernée (voir aussi les liens écrits à la main signalés plus haut).',
+        'Pour une simple liste déroulante, utilisez le type « Choix » ou « Choix multiple ». Si les options sont de vraies fiches à décrire, gardez une table et reliez-la avec une colonne « Référence ».',
         REFRESH_STEP,
       ],
       targets: isolated,
@@ -182,6 +118,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   if (auditResult) items.push(...auditResult.items);
   // Les doublons de choix multiples remplacent la carte générique sur les mêmes colonnes.
   if (auditResult?.items.some(i => i.id === 'N64')) { /* ChoiceList est traité uniquement par le moteur détaillé. */ }
+  for (let i=items.length-1;i>=0;i--) if(REMOVED_FINDING_IDS.has(items[i].id)) items.splice(i,1);
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
 
   const acceptedItems = accepted ? items.filter((it) => it.severity === 'choice' && accepted.has(insightKey(it))) : [];
@@ -191,7 +128,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
 
   const has = (id) => items.some((i) => i.id === id);
   const checks = [
-    { id: 'broken-ref', label: 'Les liens pointent vers des tables existantes' },
     { id: 'text-ref', label: 'Les relations utilisent des colonnes de référence' },
   ];
   if (profiles) checks.push({ id: 'typed-as-text', label: 'Nombres, dates et oui/non ont le bon type' });
@@ -199,8 +135,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   if (access && access.hasRules) {
     checks.push(
       { id: 'acl-unknown-attribute', label: 'Les conditions n\'utilisent que des attributs définis' },
-      { id: 'acl-copy-leak', label: 'Les copies de tables protégées sont protégées' },
-      { id: 'acl-hidden', label: 'Vous voyez tout ce que les règles protègent' },
+      { id: 'acl-hidden', label: 'Les éléments des droits d’accès sont lisibles dans le périmètre de l’audit' },
     );
     if (access.restrictsRead) checks.push({ id: 'acl-bypass', label: 'Les données cachées ne sont pas lisibles par formule' });
   }
@@ -216,7 +151,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     const parts = [
       blockingItems.some((i) => i.area === 'structure') ? 'des liens ou des colonnes ne fonctionnent pas comme prévu' : '',
       blockingItems.some((i) => i.area === 'data') ? 'des valeurs ou des calculs doivent être corrigés' : '',
-      blockingItems.some((i) => i.area === 'access') ? 'des règles d\'accès ne protègent pas comme prévu' : '',
+      blockingItems.some((i) => i.area === 'access') ? 'des droits d\'accès doivent être vérifiés' : '',
       blockingItems.some((i) => i.area === 'pages') ? 'des widgets ne s\'affichent pas comme prévu' : '',
     ].filter(Boolean);
     const sentence = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}` : (parts[0] || 'des éléments ne fonctionnent pas comme prévu');
@@ -241,4 +176,5 @@ export function stepsAfterIntended(it) {
 export function targetLabel(t) {
   return t.column ? `${t.table}.${t.column}` : t.table;
 }
+
 

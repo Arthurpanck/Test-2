@@ -32,10 +32,9 @@ test('widgets personnalisés : origine, auteur, accès, colonnes manquantes', ()
 test('constats sur les widgets', () => {
   const items = pageInsights(model());
   assert.deepEqual(items.map((i) => [i.id, i.severity]), [
-    ['widget-unmapped', 'blocking'], ['page-default-name', 'improve'], ['widget-full-access', 'choice'],
-    ['table-without-page', 'choice'], ['widget-community', 'info'], ['widget-in-document', 'info'],
+    ['widget-unmapped', 'blocking'], ['page-default-name', 'improve'],
+    ['table-without-page', 'choice'], ['widget-in-document', 'info'],
   ]);
-  const full = items.find((i) => i.id === 'widget-full-access');
-  assert.equal(full.targets.length, 1, 'le widget d\'audit lui-même n\'est pas signalé');
+  assert.ok(!items.some(i=>['widget-full-access','widget-community'].includes(i.id)));
   assert.ok(items.every((i) => i.area === 'pages'));
 });

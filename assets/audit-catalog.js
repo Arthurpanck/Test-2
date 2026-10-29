@@ -1,4 +1,4 @@
-/** Catalogue arbitré et méthodes de la version 2.8.1. */
+/** Catalogue après revue du 29 octobre 2026, version 3.1.0. */
 export const AUDIT_CATALOG = [
   {
     "id": "N01",
@@ -6,7 +6,7 @@ export const AUDIT_CATALOG = [
     "level": "À corriger",
     "domain": "données",
     "title": "Des calculs renvoient une erreur",
-    "detection": "Par colonne calculée, compter les cellules encodées comme erreur E. Exclure les erreurs de permission ou de censure et les erreurs circulaires traitées séparément par N61. Déclenchement dès une erreur effective ; un texte écrit « #ERROR » ne suffit pas.",
+    "detection": "Dans une colonne avec formule, repérer les valeurs d’erreur encodées par Grist (E), hors erreur de permission ou censure. Aucun texte littéral « #ERROR » n’est considéré comme une erreur. Le contrôle spécialisé des cycles N61 est retiré ; une cellule calculée en erreur reste un résultat d’erreur pour N01.",
     "false_positives": "Exclure texte littéral #ERROR et valeur censurée ; ne pas évaluer le code.",
     "summary": "Certaines cellules calculées affichent une erreur.",
     "why": "Les totaux et les colonnes qui en dépendent peuvent devenir incomplets.",
@@ -23,13 +23,16 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Par colonne calculée, compter les cellules encodées comme erreur E",
-      "Exclure les erreurs de permission ou de censure et les erreurs circulaires traitées séparément par N61",
-      "Déclenchement dès une erreur effective ; un texte écrit « #ERROR » ne suffit pas."
+      "Dans une colonne avec formule, repérer les valeurs d’erreur encodées par Grist (E), hors erreur de permission ou censure. Aucun texte littéral « #ERROR » n’est considéré comme une erreur. Le contrôle spécialisé des cycles N61 est retiré ; une cellule calculée en erreur reste un résultat d’erreur pour N01."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Erreur observée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N02",
@@ -61,7 +64,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Erreur observée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N03",
@@ -80,8 +88,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Imports lignes 1 et 2.",
     "justification": "Doublon probable mais répétition parfois légitime.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -93,9 +101,15 @@ export const AUDIT_CATALOG = [
       "Une ligne avec une cellule censurée n’est jamais déclarée doublon",
       "Les formules peuvent différer : elles ne sont pas comparées."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N04",
@@ -114,8 +128,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Code A001 présent deux fois.",
     "justification": "La clé doit être confirmée avant d’affirmer une anomalie.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -127,9 +141,15 @@ export const AUDIT_CATALOG = [
       "Avec Code + Annee, A001 en 2025 et A001 en 2026 sont différents",
       "Sans clé déclarée : état À configurer, aucun constat."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N05",
@@ -148,8 +168,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "« Alice », « Alice », « Alice  » ; « en cours » et « En cours ».",
     "justification": "Amélioration de cohérence sans fusion imposée.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -159,9 +179,15 @@ export const AUDIT_CATALOG = [
       "Déclencher si deux écritures d’origine différentes donnent la même valeur normalisée",
       "Les accents et la ponctuation restent significatifs."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N06",
@@ -169,9 +195,9 @@ export const AUDIT_CATALOG = [
     "level": "À améliorer",
     "domain": "données",
     "title": "Des espaces invisibles gênent les comparaisons",
-    "detection": "Dans un champ dont le nom indique code, référence, courriel, statut, catégorie ou nom, compter les textes courts de 120 caractères maximum, sans saut de ligne, contenant un espace de bord, un espace insécable ou un caractère de largeur nulle. Deux cellules concernées ou 5 % des valeurs remplies suffisent. Le code source multiligne et les notes sont exclus.",
-    "false_positives": "Les espaces internes d’un nom et les espaces de milliers sont normaux ; conserver valeur d’origine.",
-    "summary": "Certaines valeurs contiennent des espaces difficiles à voir.",
+    "detection": "Dans les colonnes dont le nom évoque un code, une référence, un courriel, un statut, une catégorie ou un nom : examiner au plus 200 cellules échantillonnées, de 120 caractères maximum et sans retour à la ligne. Repérer un espace au début ou à la fin, ou un espace insécable / fin / invisible. Déclencher dès deux cellules, ou si au moins 5 % des cellules non vides examinées sont concernées. Ne pas examiner les notes, descriptions et adresses.",
+    "false_positives": "Un espace peut faire partie d’un texte légitime. Les textes longs, les paragraphes et les adresses sont exclus. Aucun rapprochement entre lignes : au plus 24 000 caractères testés par colonne éligible.",
+    "summary": "Des cellules courtes contiennent des espaces en bordure ou des caractères invisibles. Ils peuvent faire échouer une recherche ou une comparaison.",
     "why": "Deux valeurs qui semblent identiques peuvent ne pas correspondre.",
     "intended": null,
     "steps": [
@@ -186,13 +212,22 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Dans un champ dont le nom indique code, référence, courriel, statut, catégorie ou nom, compter les textes courts de 120 caractères maximum, sans saut de ligne, contenant un espace de bord, un espace insécable ou un caractère de largeur nulle",
-      "Deux cellules concernées ou 5 % des valeurs remplies suffisent",
-      "Le code source multiligne et les notes sont exclus."
+      "Choisir les colonnes de codes, références, courriels, statuts, catégories ou noms.",
+      "Garder au plus 200 cellules de l’échantillon, chacune courte (120 caractères), sans paragraphe.",
+      "Compter les cellules contenant les caractères visés ; déclencher à deux cellules, ou à 5 % des cellules non vides examinées."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Test de caractères, sans comparaison entre fiches : au plus 200 cellules × 120 caractères par colonne éligible. Le téléchargement des tables reste complet avant cet échantillonnage.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N07",
@@ -222,7 +257,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N08",
@@ -250,22 +290,29 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D : libellé exact total, sous total ou total général dans les deux premières colonnes texte, avec ≥ 1 nombre ; confirmer si ce nombre égale une somme visible à ± 0,01."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N09",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "données",
-    "title": "Une cellule contient plusieurs éléments à suivre séparément",
-    "detection": "Hors notes, descriptions et adresses, examiner au moins cinq textes remplis. Déclencher si au moins 30 % se divisent en deux éléments non vides ou plus avec un point virgule ou un saut de ligne. Une virgule seule ne suffit jamais.",
+    "title": "Une colonne contient plusieurs éléments sans être de type choix multiple",
+    "detection": "Uniquement dans les colonnes de saisie de type Texte (jamais Choix multiple ou Liste de références), hors noms évoquant notes, descriptions et adresses. Sur au plus 200 cellules échantillonnées de 500 caractères maximum : au moins cinq textes non vides et au moins 30 % contenant deux éléments non vides séparés par un point-virgule ou un retour à la ligne.",
     "false_positives": "Adresses, descriptions et noms composés ; une virgule seule ne prouve pas une liste.",
-    "summary": "Plusieurs personnes ou objets semblent regroupés dans une seule cellule.",
-    "why": "Il devient difficile de les compter ou de les retrouver séparément.",
-    "intended": "Si c’est une description destinée à être lue telle quelle, vous pouvez la conserver.",
+    "summary": "Dans une colonne de texte, plusieurs cellules semblent contenir une liste séparée par des points-virgules ou des retours à la ligne.",
+    "why": "Une liste écrite comme du texte est plus difficile à filtrer et à utiliser. Le type Choix multiple permet de sélectionner chaque élément séparément.",
+    "intended": "Du texte libre, une note ou une adresse sur plusieurs lignes peut être voulu. Le séparateur seul ne prouve pas qu’il faut changer le type.",
     "steps": [
-      "Utilisez Choix multiple pour des catégories, Référence multiple pour des fiches, ou une table liée si chaque participation a ses propres informations.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Dans Grist, sélectionnez la colonne concernée et vérifiez que chaque élément correspond à un choix distinct.",
+      "Pour une liste simple, choisissez « Choix multiple » dans le panneau Colonne et préparez les choix autorisés. Pour sélectionner plusieurs fiches d’une autre table, utilisez « Liste de références ».",
+      "Vérifiez les valeurs obtenues après conversion, puis utilisez « Relire le document »."
     ],
     "example": "Participants = « Alice; Bob; Chloé ».",
     "justification": "Le bon modèle dépend du besoin.",
@@ -275,13 +322,17 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Hors notes, descriptions et adresses, examiner au moins cinq textes remplis",
-      "Déclencher si au moins 30 % se divisent en deux éléments non vides ou plus avec un point virgule ou un saut de ligne",
-      "Une virgule seule ne suffit jamais."
+      "Uniquement dans les colonnes de saisie de type Texte (jamais Choix multiple ou Liste de références), hors noms évoquant notes, descriptions et adresses. Sur au plus 200 cellules échantillonnées de 500 caractères maximum : au moins cinq textes non vides et au moins 30 % contenant deux éléments non vides séparés par un point-virgule ou un retour à la ligne."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N10",
@@ -289,8 +340,8 @@ export const AUDIT_CATALOG = [
     "level": "Choix à confirmer",
     "domain": "données",
     "title": "Une colonne mélange plusieurs genres de valeurs",
-    "detection": "Dans une colonne Any, classer les valeurs après identification des enveloppes Grist : nombre, texte, booléen, date, référence, liste. Exclure vides, erreurs et censures. Au moins dix valeurs et deux familles représentant chacune au moins 20 % des valeurs sont nécessaires.",
-    "false_positives": "Paramètres clé valeur, JSON et résultat volontairement polymorphe ; nombres encodés comme dates ne sont pas des nombres ordinaires.",
+    "detection": "Uniquement dans une colonne de type Non défini (Any). Sur au plus 200 cellules de l’échantillon, exclure les vides, erreurs et valeurs censurées. À partir de dix valeurs, classer selon le type réellement renvoyé par Grist : texte, nombre, booléen, date encodée, référence ou liste. Déclencher si au moins deux genres représentent chacun 20 % des valeurs non vides. Ne pas essayer de deviner le sens d’un texte.",
+    "false_positives": "Un mélange peut être volontaire dans une colonne Any. Les cellules masquées et les erreurs sont exclues. Le contrôle ne cherche pas à convertir les textes.",
     "summary": "Cette colonne contient des informations de genres différents.",
     "why": "Les tris et les calculs sont plus difficiles à prévoir.",
     "intended": "Si chaque ligne décrit un paramètre différent, ce mélange peut être utile.",
@@ -298,7 +349,7 @@ export const AUDIT_CATALOG = [
       "Séparez les usages en colonnes nommées puis choisissez leur type ; vérifiez les valeurs converties.",
       "Revenez dans le widget et cliquez sur « Relire le document »."
     ],
-    "example": "Valeur = 12, « douze », vrai répétés quatre fois.",
+    "example": "Dans une colonne Any : 5 nombres réels (12, 18, 20, 9, 4) et 5 textes (« douze », « attente », « inconnu », « cinq », « aucun ») déclenchent le contrôle. Dix textes, même certains ressemblant à des nombres, ne le déclenchent pas.",
     "justification": "Le mélange peut être intentionnel.",
     "decision": "Retenu",
     "status": "implémenté",
@@ -306,13 +357,22 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Dans une colonne Any, classer les valeurs après identification des enveloppes Grist : nombre, texte, booléen, date, référence, liste",
-      "Exclure vides, erreurs et censures",
-      "Au moins dix valeurs et deux familles représentant chacune au moins 20 % des valeurs sont nécessaires."
+      "Vérifier que le type Grist est Non défini (Any).",
+      "Classer les valeurs reçues selon leur type réel (texte, nombre, booléen, date, référence ou liste), après exclusion des vides, erreurs et censures.",
+      "Sur dix valeurs au moins et 200 au plus, signaler deux genres représentant chacun au moins 20 %. Le texte « 12 » reste du texte."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Un comptage en un seul passage : au plus 200 cellules par colonne Any. Au moins dix valeurs non vides sont nécessaires ; aucune comparaison de chaque ligne avec toutes les autres.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N11",
@@ -331,8 +391,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Téléphone = « N/A », « - », « inconnu ».",
     "justification": "Convention métier à confirmer.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -340,9 +400,15 @@ export const AUDIT_CATALOG = [
       "Sur au moins cinq textes remplis, hors notes et descriptions, chercher au moins deux marqueurs exacts : N/A, NA, NC, inconnu, à renseigner ou tiret isolé",
       "La valeur numérique zéro et le booléen faux ne sont pas vides."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N12",
@@ -370,7 +436,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D+M : colonne Email, Mail ou déclarée courriel ; une valeur non vide échoue à un contrôle modéré : un seul @, parties non vides, aucun espace, domaine avec point."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N13",
@@ -378,46 +450,56 @@ export const AUDIT_CATALOG = [
     "level": "Choix à confirmer",
     "domain": "données",
     "title": "Des codes sont enregistrés comme des nombres",
-    "detection": "Repérer une colonne Numérique ou Entier avec au moins trois valeurs et un identifiant CP, SIRET, SIREN, téléphone, tel, code… ou contenant postal. Le nom rend le contrôle indicatif ; il ne permet pas de prouver que des zéros ont été perdus.",
-    "false_positives": "Un numéro de facture entier peut être intentionnel ; ne pas inventer de zéros perdus.",
-    "summary": "Ces codes sont enregistrés dans une colonne numérique.",
-    "why": "Les zéros au début peuvent avoir disparu à l’import.",
-    "intended": "Si ces valeurs servent vraiment à un calcul, le type numérique convient.",
+    "detection": "Métadonnées uniquement : type Numérique ou Entier, et identifiant évoquant CP, code…, …postal…, SIRET, SIREN, téléphone ou tel. Aucune lecture des valeurs ni recherche de doublons. C’est un choix à confirmer, car le nom suggère un identifiant et ne prouve pas son usage.",
+    "false_positives": "Un nom comme Code peut désigner une vraie quantité. Aucun zéro perdu ni aucune erreur de saisie ne sont déduits sans connaître l’usage.",
+    "summary": "Le nom de cette colonne évoque un code ou un numéro de téléphone, mais son type est numérique.",
+    "why": "Un code ne sert généralement pas à calculer. Le type Texte conserve les zéros initiaux et évite certains changements d’affichage.",
+    "intended": "La colonne contient bien une quantité utilisée dans des calculs : conservez le type numérique.",
     "steps": [
       "Passez la colonne en Texte dans le panneau Colonne et comparez au fichier source pour restaurer les zéros éventuellement perdus.",
       "Revenez dans le widget et cliquez sur « Relire le document »."
     ],
-    "example": "CP = 1000 au lieu de « 01000 ».",
+    "example": "La colonne Code_postal est de type Numérique : 01230 risque d’être conservé comme 1230. Le contrôle se déclenche sur le nom et le type, même dans une table vide.",
     "justification": "La perte historique n’est pas démontrable sans source.",
     "decision": "Retenu",
     "status": "implémenté",
-    "source": "Métadonnées et données",
+    "source": "Métadonnées uniquement",
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Repérer une colonne Numérique ou Entier avec au moins trois valeurs et un identifiant CP, SIRET, SIREN, téléphone, tel, code… ou contenant postal",
-      "Le nom rend le contrôle indicatif ; il ne permet pas de prouver que des zéros ont été perdus."
+      "Lire l’identifiant et le type de la colonne dans les métadonnées.",
+      "Repérer un nom de code, téléphone ou code postal dont le type est Numérique ou Entier.",
+      "Afficher un choix à confirmer : le nom suggère un identifiant, sans prouver l’usage ni la perte d’un zéro."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Métadonnées uniquement : un test du nom et du type de chaque colonne. Aucune valeur de la table métier n’est nécessaire pour ce contrôle.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N14",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "données",
-    "title": "Plusieurs conventions de nombres coexistent",
-    "detection": "Seulement pour un texte de montant, prix, coût ou budget et au moins cinq valeurs. Exiger au moins deux valeurs au format 1,234.56 et deux au format 1.234,56. Les parenthèses comptables et « 1,234 » seul ne sont pas interprétés par cette version.",
-    "false_positives": "« 1,234 » seul est ambigu ; ne pas confondre code et montant ; espaces insécables français valides.",
-    "summary": "Les nombres semblent venir de formats différents.",
+    "title": "Des montants en texte utilisent deux formats de séparateurs",
+    "detection": "Uniquement dans une colonne Texte dont le nom évoque montant, prix, coût ou budget. Sur au plus 200 cellules de 120 caractères maximum, avec au moins cinq textes : au moins deux occurrences du motif 1,234.56 et au moins deux du motif 1.234,56. Le contrôle ne devine pas le sens d’un nombre ambigu comme 1,234 ; il n’analyse pas les colonnes numériques.",
+    "false_positives": "Des exemples ou citations peuvent volontairement conserver différents formats. Le contrôle ne convertit aucune valeur et ne sait pas quelle convention est attendue.",
+    "summary": "Des textes ressemblent à des montants écrits dans deux conventions différentes.",
     "why": "Une conversion unique peut modifier certains montants.",
     "intended": "Si la colonne conserve les valeurs originales d’un import, gardez la et ajoutez une colonne de montant converti.",
     "steps": [
       "Vérifiez le pays et le format du fichier source ; convertissez chaque groupe avec la bonne convention et contrôlez quelques totaux.",
       "Revenez dans le widget et cliquez sur « Relire le document »."
     ],
-    "example": "« 1,234.56 », « 1.234,56 », « (25,00) ».",
+    "example": "Montant contient « 1,234.56 », « 2,345.67 », « 1.234,56 », « 2.345,67 » et « 100 ». Deux formats explicites apparaissent au moins deux fois chacun.",
     "justification": "Conversion à confirmer, pas de remplacement automatique.",
     "decision": "Retenu",
     "status": "implémenté",
@@ -425,13 +507,22 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Seulement pour un texte de montant, prix, coût ou budget et au moins cinq valeurs",
-      "Exiger au moins deux valeurs au format 1,234.56 et deux au format 1.234,56",
-      "Les parenthèses comptables et « 1,234 » seul ne sont pas interprétés par cette version."
+      "Garder les colonnes Texte dont le nom évoque montant, prix, coût ou budget.",
+      "Sur au plus 200 textes courts, compter les motifs 1,234.56 et 1.234,56.",
+      "Déclencher seulement avec au moins cinq textes, et deux occurrences de chacun des deux motifs. Un texte ambigu comme 1,234 ne suffit pas."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Deux motifs de séparateurs testés sur au plus 200 textes de 120 caractères par colonne de montant éligible. Ni conversion, ni analyse sémantique des nombres ambigus.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N15",
@@ -459,7 +550,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D : texte date, ≥ 3 valeurs JJ/MM/AAAA ou MM/JJ/AAAA avec deux composantes ≤ 12 ; et absence de convention déclarée, ou présence des deux témoins 25/10 et 10/25."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N16",
@@ -487,7 +584,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D : colonne candidate date confirmée ; analyser strictement jour mois année avec calendrier, pas avec Date.parse permissif ; une date impossible suffit."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N17",
@@ -517,7 +620,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N18",
@@ -545,7 +653,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D+M : paire configurée de Date ou DateTime de même nature ; une paire remplie Fin < Debut. Noms seuls : demander confirmation de la paire."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N19",
@@ -564,8 +678,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Cotisation 2206 pour campagne 2026.",
     "justification": "Les bornes dépendent du métier.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -576,9 +690,15 @@ export const AUDIT_CATALOG = [
       "Une valeur hors bornes suffit",
       "Sans configuration : aucun signal."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N20",
@@ -606,7 +726,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "M+D : deux DateTime de même famille sémantique liée, zones distinctes dans type DateTime:zone ; ou texte horodaté mélangeant offsets et absence de zone à ≥ 2 occurrences."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N21",
@@ -634,7 +760,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "M+D : formule Date issue de DateTime par DATE ou extraction de date ; ou texte horodaté converti vers Date avec source visible conservée ; une occurrence."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N22",
@@ -653,8 +785,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "0,2 ; 0,15 ; 20 ; 15 ; 0,2 ; 20.",
     "justification": "Une échelle n’est pas prouvée par la taille seule.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -664,9 +796,15 @@ export const AUDIT_CATALOG = [
       "Leur rapport de médianes doit être compris entre 50 et 200",
       "La médiane utilisée est la valeur centrale supérieure."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N23",
@@ -685,8 +823,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "« 500 g », « 2 kg », « 300 g », « 1 kg », « 4 kg ».",
     "justification": "Le stockage original peut être utile.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -695,9 +833,15 @@ export const AUDIT_CATALOG = [
       "Chercher au moins deux occurrences de chacune de deux unités d’une même famille : kg/g, h/min, EUR/USD ou m/cm",
       "Les valeurs ne sont pas converties."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N24",
@@ -716,8 +860,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "29 cotisations entre 10 et 30 euros et une à 20000.",
     "justification": "Signal statistique à confirmer.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -727,9 +871,15 @@ export const AUDIT_CATALOG = [
       "Si Q3−Q1 > 0, signaler les valeurs hors Q1−3×écart et Q3+3×écart",
       "Les colonnes Date sont exclues."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N25",
@@ -757,7 +907,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D+M : champs requis configurés ; ≥ 1 cellule vide dans une ligne active selon condition déclarée ; compter null et chaîne vide, jamais 0 ou false."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N26",
@@ -785,7 +941,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "D : règle métier configurée, par exemple Payee = vrai implique Date_paiement non vide ; ≥ 1 violation ; pas d’inférence universelle."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N27",
@@ -804,8 +966,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Calculs : 2 × 10 mais Total_saisi = 25.",
     "justification": "Écart parfois intentionnel.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -815,9 +977,15 @@ export const AUDIT_CATALOG = [
       "Remises et taxes ne sont pas devinées",
       "Sans règle déclarée : À configurer."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N28",
@@ -848,7 +1016,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N29",
@@ -867,8 +1040,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Hierarchie : A → B → A.",
     "justification": "Le sens hiérarchique doit être confirmé.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -878,9 +1051,15 @@ export const AUDIT_CATALOG = [
       "Déclencher seulement pour une boucle fermée de longueur au moins deux",
       "Arrêter au plafond de 100000 arêtes ; un chemin vers une ligne hors échantillon n’est pas une preuve de boucle."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N30",
@@ -899,8 +1078,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Commande.Client = 99, aucune ligne 99 lisible.",
     "justification": "Visibilité et suppression indiscernables.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -909,24 +1088,32 @@ export const AUDIT_CATALOG = [
       "Si la cible n’a pas été chargée, ne pas conclure",
       "Un identifiant absent signifie seulement « destination non visible », jamais « ligne supprimée »."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N31",
     "severity": "improve",
     "level": "À améliorer",
     "domain": "structure",
-    "title": "Une formule ne peut pas distinguer plusieurs fiches correspondantes",
-    "detection": "Reconnaître un appel direct Table.lookupOne avec des critères séparés par des virgules : Colonne=$ChampLocal, entier, nombre décimal ou chaîne littérale simple. Construire un index des tuples de critères de la table cible. Pour chaque ligne source, rechercher son tuple ; s’il correspond à deux lignes cibles visibles ou plus, afficher le constat. lookupRecords n’est pas concerné. Les critères dynamiques, appels imbriqués, chaînes avec virgules et comparaisons complexes sont hors périmètre.",
+    "title": "Un lookup renvoie uniquement la première valeur, alors que plusieurs sont disponibles",
+    "detection": "Lire les formules simples Table.lookupOne(Colonne=$Champ) ou avec un littéral. Construire une fois par appel un index des critères dans les données échantillonnées de la table cible, puis chercher les critères non uniques utilisés par les lignes sources. Maximum 100 appels indexés et 200 recherches sources par appel ; les clés de texte dépassant 120 caractères, expressions dynamiques et order_by ne sont pas analysées. Un signal exige au moins deux lignes cibles distinctes réellement lues ; l’absence de signal sur l’échantillon ne prouve pas l’unicité.",
     "false_positives": "Choix volontaire du premier avec ordre explicitement défini ; clés composées et casse exactes ; correspondances cachées inconnues.",
-    "summary": "Une formule cherche une seule fiche, mais les critères qu’elle utilise correspondent à plusieurs lignes lisibles. Par exemple, chercher un client seulement par son nom ne distingue pas deux clients appelés Dupont.",
-    "why": "La formule peut renvoyer la première fiche correspondante alors que vous pensiez en désigner une autre. Ajoutez un critère qui distingue les fiches, ou utilisez directement une référence vers la bonne fiche.",
+    "summary": "Une formule utilise lookupOne, mais plusieurs fiches correspondent à ses critères dans les lignes examinées.",
+    "why": "lookupOne conserve une seule fiche. Si plusieurs correspondent, la formule peut retenir une fiche différente de celle attendue.",
     "intended": null,
     "steps": [
-      "Vérifiez les fiches trouvées, utilisez une clé unique ou une colonne Référence ; utilisez lookupRecords si plusieurs résultats sont attendus.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Ouvrez la formule et regardez les critères transmis à lookupOne.",
+      "Si une seule fiche est attendue, ajoutez un critère qui permet de l’identifier sans ambiguïté.",
+      "Si plusieurs résultats sont attendus, utilisez lookupRecords puis choisissez explicitement comment les afficher ou les regrouper.",
+      "Utilisez « Relire le document » pour vérifier."
     ],
     "example": "Clients.lookupOne(Nom=$Client) avec deux Dupont.",
     "justification": "Ambiguïté réelle sur une recherche présente.",
@@ -936,15 +1123,18 @@ export const AUDIT_CATALOG = [
     "area": "structure",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Reconnaître un appel direct Table.lookupOne avec des critères séparés par des virgules : Colonne=$ChampLocal, entier, nombre décimal ou chaîne littérale simple",
-      "Construire un index des tuples de critères de la table cible",
-      "Pour chaque ligne source, rechercher son tuple ; s’il correspond à deux lignes cibles visibles ou plus, afficher le constat",
-      "lookupRecords n’est pas concerné",
-      "Les critères dynamiques, appels imbriqués, chaînes avec virgules et comparaisons complexes sont hors périmètre."
+      "Lire les formules simples Table.lookupOne(Colonne=$Champ) ou avec un littéral. Construire une fois par appel un index des critères dans les données échantillonnées de la table cible, puis chercher les critères non uniques utilisés par les lignes sources. Maximum 100 appels indexés et 200 recherches sources par appel ; les clés de texte dépassant 120 caractères, expressions dynamiques et order_by ne sont pas analysées. Un signal exige au moins deux lignes cibles distinctes réellement lues ; l’absence de signal sur l’échantillon ne prouve pas l’unicité."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "calculationCost": "Au plus 100 index d’appels lookupOne simples. Pour chaque appel : index sur l’échantillon cible (au plus 2 000 lignes, dans le plafond global de 100 000 cellules) puis au plus 200 recherches sources. Aucun produit cartésien de toutes les lignes.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N32",
@@ -963,8 +1153,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Parametres.lookupOne(id=1).Valeur.",
     "justification": "Fragilité lors de reconstruction, pas lors d’un tri.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -972,9 +1162,15 @@ export const AUDIT_CATALOG = [
       "Après masquage des chaînes et commentaires, rechercher un appel exact Table.lookupOne(id=entier) sans autre argument",
       "Aucun numéro de position affichée n’est confondu avec l’id Grist ; un tri ne change pas cet id."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N33",
@@ -993,8 +1189,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Calculs.Erreur_masquee = IFERROR($Prix / $Quantite, 0).",
     "justification": "Intention de gestion des erreurs à confirmer.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1002,9 +1198,15 @@ export const AUDIT_CATALOG = [
       "Après masquage des chaînes et commentaires, repérer IFERROR, ISERROR ou un bloc except",
       "Cette version signale un traitement d’erreurs à relire, pas la preuve qu’une erreur s’est produite ou que son résultat a été remplacé par zéro."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N34",
@@ -1018,8 +1220,10 @@ export const AUDIT_CATALOG = [
     "why": "Certaines lignes peuvent ne pas donner de résultat.",
     "intended": "Si la formule traite déjà ce cas dans une autre branche, vérifiez le puis confirmez.",
     "steps": [
-      "Testez une ligne avec zéro et prévoyez le résultat souhaité avant la division.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Ouvrez la formule et repérez la valeur utilisée comme diviseur.",
+      "Ajoutez un test if / else avant la division. Exemple : if $Quantite != 0:\n    return $Montant / $Quantite\nelse:\n    return 0",
+      "Retournez 0 dans le else seulement si 0 est bien le résultat attendu lorsqu’on ne peut pas diviser. Sinon, choisissez une valeur vide ou un message adapté.",
+      "Vérifiez les lignes où le diviseur vaut 0, puis utilisez « Relire le document »."
     ],
     "example": "$Montant / $Participants, Participants = 0.",
     "justification": "Risque seulement sans erreur observée.",
@@ -1029,13 +1233,17 @@ export const AUDIT_CATALOG = [
     "area": "structure",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro",
-      "Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR",
-      "Les gardes complexes restent hors périmètre."
+      "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro. Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR. Les gardes complexes restent hors périmètre."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N35",
@@ -1054,8 +1262,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Cree_le formule ordinaire NOW().",
     "justification": "Le nom peut exprimer une autre intention.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1063,39 +1271,55 @@ export const AUDIT_CATALOG = [
       "Colonne de formule ordinaire nommée Cree_le, Date_creation, created_at, Numero ou UUID, contenant un appel NOW ou TODAY hors commentaires et chaînes",
       "Une initialisation exécutée seulement à la création n’est pas concernée."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N36",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "structure",
-    "title": "Une valeur d’initialisation est recalculée trop souvent",
-    "detection": "Colonne de données nommée comme un identifiant ou une création, avec formule d’initialisation non vide et recalcWhen=2 ou dépendances recalcDeps non vides. Ne pas confondre une formule de dernière modification avec une valeur de création.",
-    "false_positives": "Date de dernière modification et recalcul volontaire ; vérifier les constantes de la version Grist plutôt que coder leurs nombres en dur.",
-    "summary": "Une valeur qui semble devoir rester fixe peut changer après une modification.",
-    "why": "Les anciens codes ou dates peuvent perdre leur sens.",
-    "intended": "Si cette valeur doit suivre les modifications, décrivez son rôle.",
+    "title": "Une valeur d’initialisation est configurée pour se recalculer",
+    "detection": "Métadonnées uniquement : colonne de saisie avec formule d’initialisation non vide, dont l’identifiant évoque Cree_le, Date_creation, Created_at, Numero ou UUID. Signaler recalcWhen = 2 (nouvelle ligne et toute modification manuelle d’un champ de saisie), ou recalcWhen = 0 avec au moins une dépendance recalcDeps (nouvelle ligne et modification des champs désignés). recalcWhen = 1 ne déclenche pas ce contrôle. La fréquence réelle et l’historique des modifications ne sont pas mesurés.",
+    "false_positives": "Le nom ne prouve pas qu’une valeur doit être immuable. Il s’agit d’un réglage à confirmer, pas d’une mesure de recalculs trop fréquents.",
+    "summary": "Une formule d’initialisation d’une date de création ou d’un identifiant est aussi déclenchée par des modifications.",
+    "why": "Une valeur destinée à rester fixe peut être remplacée lorsqu’un champ déclenche de nouveau son calcul.",
+    "intended": "La colonne sert volontairement de date de dernière modification, ou sa valeur doit suivre certains champs : gardez ce déclenchement.",
     "steps": [
       "Dans Colonne, vérifiez la formule d’initialisation et choisissez l’application aux nouvelles lignes seulement pour une valeur immuable.",
       "Revenez dans le widget et cliquez sur « Relire le document »."
     ],
-    "example": "UUID() appliqué à chaque modification.",
+    "example": "UUID est une colonne de saisie avec la formule d’initialisation UUID() et le réglage « à chaque modification ». Le contrôle lit ce réglage, sans attendre de voir l’identifiant changer.",
     "justification": "Configuration à confirmer.",
     "decision": "Retenu",
     "status": "implémenté",
-    "source": "Métadonnées",
+    "source": "Métadonnées uniquement",
     "area": "structure",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Colonne de données nommée comme un identifiant ou une création, avec formule d’initialisation non vide et recalcWhen=2 ou dépendances recalcDeps non vides",
-      "Ne pas confondre une formule de dernière modification avec une valeur de création."
+      "Repérer une formule d’initialisation non vide sur une colonne de saisie dont le nom évoque une date de création ou un identifiant.",
+      "Lire recalcWhen : 0 = nouvelle ligne et champs de recalcDeps ; 1 = jamais automatiquement ; 2 = nouvelle ligne et toute modification manuelle.",
+      "Signaler 2, ou 0 avec des dépendances. Ne pas signaler 1. Le contrôle ne mesure jamais combien de fois la formule a été exécutée."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Métadonnées uniquement : formule d’initialisation, nom de colonne, recalcWhen et recalcDeps. Aucune mesure de fréquence réelle, aucun historique consulté.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N37",
@@ -1114,8 +1338,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Montant initialisé par Quantite × Prix, déclenché seulement par Quantite.",
     "justification": "Les instantanés sont légitimes.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1124,40 +1348,56 @@ export const AUDIT_CATALOG = [
       "Extraire les accès $Col ou rec.Col ; signaler si au moins un champ utilisé n’est pas dans les déclencheurs",
       "Une capture historique peut être intentionnelle."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N38",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "structure",
-    "title": "Une formule parcourt beaucoup de lignes pour chaque fiche",
-    "detection": "Repérer Table.all ou Table.lookupRecords() sans critère dans une formule ordinaire. Exiger plus de 5000 lignes lisibles chargées dans la table parcourue et plus de 1000 lignes dans la source. Ce contrôle indique un motif coûteux possible ; il ne mesure aucune durée.",
-    "false_positives": "Petite table de paramètres, moteur optimisé et calculs indispensables ; pas de benchmark lancé par le widget.",
-    "summary": "La formule examine une grande table pour de nombreuses fiches.",
-    "why": "Le document peut ralentir en grandissant.",
-    "intended": "Si le volume reste faible ou le calcul nécessaire, vous pouvez le conserver.",
+    "title": "Une formule parcourt une grande table depuis une table volumineuse",
+    "detection": "Masquer chaînes et commentaires dans la formule ; reconnaître uniquement Source.all ou Source.lookupRecords() sans filtre. Signaler si la table cible compte plus de 5 000 lignes visibles et la table de la formule plus de 1 000 lignes visibles. Lire seulement le nombre de lignes déjà reçu, sans inspecter leurs valeurs ni exécuter la formule. Les caches et optimisations de Grist ne sont pas mesurés.",
+    "false_positives": "Le contrôle ne mesure ni les temps de calcul, ni le nombre réel d’exécutions. Une formule peut être optimisée ou peu recalculée.",
+    "summary": "Une formule de colonne contient un parcours de table entière, dans un document où les deux tables ont beaucoup de lignes visibles.",
+    "why": "Ce motif peut demander un travail important. La durée réelle dépend aussi de la formule et des optimisations de Grist.",
+    "intended": "Le parcours global est nécessaire et le document reste réactif : conservez-le.",
     "steps": [
       "Essayez une recherche filtrée, une référence ou une synthèse ; comparez les résultats sur quelques lignes.",
       "Revenez dans le widget et cliquez sur « Relire le document »."
     ],
-    "example": "6000 commandes, chacune calcule SUM(x.Montant for x in Commandes.all).",
+    "example": "Une formule présente dans Commandes (1 500 lignes visibles) contient SUM(r.Montant for r in Paiements.all), et Paiements a 6 000 lignes visibles.",
     "justification": "Risque de coût, pas mesure de performance.",
     "decision": "Retenu",
     "status": "implémenté",
-    "source": "Métadonnées et données",
+    "source": "Formules (métadonnées) et nombre de lignes visibles, sans inspection des valeurs pour ce contrôle",
     "area": "structure",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Repérer Table.all ou Table.lookupRecords() sans critère dans une formule ordinaire",
-      "Exiger plus de 5000 lignes lisibles chargées dans la table parcourue et plus de 1000 lignes dans la source",
-      "Ce contrôle indique un motif coûteux possible ; il ne mesure aucune durée."
+      "Masquer les commentaires et les textes littéraux de la formule.",
+      "Repérer seulement Table.all ou Table.lookupRecords() sans filtre.",
+      "Lire les nombres de lignes déjà reçus : cible au-delà de 5 000, table de la formule au-delà de 1 000.",
+      "Signaler un motif à examiner, sans annoncer une durée ni ignorer les caches et optimisations de Grist."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "calculationCost": "Un repérage de motifs dans les formules, borné par le budget global de 200 000 caractères, et le nombre de lignes visibles déjà chargé. Aucun parcours des valeurs de la table cible pour ce contrôle.",
+    "reviewStage": "Calcul à arbitrer",
+    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N39",
@@ -1176,8 +1416,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Numero formule ordinaire UUID().",
     "justification": "Fonctions utiles selon le besoin.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1186,9 +1426,15 @@ export const AUDIT_CATALOG = [
       "Écarter le cas déjà couvert par N35",
       "Ne pas promettre une actualisation à chaque seconde ni à chaque ouverture."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N40",
@@ -1207,8 +1453,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Enfant_1, Enfant_2, Enfant_3.",
     "justification": "Modèle dépendant du besoin.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1217,9 +1463,15 @@ export const AUDIT_CATALOG = [
       "Au moins trois colonnes de même famille déclenchent",
       "Les suffixes de quatre chiffres sont exclus et relèvent plutôt des périodes."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N41",
@@ -1238,8 +1490,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Cotisation_2024, Cotisation_2025, Cotisation_2026.",
     "justification": "Présentation parfois volontaire.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1247,9 +1499,15 @@ export const AUDIT_CATALOG = [
       "Identifier au moins trois colonnes de saisie terminées par une année 19xx ou 20xx, ou au moins quatre identifiants de mois français",
       "Cette version ne vérifie pas la consécutivité des années : une grille fixe peut être légitime."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N42",
@@ -1268,8 +1526,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Bénévoles : disponibilités ; Entreprises : SIRET, TVA, raison sociale.",
     "justification": "Séparation non systématiquement nécessaire.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "structure",
     "ruleVersion": 1,
@@ -1278,9 +1536,15 @@ export const AUDIT_CATALOG = [
       "Considérer au plus dix groupes ayant chacun cinq lignes",
       "Deux groupes déclenchent si chacun possède trois colonnes remplies à 80 % dans son groupe et à 10 % maximum dans l’autre."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N43",
@@ -1299,8 +1563,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Deux colonnes de libellé « Montant », ids Montant et Montant2.",
     "justification": "Ambiguïté d’interface effectivement possible.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1309,9 +1573,15 @@ export const AUDIT_CATALOG = [
       "Deux identifiants distincts avec le même libellé déclenchent",
       "Aucun contrôle d’identifiant en double impossible à saisir n’est ajouté."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N44",
@@ -1330,8 +1600,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Deux Dupont avec codes C01 et C02.",
     "justification": "Les homonymes restent valides.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "structure",
     "ruleVersion": 1,
@@ -1339,9 +1609,15 @@ export const AUDIT_CATALOG = [
       "Pour une référence dont visibleCol a pu être résolu, compter les valeurs identiques non vides de cette colonne dans les lignes lisibles échantillonnées de la cible",
       "Deux fiches portant le même affichage suffisent ; ce n’est pas une demande de supprimer les homonymes."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N45",
@@ -1360,8 +1636,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Synthèse par service : SUM(Personnel.all.Salaire).",
     "justification": "Le total général peut être intentionnel.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1369,9 +1645,15 @@ export const AUDIT_CATALOG = [
       "Dans une vraie synthèse (summarySourceTable), chercher une fonction SUM, AVERAGE, MIN, MAX ou len appliquée à Source.all ou lookupRecords() sans critère, sans accès à $group",
       "Le calcul global peut être intentionnel ; pas d’analyse symbolique des agrégats complexes."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N46",
@@ -1390,8 +1672,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Dossier.Service pointe sur Personnel_summary_Service.",
     "justification": "Fragilité seulement selon l’usage.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1399,9 +1681,15 @@ export const AUDIT_CATALOG = [
       "Repérer une colonne Référence ou Référence multiple d’une table ordinaire dont la cible a summarySourceTable non nul",
       "Aucun jugement sur la validité des ids ; le contrôle interroge la stabilité du groupe utilisé comme fiche."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N47",
@@ -1432,7 +1720,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Information de contexte",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N48",
@@ -1451,8 +1744,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Hierarchie.Justificatif_local = C:\\Users\\test\\recu.pdf.",
     "justification": "Accessibilité non démontrée pour les autres.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -1460,9 +1753,15 @@ export const AUDIT_CATALOG = [
       "Dans un champ dont le nom indique fichier, pièce, justificatif, lien, chemin ou document, repérer un texte qui commence par file://, une lettre de lecteur Windows suivie de deux points et antislash, ou un chemin UNC",
       "Ne pas tester l’accès réseau."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N49",
@@ -1481,8 +1780,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "https://exemple.invalid/recu?X-Amz-Expires=3600&X-Amz-Signature=…",
     "justification": "Expiration seulement probable sans contrat du service.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -1491,9 +1790,15 @@ export const AUDIT_CATALOG = [
       "Repérer X-Amz-Expires ou X-Amz-Signature, ou sig avec se, ou token avec expires",
       "Afficher seulement le fait qu’un lien temporaire est probable : aucune valeur de paramètre n’est incluse dans la preuve."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N50",
@@ -1504,11 +1809,13 @@ export const AUDIT_CATALOG = [
     "detection": "Décoder les listes d’identifiants des colonnes Pièces jointes. Déclencher à vingt pièces dans une cellule ou mille liens de pièces au total dans une colonne échantillonnée. Aucun téléchargement et aucune estimation de taille binaire.",
     "false_positives": "Dossier d’archives légitime ; doublons de contenu indétectables avec les seuls ids.",
     "summary": "Certaines cellules regroupent beaucoup de fichiers.",
-    "why": "Il devient difficile de retrouver le bon justificatif.",
+    "why": "De nombreuses pièces jointes peuvent alourdir le document, ralentir son utilisation et occuper son espace de stockage.",
     "intended": null,
     "steps": [
-      "Ajoutez au besoin une table liée avec une ligne par pièce, son objet et sa date ; conservez les fichiers dans une colonne Pièces jointes.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Regroupez et classez les fichiers utiles ; évitez de joindre plusieurs fois le même document.",
+      "Pour des ensembles volumineux, privilégiez une solution de partage de fichiers adaptée plutôt que de tout stocker dans Grist, afin de ne pas saturer le document.",
+      "Conservez dans Grist des liens durables vers ces fichiers. Vérifiez que les personnes concernées ont accès à la solution de partage.",
+      "Utilisez « Relire le document » pour revoir ce point."
     ],
     "example": "Une ligne contient 25 reçus.",
     "justification": "Conseil de classement sans présumer du poids des fichiers.",
@@ -1518,13 +1825,17 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Décoder les listes d’identifiants des colonnes Pièces jointes",
-      "Déclencher à vingt pièces dans une cellule ou mille liens de pièces au total dans une colonne échantillonnée",
-      "Aucun téléchargement et aucune estimation de taille binaire."
+      "Décoder les listes d’identifiants des colonnes Pièces jointes. Déclencher à vingt pièces dans une cellule ou mille liens de pièces au total dans une colonne échantillonnée. Aucun téléchargement et aucune estimation de taille binaire."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Information de contexte",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N51",
@@ -1533,8 +1844,8 @@ export const AUDIT_CATALOG = [
     "domain": "droits d’accès",
     "title": "Une règle générale empêche une exception de s’appliquer",
     "detection": "Par ressource et permission, analyser uniquement True, False, rôles OWNER/EDITOR/VIEWER, listes, parenthèses, and/or/not et comparaisons. Si tous les rôles reconnus visés par une règle ont déjà une décision avant elle pour cette permission, signaler une règle sans effet pour ces rôles. Une condition non comprise donne « limité », jamais une autorisation supposée.",
-    "false_positives": "Première décision par permission, pas par ligne entière ; conditions arbitraires : inconnu ; ne pas proposer une règle après Tous les autres.",
-    "summary": "Une règle placée plus haut décide déjà des cas visés par une règle suivante.",
+    "false_positives": "Première décision par permission, pas par ligne entière ; conditions arbitraires : inconnu ; ne pas proposer une règle d’accès avancée après Tous les autres.",
+    "summary": "Une règle placée plus haut décide déjà des cas visés par une règle d’accès avancée suivante.",
     "why": "L’exception attendue peut ne jamais être utilisée.",
     "intended": "Si la règle suivante prépare un changement futur, documentez la.",
     "steps": [
@@ -1543,8 +1854,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "True +U avant user.Access == EDITOR -U.",
     "justification": "Ordre valide accepté mais effet à vérifier.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "access",
     "ruleVersion": 1,
@@ -1553,9 +1864,15 @@ export const AUDIT_CATALOG = [
       "Si tous les rôles reconnus visés par une règle ont déjà une décision avant elle pour cette permission, signaler une règle sans effet pour ces rôles",
       "Une condition non comprise donne « limité », jamais une autorisation supposée."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N52",
@@ -1574,8 +1891,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Table Personnel -R aux éditeurs, colonne Nom +R aux éditeurs.",
     "justification": "Exception souvent volontaire.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "access",
     "ruleVersion": 1,
@@ -1583,40 +1900,52 @@ export const AUDIT_CATALOG = [
       "Pour une colonne et un même rôle, chercher une autorisation Lire ou Modifier décidée dans ses règles et un refus de la même permission dans les règles de sa table",
       "Les règles de colonne étant prioritaires, c’est une exception à confirmer, pas une erreur d’assemblage."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N53",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "droits d’accès",
-    "title": "Une colonne servant aux droits est modifiable par les personnes concernées",
-    "detection": "Extraire rec.Col des conditions portant Lire ou Modifier. Si Col est une colonne de données et qu’un rôle non propriétaire a un droit Modifier effectif prouvé sur cette colonne, signaler le champ d’accès modifiable. Les transitions newRec et conditions non comprises restent une limite explicite.",
+    "title": "Des champs utilisés pour les droits d’accès sont modifiables",
+    "detection": "Fusion N53 + N54. Métadonnées uniquement. Repérer les colonnes de saisie citées comme rec.Colonne dans une condition de droits d’accès de lecture ou modification. Repérer aussi, dans chaque table d’attribut utilisateur, la clé de recherche et les colonnes utilisées comme user.Attribut.Colonne. Vérifier symboliquement les droits de modification et, pour la table d’habilitation, de création, pour les rôles Éditeur et Lecteur. Signaler seulement une autorisation reconnue par le sous-ensemble analysé ; les conditions dépendant de la personne ou d’une ligne restent non vérifiables. Regrouper toutes ces cibles dans une seule carte.",
     "false_positives": "Réaffectation volontaire, newRec protégeant transition, contrôle par autre règle ; ne pas annoncer une escalade sans simulation.",
-    "summary": "Une personne peut peut être modifier une information qui détermine ses droits.",
-    "why": "Elle pourrait changer l’accès à la fiche en changeant cette valeur.",
-    "intended": "Si cette réaffectation est autorisée et encadrée, documentez la.",
+    "summary": "Une colonne utilisée pour déterminer les droits d’accès, ou une information de la table des habilitations, semble modifiable par un rôle non propriétaire.",
+    "why": "Modifier cette information peut changer les droits attribués. Il faut vérifier que cette possibilité est réservée aux bonnes personnes.",
+    "intended": "Des gestionnaires habilités doivent administrer ces champs. Vérifiez que les conditions de modification couvrent uniquement les personnes prévues.",
     "steps": [
-      "Restreignez la modification du responsable ou contrôlez la nouvelle valeur dans les règles ; testez les transitions avec Voir en tant que.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Dans « Règles d’accès », repérez les colonnes signalées et la table des habilitations.",
+      "Vérifiez qui peut modifier ces colonnes ou créer une nouvelle habilitation.",
+      "Réservez ces actions aux personnes chargées d’administrer les droits d’accès.",
+      "Utilisez « Voir en tant que » pour vérifier les profils, puis relisez le document dans l’audit."
     ],
-    "example": "rec.Responsable == user.Email, Responsable librement modifiable.",
+    "example": "Habilitations.Email sert à retrouver la personne, et Habilitations.Role détermine ses droits. Si un éditeur peut modifier Role ou créer librement une habilitation, les deux situations figurent dans la même carte.",
     "justification": "Chemin d’accès potentiel, à confirmer.",
     "decision": "Retenu",
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "access",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
-      "Extraire rec.Col des conditions portant Lire ou Modifier",
-      "Si Col est une colonne de données et qu’un rôle non propriétaire a un droit Modifier effectif prouvé sur cette colonne, signaler le champ d’accès modifiable",
-      "Les transitions newRec et conditions non comprises restent une limite explicite."
+      "Fusion N53 + N54. Métadonnées uniquement. Repérer les colonnes de saisie citées comme rec.Colonne dans une condition de droits d’accès de lecture ou modification. Repérer aussi, dans chaque table d’attribut utilisateur, la clé de recherche et les colonnes utilisées comme user.Attribut.Colonne. Vérifier symboliquement les droits de modification et, pour la table d’habilitation, de création, pour les rôles Éditeur et Lecteur. Signaler seulement une autorisation reconnue par le sous-ensemble analysé ; les conditions dépendant de la personne ou d’une ligne restent non vérifiables. Regrouper toutes ces cibles dans une seule carte."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N54",
@@ -1635,8 +1964,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Habilitations.Email et Role modifiables par tous les éditeurs.",
     "justification": "Risque sérieux, mais délégation possible.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "fusionné",
     "source": "Métadonnées",
     "area": "access",
     "ruleVersion": 1,
@@ -1645,9 +1974,15 @@ export const AUDIT_CATALOG = [
       "Si Modifier sur un champ ou Créer sur sa table est effectivement permis à un rôle non propriétaire, proposer de vérifier la délégation",
       "Priorités colonne/table/défaut appliquées, condition inconnue propagée."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Fusionné dans N53 ; aucun calcul séparé",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Les champs d’habilitation et les autres champs servant aux droits d’accès sont regroupés dans N53.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N55",
@@ -1666,8 +2001,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "alice@example.invalid avec Role RH et Role Bénévole.",
     "justification": "Ambiguïté observée dans une clé d’accès.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "access",
     "ruleVersion": 1,
@@ -1676,16 +2011,22 @@ export const AUDIT_CATALOG = [
       "Deux lignes avec la même clé suffisent",
       "Les rôles ne sont pas supposés se cumuler ; les adresses ne sont pas affichées dans la preuve."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N56",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "droits d’accès",
-    "title": "Une valeur de rôle utilisée par une règle n’apparaît pas",
+    "title": "Une valeur de rôle utilisée par une règle d’accès avancée n’apparaît pas",
     "detection": "Reconnaître user.Attribut.Champ == chaîne littérale simple dans une condition. Sur au moins cinq valeurs lisibles de ce champ, signaler si aucune n’est exactement égale. Le rôle peut être prévu plus tard ou caché ; l’absence globale n’est jamais affirmée.",
     "false_positives": "Rôle prévu pour plus tard, casse significative et données cachées ; pas d’affirmation « ne trouvera personne ».",
     "summary": "Une règle cite un rôle absent des habilitations que vous pouvez lire.",
@@ -1697,8 +2038,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Condition Role == « Comptabilite », valeurs « Compta ».",
     "justification": "Absence globale non démontrable sous restrictions.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "access",
     "ruleVersion": 1,
@@ -1707,16 +2048,22 @@ export const AUDIT_CATALOG = [
       "Sur au moins cinq valeurs lisibles de ce champ, signaler si aucune n’est exactement égale",
       "Le rôle peut être prévu plus tard ou caché ; l’absence globale n’est jamais affirmée."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N57",
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "droits d’accès",
-    "title": "Une règle dépend d’un nom affiché",
+    "title": "Un droit d’accès dépend d’un nom affiché",
     "detection": "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes.",
     "false_positives": "Démonstration, affichage et intention particulière ; pas de liste de personnes supposées.",
     "summary": "Une règle reconnaît les personnes par leur nom affiché.",
@@ -1734,12 +2081,17 @@ export const AUDIT_CATALOG = [
     "area": "access",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in",
-      "Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes."
+      "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N58",
@@ -1767,7 +2119,13 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "M+D ACL : comparaison user.LinkKey.K avec rec.Col ; ≥ 1 valeur non vide trop courte < 16 caractères, code séquentiel ou date. N’exposer aucune clé dans targets."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N59",
@@ -1787,8 +2145,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Document partagé à toute une équipe, ACL sans liste des membres.",
     "justification": "Limite d’observation, aucun risque réel affirmé.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Contexte ou source facultative",
     "area": "access",
     "ruleVersion": 1,
@@ -1797,9 +2155,15 @@ export const AUDIT_CATALOG = [
       "Les invitations et héritages ne sont pas déduits de _grist_ACLRules",
       "Le rappel d’Accès complet concerne seulement l’audit ; aucun autre widget n’est invité à recevoir des droits inutiles."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Information de contexte",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N60",
@@ -1819,15 +2183,22 @@ export const AUDIT_CATALOG = [
     "example": "Personnel.Salaire masqué dans la session observée.",
     "justification": "Information indispensable à l’interprétation.",
     "decision": "Écarté",
-    "status": "écarté",
+    "status": "retiré",
     "source": "Contexte ou source facultative",
     "area": "access",
     "ruleVersion": 1,
     "typology": "Proposition écartée",
-    "implementation": "Non activé conformément au CSV",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "calculationSteps": [
       "Contexte : toujours afficher ; préciser tables chargées, échecs et lignes analysées ; si métadonnées expurgées ou fetch refusé, état partiel, jamais conforme par défaut."
-    ]
+    ],
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N61",
@@ -1846,8 +2217,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "A = $B + 1 et B = $A + 1, erreur circulaire observée.",
     "justification": "Erreur réelle indispensable au niveau À corriger.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -1856,9 +2227,15 @@ export const AUDIT_CATALOG = [
       "Une structure de références réciproques sans erreur de calcul ne suffit pas",
       "N01 est fusionné pour cette même erreur."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Erreur observée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N62",
@@ -1877,8 +2254,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Ancienne formule $Tarif_supprime après suppression, ou colonne masquée.",
     "justification": "Absence visible seulement.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "structure",
     "ruleVersion": 1,
@@ -1888,9 +2265,15 @@ export const AUDIT_CATALOG = [
       "Si Col manque aux métadonnées lisibles, demander une vérification ; ne pas affirmer une suppression",
       "Les dépendances vers d’autres tables ou dynamiques ne sont pas déduites."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N63",
@@ -1909,8 +2292,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Salaire interdit dans Personnel, formule visible $Agent.Salaire.",
     "justification": "Circulation d’information à confirmer sans exposer sa valeur.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "access",
     "ruleVersion": 1,
@@ -1920,9 +2303,15 @@ export const AUDIT_CATALOG = [
       "Pas de divulgation de la valeur",
       "Les agrégats, l’anonymisation et les dépendances indirectes ne sont pas évalués."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N64",
@@ -1952,7 +2341,12 @@ export const AUDIT_CATALOG = [
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N65",
@@ -1971,8 +2365,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Client.Ville = Lyon, Commande.Ville_actuelle = Bron.",
     "justification": "Un instantané est souvent voulu.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -1981,9 +2375,15 @@ export const AUDIT_CATALOG = [
       "Ignorer valeurs vides, erreurs et censures",
       "Sans déclaration « copie courante », aucun signal sur un prix ou une adresse historiques."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N66",
@@ -2002,8 +2402,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Code P01 : Prix 20 dans Produits, 25 dans Produits_copie.",
     "justification": "Divergence non nécessairement fautive.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "structure",
     "ruleVersion": 1,
@@ -2013,30 +2413,35 @@ export const AUDIT_CATALOG = [
       "Indexer seulement les clés non ambiguës ; exiger trois clés communes et au moins un champ non vide divergent",
       "Aucune « table originale » déduite de la longueur du nom."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N67",
-    "severity": "improve",
-    "level": "À améliorer",
+    "severity": "info",
+    "level": "Bon à savoir",
     "domain": "structure",
-    "title": "Les champs difficiles à comprendre manquent d’explication",
-    "detection": "Colonne sans description : retenir une formule de plus de 200 caractères, une table de vingt colonnes ou plus, ou un champ local utilisé dans une règle d’accès. Émettre une seule carte par table à partir de trois champs concernés. Nom et Prénom ne sont pas critiqués dans une petite table.",
+    "title": "Informations et métadonnées des colonnes",
+    "detection": "Métadonnées seulement : libellé, type, description, formule, choix et déclenchements existants. Aucun signal calculé sur les descriptions absentes.",
     "false_positives": "Ne pas exiger une description pour Nom ou Prénom ; description de table peut couvrir certains champs.",
-    "summary": "Certains champs importants n’expliquent pas leur rôle ou leur règle de remplissage.",
-    "why": "Les nouvelles personnes peuvent les interpréter différemment.",
+    "summary": "Les informations disponibles pour chaque colonne sont consultables avec sa structure.",
+    "why": "Ces informations aident à comprendre le rôle de la colonne.",
     "intended": null,
     "steps": [
-      "Dans le panneau Colonne, ajoutez une description avec le sens, l’unité, les cas de remplissage et un exemple ; décrivez aussi la table.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Ouvrez l’onglet Tables et développez « Informations de la colonne »."
     ],
-    "example": "Montant_base utilisé par une longue formule sans explication.",
+    "example": "La colonne Date_creation affiche son type Date et Heure, sa formule d’initialisation, son déclenchement et sa description dans « Informations de la colonne », sans créer de constat si la description manque.",
     "justification": "Amélioration de transmission ciblée.",
-    "decision": "Retenu",
-    "status": "implémenté",
-    "source": "Métadonnées",
+    "decision": "Existant",
+    "status": "information",
+    "source": "Métadonnées uniquement",
     "area": "structure",
     "ruleVersion": 1,
     "calculationSteps": [
@@ -2044,9 +2449,15 @@ export const AUDIT_CATALOG = [
       "Émettre une seule carte par table à partir de trois champs concernés",
       "Nom et Prénom ne sont pas critiqués dans une petite table."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
-    "typology": "Qualité de saisie ou de structure",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "implementation": "Informations de la colonne dans l’onglet Tables et le rapport",
+    "typology": "Information de colonne",
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "N67 quitte les constats : aucun avertissement lié à une description manquante.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N68",
@@ -2074,14 +2485,20 @@ export const AUDIT_CATALOG = [
     "implementation": "Non activé conformément au CSV",
     "calculationSteps": [
       "M+D : table à une ou deux colonnes utiles ; nom de colonne contient ≥ 2 séparateurs identiques ; ≥ 5 lignes dont ≥ 80 % ont le même nombre de champs au découpage CSV respectant guillemets."
-    ]
+    ],
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    },
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
   },
   {
     "id": "N69",
     "severity": "info",
     "level": "Bon à savoir",
     "domain": "droits d’accès",
-    "title": "Un filtre de page ne remplace pas une règle d’accès",
+    "title": "Un filtre de page ne remplace pas un droit d’accès",
     "detection": "Si _grist_Filters est lisible et contient au moins un filtre enregistré non vide, afficher un conseil unique : le filtre organise la vue, il ne remplace pas une permission. Aucun constat de fuite réelle n’est déduit de sa présence.",
     "false_positives": "Tout filtre sert normalement à la navigation ; ne pas classer comme fuite ; absence de filtre ne prouve rien.",
     "summary": "Cette page affiche une sélection de lignes.",
@@ -2099,12 +2516,17 @@ export const AUDIT_CATALOG = [
     "area": "access",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Si _grist_Filters est lisible et contient au moins un filtre enregistré non vide, afficher un conseil unique : le filtre organise la vue, il ne remplace pas une permission",
-      "Aucun constat de fuite réelle n’est déduit de sa présence."
+      "Si _grist_Filters est lisible et contient au moins un filtre enregistré non vide, afficher un conseil unique : le filtre organise la vue, il ne remplace pas une permission. Aucun constat de fuite réelle n’est déduit de sa présence."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Information de contexte",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "N70",
@@ -2123,8 +2545,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Deux reçu.pdf de 24500000 octets, ids différents.",
     "justification": "Contrôle disponible seulement si les métadonnées de pièces sont accessibles.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Contexte ou source facultative",
     "area": "data",
     "ruleVersion": 1,
@@ -2133,9 +2555,15 @@ export const AUDIT_CATALOG = [
       "Signaler un fichier de plus de 20 Mio ou au moins deux ids utilisés ayant même nom et même taille",
       "Ces indices ne prouvent ni un doublon binaire ni une pièce orpheline."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test positif automatisé et tests de limites pertinents ; voir la matrice de vérification."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "verification": {
+      "unitaire": true,
+      "observeMCP": false,
+      "correctionMCP": false
+    }
   },
   {
     "id": "X13",
@@ -2173,10 +2601,10 @@ export const AUDIT_CATALOG = [
     "reviewNote": "Retenue et intégrée au widget 2.8.1 le 27 octobre 2026.",
     "verification": {
       "unitaire": true,
-      "observeMCP": true,
-      "correctionMCP": true
+      "observeMCP": false,
+      "correctionMCP": false
     },
-    "testEvidence": "11 tests automatisés spécifiques : seuil 4/5/6, filtres masqués, comptage par vue et par champ, données censurées, métadonnées colonnaires, budget nul et rapport HTML/Word. Sur Audit_Imports (page 28, vue 79), lecture MCP de six filtres affichés : X13 présent. Deux filtres désépinglés via MCP : quatre affichés, X13 absent, six filtres enregistrés conservés. Exemple rétabli à six champs puis relu. Ce test de calcul sur les lectures MCP ne valide pas le rendu visuel dans Grist.",
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "exampleDetail": {
       "context": "La table Dossiers contient toutes les demandes de l’association. La même table peut être présentée dans plusieurs vues.",
       "before": {

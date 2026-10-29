@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.0.0';
+import { columnarToRows } from './converter.js?v=3.1.0';
 
 /** Types de widgets, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
@@ -197,18 +197,6 @@ export function pageInsights(model) {
       targets: defaults,
     });
   }
-  const external = model.custom.filter((w) => w.custom?.origin === 'external' && w.custom.access === 'full');
-  if (external.length) {
-    push({
-      id: 'widget-full-access', severity: 'choice',
-      title: external.length > 1 ? `${external.length} widgets externes avec accès complet` : 'Un widget externe avec accès complet',
-      summary: 'Ces widgets personnalisés viennent d\'un site extérieur à Grist et peuvent lire et modifier tout le document.',
-      why: 'Le site qui héberge le widget peut changer son code à tout moment : il faut lui faire confiance.',
-      intended: 'Widget que vous connaissez et qui a besoin de tout le document : rien à faire.',
-      steps: ['Sinon : sélectionnez le widget, panneau de droite ▸ « Widget » ▸ « Accès », et choisissez « Lire la table sélectionnée » ou « Aucun accès ».', REFRESH_STEP],
-      targets: external.map((w) => ({ table: w.page, note: `${widgetName(w)} — ${w.custom.host || 'URL'}` })),
-    });
-  }
   if (model.tablesWithoutPage.length) {
     push({
       id: 'table-without-page', severity: 'choice',
@@ -218,17 +206,6 @@ export function pageInsights(model) {
       intended: 'Table technique ou de paramètres, volontairement à l\'écart : rien à faire.',
       steps: ['Sinon : « Ajouter » ▸ « Ajouter une page » (ou « Ajouter un widget à la page ») et choisissez la table.', REFRESH_STEP],
       targets: model.tablesWithoutPage.map((t) => ({ table: t })),
-    });
-  }
-  const thirdParty = model.custom.filter((w) => w.custom?.origin === 'gallery' && !w.custom.maintained);
-  if (thirdParty.length) {
-    push({
-      id: 'widget-community', severity: 'info',
-      title: thirdParty.length > 1 ? `${thirdParty.length} widgets de la galerie proposés par la communauté` : 'Un widget de la galerie proposé par la communauté',
-      summary: 'Ces widgets figurent dans la galerie de Grist mais ne sont pas maintenus par Grist Labs.',
-      why: 'Ils peuvent évoluer ou ne plus être mis à jour : à garder en tête si une page en dépend.',
-      steps: [],
-      targets: thirdParty.map((w) => ({ table: w.page, note: `${widgetName(w)} — ${w.custom.author || 'auteur inconnu'}` })),
     });
   }
   const inDoc = model.custom.filter((w) => w.custom?.origin === 'document');
@@ -244,4 +221,5 @@ export function pageInsights(model) {
   }
   return items;
 }
+
 

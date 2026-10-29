@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.0.0';
+import { columnarToRows } from './converter.js?v=3.1.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -65,7 +65,6 @@ function stem(name) {
 }
 const baseName = (name) => fold(name).replace(/(_?(copie|copy|old|ancien|backup|bak|test|archive|import|v\d+)|_?\d{2,4}|_\d+)$/, '');
 
-const DEFAULT_TABLE = /^(Table|Feuille|Feuil|Sheet)\d+$/;
 // Codes qui ressemblent à des nombres mais doivent rester du texte (zéros en tête, pas de calcul).
 const CODE_NAME = /^(cp|code.*|.*postal.*|tel|tel_.*|telephone.*|portable|mobile|siret|siren|iban|zip|numero.*|num_.*|ref|reference.*|matricule)$/;
 const DEFAULT_COLUMN = /^([A-Z]|(Colonne|Column|Col|Champ)_?\d+|Col_[A-Z])$/;
@@ -106,16 +105,15 @@ export function structureSmells(tables, profiles = null, access = null) {
   // 1. Noms par défaut
   const defaults = [];
   for (const t of real) {
-    if (DEFAULT_TABLE.test(t.name)) defaults.push({ table: t.name, note: 'table' });
     for (const c of t.columns) if (!c.empty && DEFAULT_COLUMN.test(c.name)) defaults.push({ table: t.name, column: c.name });
   }
   if (defaults.length) {
     items.push({
       id: 'default-name', severity: 'improve',
-      title: defaults.length > 1 ? `${defaults.length} noms laissés par défaut` : 'Un nom laissé par défaut',
-      summary: 'Ces tables ou colonnes portent encore le nom donné automatiquement par Grist (Table1, A, B, Colonne1…).',
+      title: defaults.length > 1 ? `${defaults.length} noms de colonnes laissés par défaut` : 'Un nom de colonne laissé par défaut',
+      summary: 'Ces colonnes portent encore le nom donné automatiquement par Grist (A, B, Colonne1…).',
       why: 'Un nom parlant évite les erreurs dans les formules et rend le document compréhensible pour les autres.',
-      steps: steps('Double-cliquez sur le nom de la table (en haut du tableau) ou sur l\'en-tête de la colonne pour le renommer.'),
+      steps: steps('Double-cliquez sur l\'en-tête de la colonne pour lui donner un nom qui explique son rôle.'),
       targets: defaults,
     });
   }
@@ -241,37 +239,13 @@ export function structureSmells(tables, profiles = null, access = null) {
       }
     }
   }
-  const protectedTables = new Set((access?.tables || []).filter((t) => [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.perms.R === 'deny')).map((t) => t.tableId));
-  const ruled = new Set((access?.tables || []).map((t) => t.tableId));
-  const leaks = dups.filter((d) => protectedTables.has(d.orig) && !ruled.has(d.copy));
-  // Originale invisible pour la personne connectée : on se fie au nom (« Personnel » / « Personnel_2024 »).
-  for (const orig of protectedTables) {
-    if (real.some((t) => t.name === orig)) continue;
-    for (const t of real) {
-      if (ruled.has(t.name) || t.name === orig || leaks.some((l) => l.copy === t.name)) continue;
-      if (baseName(t.name) === baseName(orig)) leaks.push({ orig, copy: t.name, shared: 0 });
-    }
-  }
-  if (leaks.length) {
-    items.push({
-      id: 'acl-copy-leak', severity: 'choice', intended: 'La copie peut être volontaire et les règles générales peuvent déjà la protéger. Vérifiez les accès avant toute modification.', area: 'access',
-      title: leaks.length > 1 ? `${leaks.length} copies possibles dont les accès sont à vérifier` : 'Une copie possible dont les accès sont à vérifier',
-      summary: 'Une table ressemble à une table protégée, sans règle qui lui soit propre. Ce contrôle compare leurs colonnes et leurs noms, pas leurs accès effectifs.',
-      why: 'Une ressemblance de colonnes ne prouve ni une copie de données ni un accès plus large. La table suit aussi les règles générales du document.',
-      steps: steps(
-        'Comparez les données et vérifiez le rôle des deux tables avec leur responsable.',
-        'Sinon : ouvrez « Règles d\'accès » et ajoutez à la copie les mêmes règles que l\'originale.',
-      ),
-      targets: leaks.map((d) => ({ table: d.copy, note: `copie de ${d.orig}` })),
-    });
-  }
-  const others = dups.filter((d) => !leaks.includes(d));
+  const others = dups;
   if (others.length) {
     items.push({
       id: 'duplicate-table', severity: 'choice',
-      title: others.length > 1 ? `${others.length} tables qui ressemblent à des copies` : 'Une table qui ressemble à une copie',
-      summary: 'Ces tables ont presque les mêmes colonnes, ou le même nom avec « _copie », « _old », une année…',
-      why: 'Deux versions des mêmes données finissent par diverger : on ne sait plus laquelle croire.',
+      title: others.length > 1 ? `${others.length} paires de tables de structure similaire` : 'Structures de deux tables similaires',
+      summary: 'Deux tables partagent une grande partie de leurs colonnes, ou des noms et des colonnes proches. Leurs données ne sont pas comparées.',
+      why: 'Une structure similaire peut être utile, mais elle peut aussi indiquer des tables créées pour des variantes d’un même besoin. Vérifiez leur rôle avant de les rapprocher.',
       intended: 'Archive volontaire (une année close, par exemple) : rien à faire, mais protégez-la comme l\'originale.',
       steps: steps('Sinon : gardez une seule table, et distinguez les versions par une colonne (Année, Statut…).', 'Supprimez la copie une fois les données regroupées.'),
       targets: others.map((d) => ({ table: d.copy, note: `≈ ${d.orig}` })),
@@ -281,12 +255,12 @@ export function structureSmells(tables, profiles = null, access = null) {
   // 6. Tables vides, colonnes sans valeur dans les lignes lues (d'après les données lisibles)
   if (profiles) {
     const masked = (name) => (access?.tables || []).some((t) => t.tableId === name && [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.perms.R === 'deny'));
-    const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name, note: masked(t.name) ? 'ou lignes masquées pour vous par les règles' : undefined }));
+    const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name, note: masked(t.name) ? 'ou lignes masquées pour vous par les droits d’accès' : undefined }));
     if (empty.length) {
       items.push({
         id: 'empty-table', severity: 'choice',
         title: empty.length > 1 ? `${empty.length} tables sans aucune ligne` : 'Une table sans aucune ligne',
-        summary: 'Ces tables ne contiennent aucune ligne que vous puissiez voir : vides, ou entièrement masquées pour vous par les règles d\'accès.',
+        summary: 'Ces tables ne contiennent aucune ligne que vous puissiez voir : vides, ou entièrement masquées pour vous par les droits d’accès d\'accès.',
         why: 'Une table abandonnée encombre le document et le schéma.',
         intended: 'Table prête à recevoir des données, ou remplie par un import régulier : rien à faire.',
         steps: steps('Sinon : supprimez-la (« Données brutes » dans le menu de gauche ▸ menu de la table ▸ Supprimer).'),
@@ -332,31 +306,16 @@ export function structureSmells(tables, profiles = null, access = null) {
   // 8. Attributs utilisateur qui ne trouveront personne, ou que rien n'utilise.
   if (access && access.attributes.length) {
     const formulas = [...access.defaults, ...access.tables.flatMap((t) => [...t.rules, ...t.columns.flatMap((c) => c.rules)]), ...access.special.flatMap((sp) => sp.rules)].map((r) => r.formula).join('\n');
-    const mismatch = [];
     const unusedAttrs = [];
     for (const a of access.attributes) {
       if (a.problems.length) continue;
       if (!new RegExp(`\\buser\\.${a.name}\\b`).test(formulas)) unusedAttrs.push({ table: a.tableId, note: `user.${a.name}` });
-      const p = profiles?.get(a.tableId)?.columns.get(a.lookupColId);
-      if (p && p.filled && /email/i.test(a.charId) && ![...p.distinct].some((v) => String(v).includes('@'))) {
-        mismatch.push({ table: a.tableId, column: a.lookupColId, note: `user.${a.name} : aucune adresse dans cette colonne` });
-      }
-    }
-    if (mismatch.length) {
-      items.push({
-        id: 'acl-attr-mismatch', severity: 'improve', area: 'access',
-        title: mismatch.length > 1 ? `${mismatch.length} attributs utilisateur qui ne trouveront personne` : 'Un attribut utilisateur qui ne trouvera personne',
-        summary: 'L\'attribut compare l\'adresse e-mail de la personne connectée à une colonne qui ne contient aucune adresse.',
-        why: 'Il ne trouve jamais de ligne : les conditions qui l\'utilisent sont toujours fausses.',
-        steps: steps('Ouvrez « Règles d\'accès » ▸ « Attributs utilisateur » et choisissez la colonne qui contient les adresses e-mail.'),
-        targets: mismatch,
-      });
     }
     if (unusedAttrs.length) {
       items.push({
         id: 'acl-attr-unused', severity: 'info', area: 'access',
         title: unusedAttrs.length > 1 ? `${unusedAttrs.length} attributs utilisateur inutilisés` : 'Un attribut utilisateur inutilisé',
-        summary: 'Aucune règle ne se sert de ces attributs.',
+        summary: 'Aucun droit d’accès ne se sert de ces attributs.',
         why: 'Ils peuvent être supprimés pour simplifier les règles d\'accès.',
         steps: [],
         targets: unusedAttrs,
@@ -365,4 +324,5 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   return items.map((it) => ({ area: 'structure', ...it }));
 }
+
 

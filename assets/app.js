@@ -1,15 +1,14 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.0.0';
-import { ErdViewer } from './erd.js?v=3.0.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.0.0';
-import { validateAuditConfig } from './audit-config.js?v=3.0.0';
-import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=3.0.0';
-import { profileTables } from './datacheck.js?v=3.0.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.0.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.0.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.0.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.1.0';
+import { ErdViewer } from './erd.js?v=3.1.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.1.0';
+import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=3.1.0';
+import { profileTables } from './datacheck.js?v=3.1.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.1.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.1.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.1.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.0.0';
+} from './report.js?v=3.1.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -42,7 +41,7 @@ const state = {
   access: null, // buildAccess()
   pages: null, // buildPages() : pages et widgets
   pagesMeta: null,
-  data: {}, failedTables: [], auditMeta: {}, auditConfig: {}, auditConfigError: '',
+  data: {}, failedTables: [], auditMeta: {},
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
@@ -56,7 +55,7 @@ const state = {
   level: 'all',
   area: 'all', // domaine des constats affichés
   analysisFilter: '',
-  auditOpen: false, // panneau « Contrôles et règles métier »
+  auditOpen: false, // panneau « Périmètre des contrôles »
   widgetsFilter: '',
   wkind: 'all',
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
@@ -146,7 +145,7 @@ function recompute() {
   state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
   state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, meta: state.auditMeta, failedTables: state.failedTables, config: state.auditConfig} }) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, meta: state.auditMeta, failedTables: state.failedTables} }) : null;
   render();
   if (state.out) {
     const s = computeStats(state.out.tables);
@@ -160,7 +159,7 @@ async function loadSchema({ manual = false } = {}) {
   renderHeader();
   try {
     const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
-    const [tables, columns, sections, resources, rules, pages, views, filters, attachments] = await Promise.all([
+    const [tables, columns, sections, resources, rules, pages, views, filters] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
       gristApi.docApi.fetchTable('_grist_Tables_column'),
       optional('_grist_Views_section'),
@@ -169,9 +168,8 @@ async function loadSchema({ manual = false } = {}) {
       optional('_grist_Pages'),
       optional('_grist_Views'),
       optional('_grist_Filters'),
-      optional('_grist_Attachments'),
     ]);
-    state.auditMeta = {filters, attachments, sections, tables, columns, views};
+    state.auditMeta = {filters, sections, tables, columns, views};
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
@@ -224,7 +222,6 @@ function saveOption(key, value) {
 const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
 
 function applyOptions(options) {
-  if (options?.auditConfig && typeof options.auditConfig === 'object' && !Array.isArray(options.auditConfig)) { try { state.auditConfig = validateAuditConfig(options.auditConfig); } catch(err) { state.auditConfigError=err.message; } }
   if (Array.isArray(options?.accepted)) state.accepted = new Set(options.accepted.map(String));
   const d = options?.diagram;
   if (d && typeof d === 'object') {
@@ -430,13 +427,12 @@ function updateTablesIndex() {
 /** Formules, choix, condition de liste et description d'une colonne. */
 function columnDetailsHtml(c) {
   const lines = detailLines(c, { includeLabel: false });
-  if (!lines.length) return '';
-  return `<dl class="col-details">${lines.map((l) => {
+  return `<details class="column-information"><summary>Informations de la colonne</summary><dl class="col-details"><dt>Identifiant</dt><dd><code>${esc(c.name)}</code></dd><dt>Type</dt><dd>${esc(columnTypeLabel(c))}</dd>${lines.map((l) => {
     let value = esc(l.text);
     if (l.mono) value = `<code>${value}</code>`;
     else if (l.label === 'Choix') value = `<ul class="chips">${c.details.choices.map((x) => `<li><span class="chip chip--plain">${esc(x)}</span></li>`).join('')}</ul>`;
     return `<dt>${esc(l.label)}</dt><dd>${value}</dd>`;
-  }).join('')}</dl>`;
+  }).join('')}</dl>${c.details?.description?'':'<p class="fr-hint-text">Aucune description renseignée.</p>'}</details>`;
 }
 
 function columnsCsv() {
@@ -470,20 +466,10 @@ function auditCoverageText(audit) {
   return parts.join(' · ');
 }
 
-/** Panneau « Contrôles et règles métier », ouvert depuis la barre d'outils. */
+/** Panneau « Périmètre des contrôles », ouvert depuis la barre d'outils. */
 function auditConfigurationPanel(audit) {
-  if (!audit) return '';
-  return `<section class="audit-panel" id="audit-panel" aria-labelledby="audit-panel-title">
-  <div class="audit-panel__head"><h3 id="audit-panel-title">Contrôles et règles métier</h3>
-    <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" data-action="audit-close">Fermer</button></div>
-  <p>Déclarez uniquement les règles réellement attendues. Sans configuration, un contrôle métier n’affiche pas d’anomalie.</p>
-  <div class="fr-grid-row fr-grid-row--gutters"><div class="fr-col-12 fr-col-md-5"><label class="fr-label" for="audit-key-table">Table dont les fiches doivent avoir un code unique</label><select id="audit-key-table" class="fr-select"><option value="">Choisir une table</option>${[...state.schema.keys()].filter((t) => !t.startsWith('_grist_')).map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div><div class="fr-col-12 fr-col-md-5"><label class="fr-label" for="audit-key-columns">Colonnes qui distinguent une fiche (séparées par une virgule)</label><input id="audit-key-columns" class="fr-input" placeholder="Code ou Code, Annee"></div><div class="fr-col-12"><button type="button" class="fr-btn fr-btn--sm fr-btn--secondary" data-action="audit-key-add">Déclarer cette clé</button></div></div>
-  <p>Exemple : dans Cotisations, Adherent et Annee ensemble peuvent désigner une cotisation unique. Un même adhérent sur deux années différentes n’est alors pas un doublon.</p>
-  <label class="fr-label" for="audit-config">Configuration avancée des clés, bornes de dates, totaux et copies courantes</label>
-  <p class="fr-hint-text">Exemple à adapter avec vos identifiants de tables et colonnes. Une clé peut combiner plusieurs colonnes.</p>
-  <pre>{"keys":[{"table":"Clients","columns":["Code"]}],"dateBounds":[{"table":"Cotisations","column":"Date","min":"2024-01-01","max":"2030-12-31"}],"totals":[{"table":"Commandes","total":"Total_saisi","quantity":"Quantite","price":"Prix"}],"copies":[{"table":"Commandes","column":"Ville_actuelle","reference":"Client","source":"Ville"}]}</pre>
-  <textarea id="audit-config" class="fr-input" rows="7">${esc(JSON.stringify(state.auditConfig, null, 2))}</textarea><button type="button" class="fr-btn fr-btn--sm" data-action="audit-config-save">Enregistrer les règles métier</button><p role="status">${esc(state.auditConfigError)}</p>
-  <ul>${audit.checks.map((c) => `<li>${esc(c.id)} — ${esc(({ detected: 'Constat observé', checked: 'Examiné sans signal', configuration: 'À configurer', unavailable: 'Non vérifiable', limited: 'Vérification limitée' })[c.state])} : ${esc(c.reason)}</li>`).join('')}</ul></section>`;
+ if(!audit)return '';
+ return `<section class="audit-panel" id="audit-panel" aria-labelledby="audit-panel-title"><div class="audit-panel__head"><h3 id="audit-panel-title">Périmètre des contrôles</h3><button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" data-action="audit-close">Fermer</button></div><p>Les contrôles métier retirés ne sont plus calculés. Les contrôles de données utilisent au plus 2 000 lignes par table et 100 000 cellules au total. Les espaces, listes textuelles, mélanges de types et formats numériques examinent au plus 200 cellules par colonne. Les tables sont encore récupérées intégralement avant échantillonnage.</p><ul>${audit.checks.map(c=>`<li>${esc(c.id)} — ${esc(({detected:'Constat observé',checked:'Examiné sans signal',unavailable:'Non vérifiable',limited:'Vérification limitée'})[c.state]||c.state)} : ${esc(c.reason)}</li>`).join('')}</ul></section>`;
 }
 
 const LEVEL_TILES = [
@@ -510,7 +496,7 @@ function renderAnalysis() {
   const toConfigure = ins.audit ? ins.audit.checks.filter((c) => c.state === 'configuration').length : 0;
   const auditBtn = els['btn-audit-settings'];
   auditBtn.disabled = !ins.audit;
-  auditBtn.textContent = toConfigure ? `Contrôles et règles métier · ${toConfigure} à configurer` : 'Contrôles et règles métier';
+  auditBtn.textContent = toConfigure ? `Périmètre des contrôles · ${toConfigure} à configurer` : 'Périmètre des contrôles';
   auditBtn.setAttribute('aria-expanded', String(state.auditOpen));
 
   const known = new Set(state.out.tables.map((t) => t.name));
@@ -624,7 +610,7 @@ function gotoFinding(id) {
 const PERM_HTML = {
   allow: '<span class="perm perm--allow fr-icon-check-line">Autorisé</span>',
   deny: '<span class="perm perm--deny fr-icon-close-line">Refusé</span>',
-  none: '<span class="perm perm--none" title="Cette règle ne dit rien : la règle suivante décide">—</span>',
+  none: '<span class="perm perm--none" title="Ce droit d’accès ne décide pas cette action : la condition suivante s’applique">—</span>',
 };
 
 function rulesTableHtml(rules, bits, caption) {
@@ -648,7 +634,7 @@ function renderAccess() {
   const a = state.access;
   els['btn-access-csv'].disabled = !a || !a.hasRules;
   if (!a) {
-    body.innerHTML = emptyState('<p>Les règles d\'accès du document n\'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les règles) peuvent les consulter.</p>');
+    body.innerHTML = emptyState('<p>Les règles d\'accès du document n\'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les droits d’accès) peuvent les consulter.</p>');
     return;
   }
   const accessIssues = (state.insights?.items || []).filter((i) => i.area === 'access' && i.severity !== 'info');
@@ -666,10 +652,10 @@ function renderAccess() {
     title: 'Règles d\'accès avancées',
     lead: 'Qui peut lire, modifier, créer et supprimer, table par table puis colonne par colonne.',
     kpis: [
-      { value: a.ruleCount, label: a.ruleCount > 1 ? 'règles' : 'règle' },
+      { value: a.ruleCount, label: a.ruleCount > 1 ? 'conditions de droits d’accès' : 'condition de droits d’accès' },
       { value: a.tables.length, label: a.tables.length > 1 ? 'tables protégées' : 'table protégée' },
       { value: a.attributes.length, label: a.attributes.length > 1 ? 'attributs' : 'attribut' },
-      { value: a.rowRules, label: a.rowRules > 1 ? 'règles par ligne' : 'règle par ligne' },
+      { value: a.rowRules, label: a.rowRules > 1 ? 'conditions par ligne' : 'condition par ligne' },
     ],
     side: attentionButton(accessIssues, 'access'),
   });
@@ -679,7 +665,7 @@ function renderAccess() {
   settings.push({
     name: 'Modifier la structure',
     badge: a.structureRestricted ? ['success', 'Restreinte'] : [a.restrictsRead ? 'warning' : 'info', 'Éditeurs autorisés'],
-    text: a.structureRestricted ? 'Une règle par défaut refuse la permission Structure.' : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
+    text: a.structureRestricted ? 'Les droits d’accès par défaut refusent la permission Structure.' : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
   });
   for (const id of ['FullCopies', 'AccessRules']) {
     const sp = a.special.find((x) => x.id === id);
@@ -707,8 +693,8 @@ function renderAccess() {
         <td>${x.problems.length ? badge(x.problems.join(', '), 'blocking') : badge('Correct', 'ok')}</td></tr>`).join('')}</tbody></table></div></div></section>` : '';
 
   const defaults = a.defaults.filter(ruleMatches);
-  const defaultsHtml = defaults.length ? `<section>${sectionHead('Règles par défaut', { count: defaults.length, hint: 'Elles s\'appliquent à toutes les tables, après les règles propres à chaque table.' })}
-    <div class="card">${rulesTableHtml(defaults, BITS.defaults, 'Règles par défaut')}</div></section>` : '';
+  const defaultsHtml = defaults.length ? `<section>${sectionHead('Droits d’accès par défaut', { count: defaults.length, hint: 'Elles s\'appliquent à toutes les tables, après les droits d’accès propres à chaque table.' })}
+    <div class="card">${rulesTableHtml(defaults, BITS.defaults, 'Droits d’accès par défaut')}</div></section>` : '';
 
   const known = new Set(state.out.tables.map((t) => t.name));
   const cards = [];
@@ -721,23 +707,23 @@ function renderAccess() {
     const rowRules = [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.who.row);
     cards.push(`<article class="card acl-table" id="${aclSlug(t.tableId)}">
       <header class="card__head"><h4 class="card__title">${esc(t.tableId)}</h4>
-        ${badge(plural(n, 'règle', 'règles'))}
+        ${badge(plural(n, 'condition de droits d’accès', 'conditions de droits d’accès'))}
         ${rowRules ? badge('Par ligne', 'info') : ''}
         ${t.missing ? badge('Invisible pour vous', 'improve') : ''}
         <span class="card__actions">${known.has(t.tableId) ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-table-line" type="button" data-goto-table="${esc(t.tableId)}">Voir les colonnes</button>` : ''}</span>
       </header>
-      ${rules.length ? rulesTableHtml(rules, BITS.table, `Règles de la table ${t.tableId}`) : ''}
-      ${cols.map((c) => `<div class="acl-sub">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))} ${badge(plural(c.rules.length, 'règle', 'règles'))}${c.missing.length ? ` <span class="rules__problem">${c.missing.length > 1 ? `${esc(c.missing.join(', '))} : invisibles pour vous (masquées par ces règles, ou supprimées)` : `${esc(c.missing[0])} : invisible pour vous (masquée par ces règles, ou supprimée)`}</span>` : ''}</div>${rulesTableHtml(c.rules, BITS.column, `Règles des colonnes ${c.colIds.join(', ')}`)}`).join('')}
+      ${rules.length ? rulesTableHtml(rules, BITS.table, `Droits d’accès de la table ${t.tableId}`) : ''}
+      ${cols.map((c) => `<div class="acl-sub">${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${esc(c.colIds.join(', '))} ${badge(plural(c.rules.length, 'condition de droits d’accès', 'conditions de droits d’accès'))}${c.missing.length ? ` <span class="rules__problem">${c.missing.length > 1 ? `${esc(c.missing.join(', '))} : invisibles pour vous (masquées par ces droits d’accès, ou supprimées)` : `${esc(c.missing[0])} : invisible pour vous (masquée par ces droits d’accès, ou supprimée)`}</span>` : ''}</div>${rulesTableHtml(c.rules, BITS.column, `Droits d’accès des colonnes ${c.colIds.join(', ')}`)}`).join('')}
     </article>`);
   }
   for (const t of a.uncovered.filter((x) => accessMatches(q, x))) {
     cards.push(`<article class="card acl-table acl-table--plain" id="${aclSlug(t)}"><header class="card__head"><h4 class="card__title">${esc(t)}</h4>
-      ${badge('Aucune règle propre', 'ok')}<span class="card__meta">Suit les règles par défaut${a.defaults.length ? '' : ' (aucune)'} et les rôles de partage.</span></header></article>`);
+      ${badge('Aucune règle d’accès avancée sur cette table', 'ok')}<span class="card__meta">Suit les droits d’accès par défaut${a.defaults.length ? '' : ' (aucune)'} et les rôles de partage.</span></header></article>`);
   }
-  const tablesHtml = `<section>${sectionHead('Règles par table', {
+  const tablesHtml = `<section>${sectionHead('Droits d’accès par table', {
     count: a.tables.length,
-    hint: 'Les règles s\'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : la règle ne dit rien, la suivante décide.',
-  })}<div class="cards">${cards.join('') || emptyState(q ? `<p>Aucune règle ne contient « ${esc(state.accessFilter)} ».</p>` : '<p>Aucune table n\'a de règle propre.</p>')}</div></section>`;
+    hint: 'Les droits d’accès s\'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : aucun droit n’est décidé ici pour cette action, la condition suivante s’applique.',
+  })}<div class="cards">${cards.join('') || emptyState(q ? `<p>Aucun droit d’accès ne contient « ${esc(state.accessFilter)} ».</p>` : '<p>Aucune table n\'a de règle propre.</p>')}</div></section>`;
 
   body.innerHTML = `<div class="view">${header}${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
 }
@@ -1183,13 +1169,6 @@ function bindEvents() {
     if (target.dataset.gotoFinding) { gotoFinding(target.dataset.gotoFinding); return; }
     if (target.dataset.gotoWidgets) { selectTab('widgets', { focus: true }); return; }
     if (target.dataset.action === 'audit-close') { state.auditOpen = false; renderAnalysis(); els['btn-audit-settings'].focus(); return; }
-    if (target.dataset.action === 'audit-key-add') {
-      try { const table=document.getElementById('audit-key-table').value; const columns=document.getElementById('audit-key-columns').value.split(',').map(c=>c.trim()).filter(Boolean); if(!state.schema.has(table)||columns.some(c=>!state.schema.get(table).columns.has(c))) throw new Error('Choisissez une table et ses identifiants de colonnes existants.'); const value=validateAuditConfig({...state.auditConfig,keys:[...(state.auditConfig.keys||[]).filter(k=>k.table!==table),{table,columns}]}); state.auditConfig=value; state.auditConfigError=''; saveOption('auditConfig',value);recompute(); } catch(err) {state.auditConfigError=err.message;renderAnalysis();} return;
-    }
-    if (target.dataset.action === 'audit-config-save') {
-      try { const value=validateAuditConfig(JSON.parse(document.getElementById('audit-config').value)); state.auditConfig=value; state.auditConfigError=''; saveOption('auditConfig',value); recompute(); } catch(err) { state.auditConfigError='Configuration non enregistrée : '+err.message; renderAnalysis(); }
-      return;
-    }
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
     else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {
       if (target.dataset.action === 'accept') state.accepted.add(target.dataset.key); else state.accepted.delete(target.dataset.key);
@@ -1245,4 +1224,5 @@ syncTheme();
 selectTab('schema');
 if (inGrist) connectGrist();
 recompute();
+
 

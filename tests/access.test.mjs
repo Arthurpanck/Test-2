@@ -57,7 +57,7 @@ test('document complexe : règles regroupées par table, colonnes, défaut et r�
 test('document complexe : constats sur les droits d\'accès', () => {
   const { access } = complexe();
   const ids = accessInsights(access).map((i) => i.id);
-  for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-full-copies', 'acl-emails', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
+  for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-emails', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
   assert.ok(!ids.includes('acl-attribute') && !ids.includes('acl-hidden'));
   const unknown = accessInsights(access).find((i) => i.id === 'acl-unknown-attribute');
   assert.equal(unknown.severity, 'blocking');

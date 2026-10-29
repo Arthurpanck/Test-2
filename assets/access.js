@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.0.0';
-import { columnarToRows } from './converter.js?v=3.0.0';
+import { effectivePermission } from './audit-engine.js?v=3.1.0';
+import { columnarToRows } from './converter.js?v=3.1.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -32,7 +32,7 @@ export const SPECIAL = {
     byDefault: 'Seuls les propriétaires peuvent copier le document entier.',
   },
   AccessRules: {
-    label: 'Voir les règles d\'accès',
+    label: 'Voir les droits d’accès',
     allowed: 'Les personnes visées peuvent lire les règles d\'accès du document.',
     byDefault: 'Seuls les propriétaires voient les règles d\'accès.',
   },
@@ -238,9 +238,9 @@ export function accessInsights(access) {
   if (brokenAttr.length) {
     push({
       id: 'acl-attribute', severity: 'improve',
-      title: brokenAttr.length > 1 ? `${brokenAttr.length} attributs utilisateur cherchent dans une table introuvable` : 'Un attribut utilisateur cherche dans une table introuvable',
-      summary: 'La table ou la colonne où l\'attribut cherche la personne connectée n\'apparaît pas au widget : supprimée, ou masquée pour vous par les règles.',
-      why: 'Si elle a été supprimée, les règles qui utilisent l\'attribut ne trouvent plus personne et ne donnent plus les droits prévus.',
+      title: 'Attribut utilisateur inexistant',
+      summary: 'La source de cet attribut utilisateur n’apparaît pas dans les éléments lisibles : sa table ou sa colonne peut être absente, ou masquée à l’utilisateur concerné par les droits d’accès. Le widget ne peut pas distinguer ces situations.',
+      why: 'Si la source a été supprimée, les droits d’accès qui utilisent cet attribut ne trouvent plus la fiche prévue. Si elle est masquée, il s’agit d’une limite de l’audit.',
       steps: [OPEN_RULES, 'Dans « Attributs utilisateur », vérifiez la table et la colonne ; choisissez-en d\'existantes ou supprimez l\'attribut.', REFRESH_STEP],
       targets: brokenAttr.map((a) => ({ table: a.tableId, note: `user.${a.name} : ${a.problems.join(', ')}` })),
     });
@@ -265,24 +265,24 @@ export function accessInsights(access) {
   if (unknown.length) {
     push({
       id: 'acl-unknown-attribute', severity: 'blocking',
-      title: unknown.length > 1 ? `${unknown.length} conditions utilisent un attribut inexistant` : 'Une condition utilise un attribut inexistant',
+      title: 'Condition de droit d’accès utilisant un attribut inconnu',
       summary: 'La condition fait appel à « user.… » pour un attribut qui n\'est défini nulle part.',
-      why: 'Grist ne peut pas évaluer cette condition : la règle ne s\'applique pas comme prévu.',
+      why: 'Cet attribut utilisateur n’est pas déclaré dans les éléments lus. La condition des droits d’accès peut ne jamais correspondre ; vérifiez sa définition et son nom.',
       steps: [OPEN_RULES, 'Corrigez la condition, ou créez l\'attribut manquant dans « Attributs utilisateur ».', REFRESH_STEP],
-      targets: unknown.map((u) => ({ table: u.table === '*' ? 'Règles par défaut' : u.table, note: `${u.rule.formula}` })),
+      targets: unknown.map((u) => ({ table: u.table === '*' ? 'Droits d’accès par défaut' : u.table, note: `${u.rule.formula}` })),
     });
   }
   if (missingCols.length) {
     push({
       id: 'acl-hidden', severity: 'choice',
-      intended: 'Même les propriétaires ne doivent pas lire ces données : rien à faire.',
-      title: missingCols.length > 1 ? `${missingCols.length} éléments protégés que vous ne voyez pas` : 'Un élément protégé que vous ne voyez pas',
-      summary: 'Des règles visent ces tables ou colonnes, mais Grist ne les montre pas au widget : elles vous sont masquées par les règles (ou ont été supprimées).',
-      why: 'Elles manquent alors au schéma, aux tables et au rapport. Attention : une règle de colonne passe avant les règles de la table, propriétaires compris.',
+      intended: 'Ces éléments sont volontairement masqués à l’utilisateur concerné : conservez les droits d’accès. Une personne habilitée peut compléter l’audit.',
+      title: 'Colonnes utilisées pour les droits d’accès non visibles pour l’utilisateur concerné',
+      summary: 'Des droits d’accès utilisent ou protègent des colonnes ou des tables que l’utilisateur connecté ne peut pas lire. Le widget d’audit ne peut donc pas les examiner ; une suppression reste aussi possible.',
+      why: 'Ces éléments peuvent manquer au schéma, aux tables et au rapport. Les droits d’accès d’une colonne sont prioritaires sur ceux de sa table, propriétaires compris.',
       steps: [
         OPEN_RULES,
-        'Sinon, si les propriétaires doivent les voir : dans les règles de ces colonnes, ajoutez en premier une règle « user.Access in [OWNER] » avec Lire autorisé.',
-        'Si elles ont été supprimées : retirez-les des règles.',
+        'Sinon, si les propriétaires doivent les voir : dans les droits d’accès de ces colonnes, ajoutez en premier une condition « user.Access in [OWNER] » avec Lire autorisé.',
+        'Si elles ont été supprimées : retirez-les des droits d’accès.',
         REFRESH_STEP,
       ],
       targets: missingCols.map((m) => ({ table: m.table, column: m.column, note: m.note })),
@@ -292,39 +292,27 @@ export function accessInsights(access) {
   if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
     push({
       id: 'acl-bypass', severity: 'choice',
-      intended: 'Les droits réels dépendent des profils et de l’ordre des règles. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
-      title: 'Les éditeurs peuvent contourner les restrictions de lecture',
-      summary: 'Des données sont cachées par des règles, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
+      intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
+      title: 'Modification des formules à vérifier sous restrictions de lecture',
+      summary: 'Des données sont cachées par des droits d’accès, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
       why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
       steps: [
         OPEN_RULES,
-        'Dans les règles spéciales, décochez l\'autorisation donnée aux éditeurs de modifier la structure.',
-        'Ou ajoutez aux règles par défaut : condition « user.Access != OWNER », permission Structure refusée.',
+        'Dans les droits d’accès spéciaux, décochez l\'autorisation donnée aux éditeurs de modifier la structure.',
+        'Ou ajoutez aux droits d’accès par défaut : condition « user.Access != OWNER », permission Structure refusée.',
         REFRESH_STEP,
       ],
       targets: [],
     });
   }
-  const copies = access.special.find((s) => s.id === 'FullCopies');
-  if (copies && copies.allowedForAll && access.restrictsRead) {
-    push({
-      id: 'acl-full-copies', severity: 'choice',
-      intended: 'Document de démonstration ou modèle à partager : rien à faire.',
-      title: 'La copie intégrale du document est à vérifier',
-      summary: 'Le réglage de copie intégrale contient une autorisation générale alors que des données sont protégées. Des règles précédentes peuvent limiter les profils concernés.',
-      why: 'Une copie complète contient toutes les données, y compris celles que les règles cachent.',
-      steps: [OPEN_RULES, 'Sinon : dans les règles spéciales, décochez l\'autorisation de copier le document entier.', REFRESH_STEP],
-      targets: [],
-    });
-  }
   const withEmails = [];
-  forEachRule((r, table) => { if (r.emails.length) withEmails.push({ table: table === '*' ? 'Règles par défaut' : table, note: r.emails.join(', ') }); });
+  forEachRule((r, table) => { if (r.emails.length) withEmails.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.emails.join(', ') }); });
   if (withEmails.length) {
     push({
       id: 'acl-emails', severity: 'improve',
-      title: withEmails.length > 1 ? `${withEmails.length} règles citent des adresses e-mail` : 'Une règle cite des adresses e-mail',
+      title: 'Courriels écrits en dur dans les conditions',
       summary: 'Des personnes sont désignées directement par leur adresse dans la condition.',
-      why: 'À chaque arrivée ou départ, il faut modifier les règles. Une table des habilitations et un attribut utilisateur sont plus simples à tenir à jour.',
+      why: 'À chaque arrivée ou départ, il faut modifier les conditions des droits d’accès. Une table des habilitations et un attribut utilisateur sont plus simples à tenir à jour.',
       steps: [
         'Créez (ou complétez) une table qui associe chaque adresse à un rôle.',
         OPEN_RULES,
@@ -335,14 +323,14 @@ export function accessInsights(access) {
     });
   }
   const denyNoMemo = [];
-  forEachRule((r, table) => { if (Object.values(r.perms).includes('deny') && !r.memo) denyNoMemo.push({ table: table === '*' ? 'Règles par défaut' : table, note: r.who.text }); });
+  forEachRule((r, table) => { if (Object.values(r.perms).includes('deny') && !r.memo) denyNoMemo.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.who.text }); });
   if (denyNoMemo.length) {
     push({
       id: 'acl-no-memo', severity: 'info',
-      title: denyNoMemo.length > 1 ? `${denyNoMemo.length} refus sans message` : 'Un refus sans message',
-      summary: 'Quand Grist refuse une action, il affiche le message (« mémo ») de la règle. Ces règles n\'en ont pas.',
+      title: 'Refus de droits d’accès sans message explicatif',
+      summary: 'Ces refus de droits d’accès ne comportent aucun message explicatif (« mémo »). La personne concernée comprend plus difficilement pourquoi une action est refusée.',
       why: 'Un message court (« Réservé au service RH ») évite les demandes d\'aide.',
-      steps: [OPEN_RULES, 'Ouvrez le menu de la règle et ajoutez un mémo.'],
+      steps: [OPEN_RULES, 'Ouvrez le menu du droit d’accès concerné et ajoutez un mémo.'],
       targets: denyNoMemo,
     });
   }
@@ -350,10 +338,10 @@ export function accessInsights(access) {
     push({
       id: 'acl-uncovered', severity: 'choice',
       intended: 'Tables sans donnée sensible : rien à faire.',
-      title: access.uncovered.length > 1 ? `${access.uncovered.length} tables sans règle propre` : 'Une table sans règle propre',
-      summary: 'Ces tables suivent seulement les règles par défaut et les rôles de partage.',
-      why: 'Leurs accès dépendent des règles générales et des rôles de partage. Une absence de règle propre ne signifie pas une absence de protection.',
-      steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],
+      title: 'Table sans aucune règle d’accès avancée',
+      summary: 'Aucune règle d’accès avancée n’est définie directement sur ces tables. Elles suivent les droits d’accès par défaut du document et les rôles de partage.',
+      why: 'Leurs accès dépendent des droits d’accès généraux et des rôles de partage. Une absence de règle d’accès avancée propre à la table ne signifie pas une absence de protection.',
+      steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle d’accès avancée à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],
       targets: access.uncovered.map((t) => ({ table: t })),
     });
   }
@@ -366,4 +354,5 @@ export function permissionCells(rule, bits) {
 }
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
 export const PERMISSION_LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.bit, p.label]));
+
 
