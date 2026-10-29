@@ -204,6 +204,91 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await context.close();
 }
 
+// 1 ter bis. Accès · « Qui peut faire quoi ? » : matrice par rôle métier (rôle Grist Éditeur)
+for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, false], ['sombre', { width: 960, height: 760 }, true]]) {
+  const meta = await metadata('document-complexe.metadata.json');
+  const { habilitations } = await import('../fixtures/droits-complexe.mjs');
+  meta.records = { Habilitations: habilitations };
+  const { context, page, frame, errors } = await h.openWidget({ meta, viewport, dark });
+  await h.waitDiagram(frame);
+  await frame.locator('#tab-access').click();
+  const mx = frame.locator('#rights-matrix');
+  const cell = (key, g, bit) => mx.locator(`[data-matrix-cell="${key}|${g}|${bit}"]`);
+  const line = async (key, g) => (await Promise.all(['R', 'U', 'C', 'D'].map(async (b) => (await cell(key, g, b).count() ? (await cell(key, g, b).textContent()).trim() : '—')))).join(' / ');
+  if (!dark) {
+    const titles = await frame.locator('#access-body .sec__title').allTextContents();
+    check(titles[0] === 'Qui peut faire quoi ?' && titles[1] === 'Réglages généraux', `matrice : avant les réglages généraux (${titles.slice(0, 3).join(', ')})`);
+    check((await mx.locator('.sec__head .count').textContent()) === '22', 'matrice : compte des tables (22)');
+    const groups = await mx.locator('.mx__group strong').allTextContents();
+    check(groups.join('|') === 'RH|Finances|Tous les autres', `matrice : groupes (${groups.join(', ')})`);
+    check((await mx.locator('.mx__group span').first().textContent()) === 'Habilitation.Role = « RH » · 7 services', 'matrice : 7 services comptés dans la table de l\'attribut');
+    check(await mx.locator('[data-matrix-detail="columns"]').getAttribute('aria-pressed') === 'true', 'matrice : « Par table et par colonne » par défaut');
+    check(await line('Agents', 1) === 'Email / Non / Non / Non' && await line('Agents', 0) === 'Oui / Oui / Oui / Oui', `matrice : Agents (${await line('Agents', 1)})`);
+    check(await line('Agents.Quotite', 0) === 'Oui / Oui / — / —' && await line('Agents.Quotite', 2) === 'Non / Non / — / —', 'matrice : colonne Quotite, Créer et Supprimer sans objet');
+    check(await line('Depenses', 0) === 'Service / Non / Non / Non' && await line('Formations', 2) === 'Oui / ? / Oui / Oui', 'matrice : Depenses et Formations');
+    check(await mx.locator('.mx__row--structure [data-matrix-cell]').count() === 3, 'matrice : une case de structure par groupe');
+    check(await cell('Agents', 1, 'R').getAttribute('title') === 'Oui, seulement sur les lignes de son Email.', 'matrice : phrase complète en infobulle');
+    const labels = await mx.locator('.mx__row > .mx__label').allTextContents();
+    check(labels[1] === 'Table1' && labels.includes('Taches_summary'), `matrice : tables dans l'ordre du document, résumés compris (${labels.slice(0, 3).join(', ')})`);
+    // Mode « Par table »
+    await mx.locator('[data-matrix-detail="tables"]').click();
+    check(await mx.locator('.mx__row--column').count() === 0 && await mx.locator('[data-matrix-detail="tables"]').getAttribute('aria-pressed') === 'true', 'matrice : « Par table » masque les colonnes');
+    check(await frame.evaluate(() => document.activeElement?.dataset.matrixDetail) === 'tables', 'matrice : le focus reste sur le bouton');
+    await mx.locator('[data-matrix-detail="columns"]').click();
+    check(await mx.locator('.mx__row--column').count() === 4, 'matrice : 4 colonnes à règles');
+    // Détail d'une case, au clavier
+    await cell('Agents', 1, 'R').focus();
+    await page.keyboard.press('Enter');
+    const detail = mx.locator('.mx__detail');
+    check(await detail.isVisible() && (await detail.locator('.mx__meta').textContent()) === 'Finances · Lire · rôle Grist Éditeur', 'matrice : détail ouvert au clavier');
+    check(await cell('Agents', 1, 'R').evaluate((b) => b.classList.contains('is-picked') && document.activeElement === b), 'matrice : case choisie entourée, focus conservé');
+    const steps = await detail.locator('.mx__step').allTextContents();
+    check(steps.length >= 2 && steps.some((x) => x.includes('Décide')) && steps.some((x) => x.includes('Selon la ligne (Email)')), `matrice : étapes du raisonnement (${steps.length})`);
+    check((await detail.locator('.mx__sentence strong').allTextContents()).includes('Email'), 'matrice : colonne décisive en gras');
+    await shot(page, '18-matrice.png');
+    await detail.locator('[data-matrix-close]').click();
+    check(await detail.isHidden(), 'matrice : « Fermer » referme le détail');
+    check(await frame.evaluate(() => document.activeElement?.dataset.matrixCell) === 'Agents|1|R', 'matrice : focus rendu à la case');
+    const focused = () => frame.evaluate(() => document.activeElement?.dataset.matrixCell);
+    await page.keyboard.press('ArrowRight');
+    const right = await focused();
+    await page.keyboard.press('ArrowDown');
+    const down = await focused();
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    const skip = await focused();
+    check(right === 'Agents|1|U' && down === 'Agents.Quotite|1|U' && skip && !skip.startsWith('Agents') && skip.endsWith('|1|C'), `matrice : flèches d'une case à l'autre, cases « — » sautées (${right}, ${down}, ${skip})`);
+    await page.keyboard.press('Enter');
+    check(await detail.isVisible(), 'matrice : Entrée ouvre le détail');
+    await page.keyboard.press('Escape');
+    check(await detail.isHidden() && (await focused()) === skip, 'matrice : Échap referme le détail');
+    await cell('Depenses', 0, 'R').click();
+    await detail.locator('[data-goto-access="Depenses"]').click();
+    await page.waitForTimeout(400);
+    const card = await frame.locator('#acl-Depenses').boundingBox();
+    const bodyBox = await frame.locator('#access-body').boundingBox();
+    check(card && card.y >= bodyBox.y - 2 && card.y < bodyBox.y + 200, 'matrice : « Voir les règles de Depenses » mène à la carte');
+    check(await frame.locator('#access-body .sec__title').allTextContents().then((t) => t.includes('Règles par table')), 'matrice : le reste de l\'onglet est inchangé');
+    // Le filtre des règles masque la matrice (comme les réglages)
+    await frame.locator('#access-filter').fill('Email');
+    await page.waitForTimeout(250);
+    check(await mx.count() === 0, 'matrice : masquée pendant une recherche');
+    await frame.locator('#access-filter').fill('');
+    await page.waitForTimeout(250);
+    const overflow = await frame.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(overflow <= 0, `matrice : seule la grille défile horizontalement (${overflow}px)`);
+  } else {
+    await cell('Agents', 0, 'R').click();
+    await frame.locator('#access-body').evaluate((el) => { el.scrollTop = 0; });
+    await shot(page, '19-matrice-sombre-960.png');
+    const grid = await mx.locator('.mx__scroll').evaluate((el) => el.scrollWidth > el.clientWidth);
+    check(grid, 'matrice 960 px : défilement horizontal de la grille');
+  }
+  check(errors.length === 0, `matrice (${label}) : aucune erreur console (${errors.join(' | ')})`);
+  await context.close();
+}
+
 // 1 quater. Document mal structuré : données lues, défauts repérés, « C'est voulu »
 {
   const meta = await metadata('mal-structure.mjs');

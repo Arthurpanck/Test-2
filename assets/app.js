@@ -8,6 +8,9 @@ import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from '
 import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.0.0';
 import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.0.0';
 import {
+  ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, matrixGroups, matrixRows, rowCells, cellText, cellTone, cellSentence, cellSteps, detectRole,
+} from './rights-matrix.js?v=3.0.0';
+import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
 } from './report.js?v=3.0.0';
 
@@ -48,6 +51,9 @@ const state = {
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
   details: false,
   accessFilter: '',
+  matrixDetail: 'columns', // « Par table » ou « Par table et par colonne »
+  matrixPick: null, // case choisie : { row, group, bit }
+  matrixAttrData: null,
   accessView: 'all', // toutes les tables, toujours
   docName: '',
   tab: 'schema',
@@ -175,6 +181,15 @@ async function loadSchema({ manual = false } = {}) {
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
+    // Matrice « Qui peut faire quoi ? » : la table de l'attribut du rôle métier, seulement pour
+    // compter les valeurs d'une colonne filtrante (« 7 services ») ; illisible ou absente : sans compte.
+    state.matrixAttrData = null;
+    if (state.acl) {
+      const m = prepareMatrixModel(state.acl);
+      const role = detectRole(m);
+      const attrTable = role && m.attributes.find((a) => a.name === role.attr)?.tableId;
+      if (attrTable) state.matrixAttrData = await optional(attrTable);
+    }
     await loadData({ force: manual });
     state.schemaError = null;
     state.schemaAt = new Date();
@@ -642,6 +657,115 @@ function accessMatches(q, ...values) {
 
 const SETTING_KIND = { success: 'ok', warning: 'improve', info: 'info' };
 
+// ---------------------------------------------------------------------------
+// Qui peut faire quoi ? (matrice des droits par rôle métier, rôle Grist Éditeur)
+// ---------------------------------------------------------------------------
+
+let matrixCache = null; // { key, model, role, groups, rows, cells: Map("row|g|bit" → case) }
+function matrixData() {
+  const key = state.acl && state.schema ? [state.acl, state.schema, state.matrixAttrData] : null;
+  if (!key) return null;
+  if (matrixCache && matrixCache.key.every((x, i) => x === key[i])) return matrixCache;
+  const model = prepareMatrixModel(state.acl);
+  const { role, groups } = matrixGroups(model, state.matrixAttrData);
+  const tables = [...state.schema.keys()].filter((t) => t && !t.startsWith('_grist'));
+  const rows = matrixRows(model, tables);
+  const cells = new Map();
+  for (const row of rows) groups.forEach((g, gi) => rowCells(model, row, g, role).forEach((c) => cells.set(`${row.key}|${gi}|${c.bit}`, c)));
+  matrixCache = { key, model, role, groups, rows, cells };
+  return matrixCache;
+}
+
+function rightsMatrixHtml() {
+  const mx = matrixData();
+  if (!mx || !mx.model.resources.some((g) => g.rules.length)) return '';
+  const { role, groups, rows, cells } = mx;
+  const showCols = state.matrixDetail === 'columns';
+  const shown = rows.filter((r) => r.kind !== 'column' || showCols);
+  const tablesCount = rows.filter((r) => r.kind === 'table').length;
+  const pick = state.matrixPick;
+  const attrTable = role?.table || '';
+  const cellButton = (row, gi, c, extraStyle = '') => {
+    if (c.state === 'na') return `<div class="mx__cell${c.bit === 'R' ? ' mx__edge' : ''}"><span class="mx__na" aria-hidden="true">—</span></div>`;
+    const action = ACTION_LABEL[c.bit];
+    const sentence = cellSentence(c, { attrTable });
+    const picked = pick && pick.row === row.key && pick.group === gi && pick.bit === c.bit;
+    return `<div class="mx__cell${c.bit === 'R' || c.bit === 'S' ? ' mx__edge' : ''}"${extraStyle}><button type="button" class="mx__v mx__v--${cellTone(c)}${picked ? ' is-picked' : ''}"
+      data-matrix-cell="${esc(row.key)}|${gi}|${c.bit}" title="${esc(sentence)}" aria-label="${esc(`${row.label}, ${groups[gi].name}, ${action} : ${sentence}`)}"
+      aria-pressed="${picked ? 'true' : 'false'}">${esc(cellText(c))}</button></div>`;
+  };
+  const nCols = MATRIX_ACTIONS.length * groups.length;
+  const gridVars = `--mx-cols: 14.5rem repeat(${nCols}, minmax(4rem, 1fr)); --mx-min: calc(14.5rem + ${nCols} * 4rem)`;
+  const head = `<div class="mx__head">
+      <div class="mx__corner">Table</div>
+      ${groups.map((g) => `<div class="mx__group mx__edge"><strong>${esc(g.name)}</strong><span>${esc(g.sub)}</span></div>`).join('')}
+      ${groups.map(() => MATRIX_ACTIONS.map(([bit, label]) => `<div class="mx__act${bit === 'R' ? ' mx__edge' : ''}">${esc(label)}</div>`).join('')).join('')}
+    </div>`;
+  const body = shown.map((row) => {
+    const cls = row.kind === 'structure' ? ' mx__row--structure' : row.kind === 'column' ? ' mx__row--column' : '';
+    // Coupure possible après chaque « _ » des noms longs (tables de résumé).
+    const label = `<div class="mx__label">${esc(row.label).replace(/_/g, '_<wbr>')}${row.sub ? `<span>${esc(row.sub)}</span>` : ''}</div>`;
+    const cellsHtml = groups.map((g, gi) => (row.kind === 'structure'
+      ? cellButton(row, gi, cells.get(`${row.key}|${gi}|S`), ' style="grid-column: span 4"')
+      : MATRIX_ACTIONS.map(([bit]) => cellButton(row, gi, cells.get(`${row.key}|${gi}|${bit}`))).join(''))).join('');
+    return `<div class="mx__row${cls}">${label}${cellsHtml}</div>`;
+  }).join('');
+
+  let detail = '';
+  const c = pick && cells.get(`${pick.row}|${pick.group}|${pick.bit}`);
+  if (c) {
+    const row = rows.find((r) => r.key === pick.row);
+    const g = groups[pick.group];
+    const steps = cellSteps(c, pick.bit);
+    detail = `<div class="mx__detail-text">
+        <p class="mx__meta">${esc(g.name)} · ${esc(pick.bit === 'S' ? 'Modifier la structure' : ACTION_LABEL[pick.bit])} · rôle Grist Éditeur</p>
+        <div class="mx__detail-title"><h4>${esc(row.kind === 'column' ? `${row.table}.${row.label}` : row.label)}</h4><span class="mx__v mx__v--${cellTone(c)} mx__v--static">${esc(cellText(c))}</span></div>
+        <p class="mx__sentence">${strongWords(cellSentence(c, { attrTable }), c.labels || [])}</p>
+        <p class="sec__hint">Ordre appliqué : règles de la colonne, puis de la table, puis du document ; la première qui s'applique décide, action par action.</p>
+        <div class="mx__actions">${row.table ? `<button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" data-goto-access="${esc(row.table)}">Voir les règles de ${esc(row.table)}</button>` : ''}
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" data-matrix-close="1">Fermer</button></div>
+      </div>
+      <ol class="mx__steps">${steps.map((st, i) => `<li class="mx__step${st.off ? ' mx__step--off' : ''}"><span class="mx__step-n">${i + 1}</span>
+        <div><strong>${esc(st.title)}</strong><code>${esc(st.condition)}</code></div>${badge(st.badge, st.tone)}</li>`).join('')}</ol>`;
+  }
+  return `${sectionHead('Qui peut faire quoi ?', {
+    count: tablesCount,
+    hint: 'Pour chaque rôle métier, ce que permettent les règles. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne.',
+  })}
+    <div class="card mx">
+      <div class="mx__bar"><span class="mx__bar-label" id="mx-detail-label">Niveau de détail</span>
+        <div class="seg-toggle" role="group" aria-labelledby="mx-detail-label">
+          <button type="button" data-matrix-detail="tables" aria-pressed="${!showCols}">Par table</button>
+          <button type="button" data-matrix-detail="columns" aria-pressed="${showCols}">Par table et par colonne</button>
+        </div></div>
+      <div class="mx__scroll" role="region" aria-label="Droits par rôle métier et par action" tabindex="0" style="${gridVars}">${head}${body}</div>
+      <div class="mx__detail" aria-live="polite"${detail ? '' : ' hidden'}>${detail}</div>
+    </div>
+    <p class="sec__hint mx__foot">Lecture des règles, sans connexion réelle : pour un cas sensible, vérifiez avec « Voir en tant que » dans Grist.</p>`;
+}
+
+/** Texte échappé, les noms de colonnes qui décident mis en gras. */
+function strongWords(text, words) {
+  let html = esc(text);
+  for (const w of [...new Set(words)].sort((a, b) => b.length - a.length)) {
+    const e = esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    html = html.replace(new RegExp(`(^|[^\\wÀ-ÿ])(${e})(?![\\wÀ-ÿ])`, 'g'), '$1<strong>$2</strong>');
+  }
+  return html;
+}
+
+/** Redessine la matrice seule (sans toucher au reste de l'onglet ni au défilement). */
+function refreshMatrix(focusSelector) {
+  const el = $('rights-matrix');
+  if (!el) return;
+  const scroll = el.querySelector('.mx__scroll');
+  const pos = scroll ? [scroll.scrollLeft, scroll.scrollTop] : null;
+  el.innerHTML = rightsMatrixHtml();
+  const next = el.querySelector('.mx__scroll');
+  if (pos && next) [next.scrollLeft, next.scrollTop] = pos;
+  if (focusSelector) el.querySelector(focusSelector)?.focus();
+}
+
 function renderAccess() {
   const body = els['access-body'];
   if (!state.out) { body.innerHTML = unavailableMessage(); return; }
@@ -739,7 +863,7 @@ function renderAccess() {
     hint: 'Les règles s\'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : la règle ne dit rien, la suivante décide.',
   })}<div class="cards">${cards.join('') || emptyState(q ? `<p>Aucune règle ne contient « ${esc(state.accessFilter)} ».</p>` : '<p>Aucune table n\'a de règle propre.</p>')}</div></section>`;
 
-  body.innerHTML = `<div class="view">${header}${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
+  body.innerHTML = `<div class="view">${header}${q ? '' : `<section id="rights-matrix">${rightsMatrixHtml()}</section>`}${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1173,11 +1297,61 @@ function bindEvents() {
     });
   }
 
+  // Matrice des droits : flèches d'une case à l'autre, Échap referme le détail
+  document.addEventListener('keydown', (ev) => {
+    const cellBtn = ev.target.closest?.('#rights-matrix [data-matrix-cell]');
+    if (ev.key === 'Escape' && state.matrixPick && ev.target.closest?.('#rights-matrix')) {
+      ev.preventDefault();
+      $('rights-matrix').querySelector('[data-matrix-close]')?.click();
+      return;
+    }
+    const move = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[ev.key];
+    if (!cellBtn || !move) return;
+    // Grille des boutons : une ligne par ligne affichée, 4 positions par groupe (la case de structure les occupe toutes).
+    const bits = MATRIX_ACTIONS.map(([b]) => b);
+    const grid = [...$('rights-matrix').querySelectorAll('.mx__row')].map((row) => {
+      const cells = [];
+      for (const b of row.querySelectorAll('[data-matrix-cell]')) {
+        const [, g, bit] = b.dataset.matrixCell.split('|');
+        if (bit === 'S') for (let i = 0; i < 4; i++) cells[Number(g) * 4 + i] = b;
+        else cells[Number(g) * 4 + bits.indexOf(bit)] = b;
+      }
+      return cells;
+    });
+    let r = grid.findIndex((cells) => cells.includes(cellBtn));
+    let c = grid[r].indexOf(cellBtn);
+    if (move[1] && cellBtn.dataset.matrixCell.endsWith('|S') && move[1] > 0) c += 3; // sortir de la case large
+    for (;;) {
+      r += move[0]; c += move[1];
+      if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) return;
+      const next = grid[r][c];
+      if (next && next !== cellBtn) { ev.preventDefault(); next.focus(); next.scrollIntoView({ block: 'nearest', inline: 'nearest' }); return; }
+    }
+  });
+
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-goto-finding],[data-index-table],[data-level],[data-action]');
+    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-goto-finding],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close]');
     if (!target) return;
     ev.preventDefault();
+    if (target.dataset.matrixDetail) {
+      state.matrixDetail = target.dataset.matrixDetail;
+      if (state.matrixDetail === 'tables' && state.matrixPick?.row.includes('.')) state.matrixPick = null;
+      refreshMatrix(`[data-matrix-detail="${state.matrixDetail}"]`);
+      return;
+    }
+    if (target.dataset.matrixCell) {
+      const [row, group, bit] = target.dataset.matrixCell.split('|');
+      state.matrixPick = { row, group: Number(group), bit };
+      refreshMatrix(`[data-matrix-cell="${CSS.escape(target.dataset.matrixCell)}"]`);
+      return;
+    }
+    if (target.dataset.matrixClose) {
+      const back = state.matrixPick && `${state.matrixPick.row}|${state.matrixPick.group}|${state.matrixPick.bit}`;
+      state.matrixPick = null;
+      refreshMatrix(back ? `[data-matrix-cell="${CSS.escape(back)}"]` : null);
+      return;
+    }
     if (target.dataset.level) { state.level = target.dataset.level; renderAnalysis(); $(`level-${state.level}`)?.focus(); return; }
     if (target.dataset.indexTable) { const el = $(slug(target.dataset.indexTable)); if (el) { scrollWithin(el); flash(el); } return; }
     if (target.dataset.gotoFinding) { gotoFinding(target.dataset.gotoFinding); return; }
