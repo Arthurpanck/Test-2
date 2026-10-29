@@ -190,6 +190,12 @@ Les contrôles N06, N10, N13, N14, N36 et N38 restent disponibles pour arbitrage
 
 La récupération réseau reste inchangée : docApi.fetchTable lit la totalité des données que l’utilisateur peut lire, avant l’échantillonnage des calculs (2 000 lignes par table et 100 000 cellules globales). La réduction des calculs ne doit pas être présentée comme une réduction équivalente du téléchargement.
 
+## Deuxième revue du 29 octobre 2026 — 3.3.0
+
+N07, N10, N13, N14, N36, N38 et acl-emails sont retirés, calculs compris. Les niveaux ont été modifiés selon l’arbitrage : attribut inutilisé, source d’attribut absente, tables sans ligne lisible, colonnes sans valeur, espaces invisibles, listes textuelles, lookupOne ambigu, nombreuses pièces jointes, champs de droits modifiables et nom affiché passent à À corriger ; division potentielle par zéro et message de refus sans explication passent à À améliorer.
+
+N41 est rétabli : au moins trois colonnes de saisie d’une même famille portant des années calendaires ou Année 1 / Année 2 / Année 3. Le contrôle ne lit aucune cellule. acl-hidden est conservé en attendant la décision de l’utilisateur après réexplication. Il désigne une limite des éléments lisibles, pas un défaut certain des droits d’accès. La différence entre absence de droits avancés au niveau document (acl-none), absence de règle propre à une table (acl-uncovered), attribut non déclaré et source déclarée introuvable est documentée dans le catalogue de revue.
+
 ## Qui peut faire quoi ? et gros documents — 3.2.0
 
 **Matrice des droits (onglet Accès).** Avant les réglages généraux, une matrice donne, pour chaque rôle métier, ce que permettent les règles à une personne de rôle Grist Éditeur : Lire, Modifier, Créer, Supprimer par table et, au choix, par colonne à règles, plus les droits de structure. Le rôle métier est la colonne d'attribut comparée au plus grand nombre de valeurs dans les règles (par exemple `user.Habilitation.Role`). Les conditions sont lues dans un langage fermé (`assets/rights-matrix.js`) : aucun `eval`, aucune exécution de Python. Une condition non comprise donne « ? ». Le widget ne lit aucune ligne métier pour cela. Il lit seulement la table de l'attribut, pour compter les valeurs d'une colonne filtrante (« 7 services »), et ne modifie aucune règle. Une case ouvre le détail des règles examinées, dans l'ordre. Les flèches passent d'une case à l'autre, Échap referme le détail.
@@ -202,3 +208,6 @@ La récupération réseau reste inchangée : docApi.fetchTable lit la totalité 
 - « Paramètres », avec les hypothèses, la légende et les cas à vérifier.
 
 **Gros documents.** Chaque table est réduite à son échantillon dès sa lecture : seuls ses ids restent en mémoire, avec la progression affichée et l'interface qui reste fluide entre deux tables. Le téléchargement par `fetchTable` est inchangé. La mémoire gardée et le temps d'analyse baissent nettement. Les constats sont identiques à ceux calculés sur les tables complètes.
+
+
+La revue finale est livrée en 3.3.0 pour conserver simultanément les modifications de constats et les ajouts parallèles de matrice, exports Word/Excel et préparation des échantillons en mémoire.

@@ -158,7 +158,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Modification des formules à vérifier'), 'complexe : constats sur les droits d\'accès');
+  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Accès des éditeurs aux données malgré les droits d’accès'), 'complexe : constats sur les droits d\'accès');
   check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
   await shot(page, '12-complexe-analyse.png');
   await frame.locator('.coverage__go').first().click();

@@ -42,21 +42,21 @@ test('N09 : uniquement colonnes Texte, jamais une vraie liste Choix multiple',()
  assert.equal(has(one('Participants','ChoiceList',Array(5).fill(['L','Alice','Bob'])),'N09'),undefined);
  assert.equal(has(one('Participants','RefList:T',Array(5).fill(['L',1,2])),'N09'),undefined);
 });
-test('N10 : genres de valeurs reçus et non interprétation du texte ; censures exclues',()=>{
- assert.ok(has(one('Valeur','Any',[1,2,3,4,5,'a','b','c','d','e']),'N10'));
+test('N10 retiré : aucun mélange de valeurs ne réactive ce contrôle',()=>{
+ assert.equal(has(one('Valeur','Any',[1,2,3,4,5,'a','b','c','d','e']),'N10'),undefined);
  assert.equal(has(one('Valeur','Any',['1','2','3','4','5','a','b','c','d','e']),'N10'),undefined);
  assert.equal(has(one('Valeur','Any',[1,2,3,4,5,...Array(5).fill(['C'])]),'N10'),undefined);
 });
-test('N13 : aucun besoin de valeur, seulement nom et type ; N14 exige deux motifs explicites',()=>{
- assert.ok(has(one('Code_postal','Numeric',[]),'N13'));
+test('N13 et N14 retirés : noms, types et formats ne réactivent pas ces contrôles',()=>{
+ assert.equal(has(one('Code_postal','Numeric',[]),'N13'),undefined);
  assert.equal(has(one('Code_postal','Text',[]),'N13'),undefined);
  assert.equal(has(one('Montant','Numeric',[]),'N13'),undefined);
  assert.equal(has(one('Montant','Text',['1,234','2,345','3,456','4,567','5,678']),'N14'),undefined);
- assert.ok(has(one('Montant','Text',['1,234.56','2,345.67','1.234,56','2.345,67','100']),'N14'));
+ assert.equal(has(one('Montant','Text',['1,234.56','2,345.67','1.234,56','2.345,67','100']),'N14'),undefined);
 });
-test('N36 : distingue les trois réglages réels de Grist',()=>{
+test('N36 retiré : aucun des trois réglages de Grist ne réactive le contrôle',()=>{
  for(const [recalcWhen,recalcDeps,expected]of [[0,[],false],[0,['Autre'],true],[1,['Autre'],false],[2,[],true]]){
-  const result=has(one('UUID','Text',[],{formula:'UUID()',recalcWhen,recalcDeps}),'N36');assert.equal(Boolean(result),expected);
+  const result=has(one('UUID','Text',[],{formula:'UUID()',recalcWhen,recalcDeps}),'N36');assert.equal(Boolean(result),false);
  }
 });
 test('N53 et N54 fusionnés : une seule carte, cibles de condition et d’habilitation',()=>{
@@ -68,7 +68,7 @@ test('N53 et N54 fusionnés : une seule carte, cibles de condition et d’habili
 test('les formulations et solutions arbitrées restent présentes dans le catalogue',()=>{
  const by=id=>AUDIT_CATALOG.find(x=>x.id===id);assert.match(by('N34').steps.join(' '),/if \$Quantite != 0:[\s\S]*else:[\s\S]*return 0/);
  assert.match(by('N50').steps.join(' '),/solution de partage/);assert.match(by('N31').title,/lookup.*première valeur/);
- assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,21);
+ assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,16);
 });
 
 test('les informations de colonne restent disponibles sans description et échappent les textes',()=>{

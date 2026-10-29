@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.2.0';
+import { columnarToRows } from './converter.js?v=3.3.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -269,9 +269,9 @@ export function structureSmells(tables, profiles = null, access = null) {
     const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name, note: masked(t.name) ? 'ou lignes masquées pour vous par les droits d’accès' : undefined }));
     if (empty.length) {
       items.push({
-        id: 'empty-table', severity: 'choice',
+        id: 'empty-table', severity: 'blocking',
         title: empty.length > 1 ? `${empty.length} tables sans aucune ligne` : 'Une table sans aucune ligne',
-        summary: 'Ces tables ne contiennent aucune ligne que vous puissiez voir : vides, ou entièrement masquées pour vous par les droits d’accès d\'accès.',
+        summary: 'Ces tables ne contiennent aucune ligne que vous puissiez voir : vides, ou entièrement masquées pour vous par les droits d’accès.',
         why: 'Une table abandonnée encombre le document et le schéma.',
         intended: 'Table prête à recevoir des données, ou remplie par un import régulier : rien à faire.',
         steps: steps('Sinon : supprimez-la (« Données brutes » dans le menu de gauche ▸ menu de la table ▸ Supprimer).'),
@@ -290,7 +290,7 @@ export function structureSmells(tables, profiles = null, access = null) {
     }
     if (unused.length) {
       items.push({
-        id: 'never-filled', severity: 'choice',
+        id: 'never-filled', severity: 'blocking',
         title: unused.length > 1 ? `${unused.length} colonnes sans valeur dans les lignes lues` : 'Une colonne sans valeur dans les lignes lues',
         summary: 'Ces colonnes sont vides parmi toutes les lignes que le widget a pu lire. Des valeurs peuvent exister sur des lignes masquées.',
         why: 'Elles alourdissent la saisie et les exports sans rien apporter.',
@@ -324,11 +324,11 @@ export function structureSmells(tables, profiles = null, access = null) {
     }
     if (unusedAttrs.length) {
       items.push({
-        id: 'acl-attr-unused', severity: 'info', area: 'access',
+        id: 'acl-attr-unused', severity: 'blocking', area: 'access',
         title: unusedAttrs.length > 1 ? `${unusedAttrs.length} attributs utilisateur inutilisés` : 'Un attribut utilisateur inutilisé',
         summary: 'Aucun droit d’accès ne se sert de ces attributs.',
         why: 'Ils peuvent être supprimés pour simplifier les règles d\'accès.',
-        steps: [],
+        steps: steps('Ouvrez « Règles d’accès » puis « Attributs utilisateur ».','Vérifiez si cet attribut doit encore servir. Utilisez-le dans les droits d’accès prévus, ou retirez sa déclaration si elle est devenue inutile.'),
         targets: unusedAttrs,
       });
     }

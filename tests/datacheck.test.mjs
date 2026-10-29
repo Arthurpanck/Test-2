@@ -68,13 +68,13 @@ test('mal structuré : noms par défaut, doublons, copie non protégée, tables 
   assert.ok(has(item(ins, 'empty-table'), 'Export_2023') && has(item(ins, 'empty-table'), 'Test'));
   assert.ok(has(item(ins, 'never-filled'), 'Commandes', 'Remise'));
   assert.ok(has(item(ins, 'wide-table'), 'Personnel'));
-  for (const id of ['duplicate-table', 'empty-table', 'never-filled', 'wide-table', 'untyped', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
+  for(const id of ['empty-table','never-filled','acl-attr-unused'])assert.equal(item(ins,id).severity,'blocking');
+  for (const id of ['duplicate-table', 'wide-table', 'untyped', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
 });
 
 test('mal structuré : droits d\'accès en désordre', () => {
   const { ins } = load();
   assert.ok(has(item(ins, 'acl-unknown-attribute'), 'Clients'));
-  assert.ok(item(ins, 'acl-emails').targets.length >= 4);
   assert.ok(item(ins, 'acl-bypass'));
   assert.equal(item(ins, 'acl-full-copies'),undefined);
   assert.equal(item(ins,'acl-attr-mismatch'),undefined);

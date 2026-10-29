@@ -1,7 +1,8 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.2.0';
-import { columnarToRows } from './converter.js?v=3.2.0';
-import { inspectVisibleFilters } from './filter-audit.js?v=3.2.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.3.0';
+import { columnarToRows } from './converter.js?v=3.3.0';
+import { inspectVisibleFilters } from './filter-audit.js?v=3.3.0';
+import { annualColumnFamilies } from './annual-columns.js?v=3.3.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
 const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -13,7 +14,6 @@ export const isBlank = v => v == null || v === '' || (Array.isArray(v) && (v.len
 const usable = v => !isBlank(v) && !isCensored(v) && !isErrorValue(v);
 export function listValue(v) { if (!Array.isArray(v)) return null; if (v[0] === 'L') return v.slice(1); if (v[0] === 'r' && Array.isArray(v[2])) return v[2]; return ['E', 'C', 'd', 'D', 'R'].includes(v[0]) ? null : v; }
 export function scalar(v) { return Array.isArray(v) && ['d','D'].includes(v[0]) ? v[1] : Array.isArray(v) && v[0] === 'R' ? v[2] : v; }
-const kind = v => Array.isArray(v) && ['d','D'].includes(v[0]) ? 'date' : Array.isArray(v) && ['R','r'].includes(v[0]) ? 'reference' : Array.isArray(v) ? 'liste' : typeof v;
 const serial = v => JSON.stringify(v, (_,x) => typeof x === 'number' && !Number.isFinite(x) ? String(x) : x);
 function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0),16777619); return h >>> 0; }
 const PRESAMPLE = Symbol.for('grist-audit.presample');
@@ -95,7 +95,7 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  const sampled=sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
  const items=[],hits=new Map(),counts=new Map(),signatures=new Map();
  const status=new Map(RETAINED_IDS.map(id=>[id,{id,state:'checked',reason:'Aucun signal dans les éléments examinés.'}]));
- const metadataOnly=new Set(['N13','N36','N38','N47','N53','N57','N69','X13']);
+ const metadataOnly=new Set(['N41','N47','N53','N57','N69','X13']);
  const unavailable=(id,reason)=>status.set(id,{id,state:'unavailable',reason});
  const limited=(id,reason)=>{if(status.get(id)?.state==='checked')status.set(id,{id,state:'limited',reason});};
  if(!access){unavailable('N53','Droits d’accès indisponibles.');unavailable('N57','Droits d’accès indisponibles.');}
@@ -119,12 +119,8 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  for(const t of schema.values())for(const c of cols(t)){const raw=String(c.formula||'');if(chars+raw.length<=limits.formulaChars){formulaCode.set(t.tableId+'.'+c.colId,{raw,mask:maskPython(raw)});chars+=raw.length;}else formulaTruncated=true;}
  for(const t of schema.values()){
   const name=t.tableId;if(!name||name.startsWith('_grist_'))continue;
-  const cs=cols(t),ids=values(name,'id'),input=cs.filter(c=>!c.isFormula);
-  for(let i=0;i<ids.length;i++){
-   const filled=input.filter(c=>usable(values(name,c.colId)[i]));
-   const matches=filled.filter(c=>typeof values(name,c.colId)[i]==='string'&&values(name,c.colId)[i].length<=120&&[clean(c.label||c.colId),clean(c.colId)].includes(clean(values(name,c.colId)[i])));
-   if(matches.length>=3&&ratio(matches.length,filled.length)>=.6)emit('N07',name,null,[ids[i]],matches.length+' cellules reprennent les en-têtes');
-  }
+  const cs=cols(t),ids=values(name,'id');
+  for(const family of annualColumnFamilies(cs))emit('N41',name,null,[],family.columns.length+' colonnes annuelles : '+family.columns.map(c=>c.column).slice(0,8).join(', '));
   for(const c of cs){
    const col=c.colId,type=String(c.type||'Any').split(':')[0],vs=values(name,col),short=vs.slice(0,200),shortFilled=short.filter(usable),texts=shortFilled.filter(v=>typeof v==='string');
    const {raw,mask}=formulaCode.get(name+'.'+col)||{raw:'',mask:''};
@@ -139,12 +135,6 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
    if(!c.isFormula&&type==='Text'&&!/notes?|description|adresse/i.test(col)){
     const text=texts.filter(v=>v.length<=500);if(text.length>=5&&ratio(text.filter(v=>v.split(/[;\n]/).filter(s=>s.trim()).length>=2).length,text.length)>=.3)emit('N09',name,col,[],'Au moins 30 % de '+text.length+' textes examinés contiennent une liste apparente');
     if(vs.length>200)limited('N09','Au plus 200 cellules examinées par colonne Texte.');
-   }
-   if(type==='Any'&&shortFilled.length>=10){const kinds=new Map();for(const v of shortFilled)kinds.set(kind(v),(kinds.get(kind(v))||0)+1);if([...kinds.values()].filter(n=>n/shortFilled.length>=.2).length>=2)emit('N10',name,col,[],'Genres réels renvoyés par Grist : '+[...kinds].map(([k,n])=>k+' '+n).join(', ')+' ; '+shortFilled.length+' valeurs examinées');if(vs.length>200)limited('N10','Au plus 200 cellules examinées par colonne Non défini.');}
-   if(['Numeric','Int'].includes(type)&&/^(cp|siret|siren|telephone|tel|code.*|.*postal.*)$/i.test(fold(col)))emit('N13',name,col,[],'Nom de code et type '+type+' ; aucune valeur examinée pour ce contrôle');
-   if(type==='Text'&&/montant|prix|cout|budget/i.test(col)){
-    const text=texts.filter(v=>v.length<=120),us=text.filter(v=>/\d,\d{3}\.\d{2}/.test(v)).length,eu=text.filter(v=>/\d\.\d{3},\d{2}/.test(v)).length;
-    if(text.length>=5&&us>=2&&eu>=2)emit('N14',name,col,[],us+' motifs 1,234.56 et '+eu+' motifs 1.234,56 sur '+text.length+' textes');if(vs.length>200)limited('N14','Au plus 200 cellules courtes examinées par colonne de montant en Texte.');
    }
    const nums=vs.filter(usable).map(scalar).filter(v=>typeof v==='number'&&Number.isFinite(v));
    if(['Numeric','Int'].includes(type)&&/date/i.test(col)&&nums.length>=5&&ratio(nums.filter(v=>Number.isInteger(v)&&v>=20000&&v<=80000).length,nums.length)>=.8)emit('N17',name,col);
@@ -162,9 +152,7 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
     if(ambiguous.length)emit('N31',name,col,ambiguous,'lookupOne : plusieurs fiches pour les mêmes critères dans les lignes examinées');if(ids.length>200)limited('N31','Au plus 200 recherches sources examinées par appel.');
    }
    if(!/\b(if|IF|IFERROR)\b/.test(mask)){const denominators=[...mask.matchAll(/\/\s*\$([A-Za-z_]\w*)/g)].map(m=>m[1]);for(const d of denominators)if(values(name,d).some(v=>scalar(v)===0))emit('N34',name,col,[],'Diviseur nul ; aucune garde simple if / IF reconnue');}
-   const creation=/^(cree_le|date_creation|created_at|numero|uuid)$/i.test(fold(col));
-   if(!c.isFormula&&creation&&(c.recalcWhen===2||c.recalcWhen===0&&c.recalcDeps?.length))emit('N36',name,col,[],c.recalcWhen===2?'Réglage : nouvelle ligne et toute modification manuelle':'Réglage : nouvelle ligne et modification de '+c.recalcDeps.join(', '));
-   if(c.isFormula)for(const m of mask.matchAll(/\b([A-Za-z_]\w*)\.(?:all\b|lookupRecords\s*\(\s*\))/g))if((data[m[1]]?.id?.length||0)>5000&&(data[name]?.id?.length||0)>1000)emit('N38',name,col,[],'Motif de parcours global ; '+data[m[1]].id.length+' lignes visibles dans '+m[1]+' et '+data[name].id.length+' dans '+name+' ; durée non mesurée');
+
   }
  }
  if(pages)for(const table of pages.tablesWithoutPage||[])emit('N47',table);
@@ -182,11 +170,11 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
   }
   for(const r of all)if(/\buser\.Name\s*(?:==|!=|in)/.test(maskPython(r.formula||'')))emit('N57','Droits d’accès',null,[],'Condition utilisant le nom affiché');
  }
- for(const [id,targets]of hits){const def=infoById.get(id),isSample=!metadataOnly.has(id)&&(targets.some(t=>byCoverage.get(t.table)?.sampled)||['N06','N09','N10','N14'].includes(id)&&targets.some(t=>(values(t.table,t.column).length||0)>200)||id==='N31'&&(sampled.coverage.some(c=>c.sampled)||targets.some(t=>values(t.table,'id').length>200)));
+ for(const [id,targets]of hits){const def=infoById.get(id),isSample=!metadataOnly.has(id)&&(targets.some(t=>byCoverage.get(t.table)?.sampled)||['N06','N09'].includes(id)&&targets.some(t=>(values(t.table,t.column).length||0)>200)||id==='N31'&&(sampled.coverage.some(c=>c.sampled)||targets.some(t=>values(t.table,'id').length>200)));
   items.push({id,severity:def.severity,area:def.area,title:def.title,summary:def.summary,why:def.why,...(def.intended?{intended:def.intended}:{}),steps:def.steps,targets,method:def.detection,limitations:def.false_positives,evidence:{version:def.ruleVersion||1,signature:signatures.get(id),coverage:isSample?'sample':'visible',targetCount:counts.get(id),rowExamples:targets.flatMap(t=>t.note.match(/lignes ([\d, ]+)/)?.[1]?.split(',').map(s=>s.trim())||[]).slice(0,3)},calculation:targets.map(t=>t.note).filter(Boolean).slice(0,3).join(' ; ')});
   status.set(id,{id,state:'detected',reason:isSample?'Signal observé sur un échantillon de lignes lisibles.':'Signal observé sur les éléments lisibles examinés.'});
  }
- if(formulaTruncated)for(const id of ['N31','N34','N36','N38'])limited(id,'Budget de formules atteint ; contrôle incomplet.');
+ if(formulaTruncated)for(const id of ['N31','N34'])limited(id,'Budget de formules atteint ; contrôle incomplet.');
  const truncated=sampled.coverage.some(c=>c.sampled);if(truncated||failedTables.length)for(const id of RETAINED_IDS)if(!metadataOnly.has(id))limited(id,'Vérification limitée à l’échantillon ou aux tables chargées.');
  return {items,checks:[...status.values()],coverage:sampled.coverage,failedTables,configurationError:'',cells:sampled.cells,formulaChars:chars,sampled:truncated,profilesData:sd};
 }

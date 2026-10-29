@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.2.0';
-import { columnarToRows } from './converter.js?v=3.2.0';
+import { effectivePermission } from './audit-engine.js?v=3.3.0';
+import { columnarToRows } from './converter.js?v=3.3.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -109,7 +109,6 @@ export function describeCondition(formula, { first = true } = {}) {
   return { text: row ? 'Selon le contenu de la ligne' : 'Selon une condition', kind: row ? 'row' : 'formula', row };
 }
 
-const emailLiterals = (f) => [...String(f || '').matchAll(/['"]([^'"\s]+@[^'"\s]+)['"]/g)].map((m) => m[1]);
 const userAttrs = (f) => [...String(f || '').matchAll(/\buser\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
 const recCols = (f) => [...String(f || '').matchAll(/\b(?:rec|newRec)\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
 const byPos = (a, b) => ((a.rulePos ?? Infinity) - (b.rulePos ?? Infinity)) || (a.id - b.id);
@@ -166,7 +165,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     const unusable = Object.keys(perms).filter((b) => !bits.includes(b));
     return {
       id: r.id, pos: r.rulePos, formula, who, perms, permText: String(r.permissionsText || ''), memo: String(r.memo || ''),
-      emails: emailLiterals(formula), unusable, problems,
+      unusable, problems,
     };
   });
 
@@ -226,7 +225,7 @@ export function accessInsights(access) {
   if (!access.hasRules) {
     push({
       id: 'acl-none', severity: 'info',
-      title: 'Aucune règle d\'accès avancée',
+      title: 'Aucune règle d\'accès avancée dans le document',
       summary: 'Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.',
       why: 'C\'est suffisant si tous les invités peuvent voir toutes les données. Sinon, les règles d\'accès permettent de restreindre une table, une colonne ou certaines lignes.',
       steps: [], targets: [],
@@ -237,7 +236,7 @@ export function accessInsights(access) {
   const brokenAttr = access.attributes.filter((a) => a.problems.length);
   if (brokenAttr.length) {
     push({
-      id: 'acl-attribute', severity: 'improve',
+      id: 'acl-attribute', severity: 'blocking',
       title: 'Attribut utilisateur inexistant',
       summary: 'La source de cet attribut utilisateur n’apparaît pas dans les éléments lisibles : sa table ou sa colonne peut être absente, ou masquée à l’utilisateur concerné par les droits d’accès. Le widget ne peut pas distinguer ces situations.',
       why: 'Si la source a été supprimée, les droits d’accès qui utilisent cet attribut ne trouvent plus la fiche prévue. Si elle est masquée, il s’agit d’une limite de l’audit.',
@@ -277,7 +276,7 @@ export function accessInsights(access) {
       id: 'acl-hidden', severity: 'choice',
       intended: 'Ces éléments sont volontairement masqués à l’utilisateur concerné : conservez les droits d’accès. Une personne habilitée peut compléter l’audit.',
       title: 'Colonnes utilisées pour les droits d’accès non visibles pour l’utilisateur concerné',
-      summary: 'Des droits d’accès utilisent ou protègent des colonnes ou des tables que l’utilisateur connecté ne peut pas lire. Le widget d’audit ne peut donc pas les examiner ; une suppression reste aussi possible.',
+      summary: 'Les droits d’accès mentionnent une colonne ou une table absente de ce que l’utilisateur connecté peut lire. Par exemple, Personnel.Salaire peut être volontairement masquée : le widget ne peut alors pas l’examiner. Une suppression reste aussi possible.',
       why: 'Ces éléments peuvent manquer au schéma, aux tables et au rapport. Les droits d’accès d’une colonne sont prioritaires sur ceux de sa table, propriétaires compris.',
       steps: [
         OPEN_RULES,
@@ -293,7 +292,7 @@ export function accessInsights(access) {
     push({
       id: 'acl-bypass', severity: 'choice',
       intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
-      title: 'Modification des formules à vérifier sous restrictions de lecture',
+      title: 'Accès des éditeurs aux données malgré les droits d’accès',
       summary: 'Des données sont cachées par des droits d’accès, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
       why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
       steps: [
@@ -305,29 +304,12 @@ export function accessInsights(access) {
       targets: [],
     });
   }
-  const withEmails = [];
-  forEachRule((r, table) => { if (r.emails.length) withEmails.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.emails.join(', ') }); });
-  if (withEmails.length) {
-    push({
-      id: 'acl-emails', severity: 'improve',
-      title: 'Courriels écrits en dur dans les conditions',
-      summary: 'Des personnes sont désignées directement par leur adresse dans la condition.',
-      why: 'À chaque arrivée ou départ, il faut modifier les conditions des droits d’accès. Une table des habilitations et un attribut utilisateur sont plus simples à tenir à jour.',
-      steps: [
-        'Créez (ou complétez) une table qui associe chaque adresse à un rôle.',
-        OPEN_RULES,
-        'Ajoutez un attribut utilisateur qui cherche la personne dans cette table, puis écrivez la condition avec ce rôle (ex. user.Habilitation.Role == \'RH\').',
-        REFRESH_STEP,
-      ],
-      targets: withEmails,
-    });
-  }
   const denyNoMemo = [];
   forEachRule((r, table) => { if (Object.values(r.perms).includes('deny') && !r.memo) denyNoMemo.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.who.text }); });
   if (denyNoMemo.length) {
     push({
-      id: 'acl-no-memo', severity: 'info',
-      title: 'Refus de droits d’accès sans message explicatif',
+      id: 'acl-no-memo', severity: 'improve',
+      title: 'Message de refus de droits d’accès sans explication',
       summary: 'Ces refus de droits d’accès ne comportent aucun message explicatif (« mémo »). La personne concernée comprend plus difficilement pourquoi une action est refusée.',
       why: 'Un message court (« Réservé au service RH ») évite les demandes d\'aide.',
       steps: [OPEN_RULES, 'Ouvrez le menu du droit d’accès concerné et ajoutez un mémo.'],

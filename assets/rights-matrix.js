@@ -10,7 +10,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.2.0';
+import { columnarToRows } from './converter.js?v=3.3.0';
 
 export const ACTIONS = [['R', 'Lire'], ['U', 'Modifier'], ['C', 'Créer'], ['D', 'Supprimer']];
 const ACTION_LABEL = { R: 'Lire', U: 'Modifier', C: 'Créer', D: 'Supprimer', S: 'Structure' };
@@ -501,3 +501,4 @@ export function unknownCases(mx) {
   }
   return [...out.values()].map((x) => ({ ...x, actions: [...x.actions], groups: [...x.groups] }));
 }
+

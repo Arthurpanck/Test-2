@@ -3,8 +3,8 @@
  * détail filtrable (une ligne par case) et les paramètres de lecture.
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
-import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.2.0';
-import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.2.0';
+import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.3.0';
+import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.3.0';
 
 const BLUE = '000091', BLUE_LIGHT = 'E3E3FD', GREY = 'F6F6F6', BORDER = 'DDDDDD';
 const TONE = { ok: ['DFFEE6', '18753C'], ko: ['FFE9E9', 'CE0500'], uk: ['EEEEEE', '3A3A3A'] };
@@ -166,3 +166,4 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
 export function matrixXlsx(mx, opts) {
   return writeXlsx(matrixWorkbook(mx, opts));
 }
+

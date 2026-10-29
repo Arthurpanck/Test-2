@@ -1,4 +1,4 @@
-/** Catalogue après revue du 29 octobre 2026, version 3.1.0. */
+/** Catalogue après deuxième revue du 29 octobre 2026, version 3.3.0. */
 export const AUDIT_CATALOG = [
   {
     "id": "N01",
@@ -32,7 +32,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N02",
@@ -69,7 +71,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N03",
@@ -109,7 +113,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N04",
@@ -149,7 +155,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N05",
@@ -187,12 +195,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N06",
-    "severity": "improve",
-    "level": "À améliorer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "données",
     "title": "Des espaces invisibles gênent les comparaisons",
     "detection": "Dans les colonnes dont le nom évoque un code, une référence, un courriel, un statut, une catégorie ou un nom : examiner au plus 200 cellules échantillonnées, de 120 caractères maximum et sans retour à la ligne. Repérer un espace au début ou à la fin, ou un espace insécable / fin / invisible. Déclencher dès deux cellules, ou si au moins 5 % des cellules non vides examinées sont concernées. Ne pas examiner les notes, descriptions et adresses.",
@@ -210,7 +220,7 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Données",
     "area": "data",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Choisir les colonnes de codes, références, courriels, statuts, catégories ou noms.",
       "Garder au plus 200 cellules de l’échantillon, chacune courte (120 caractères), sans paragraphe.",
@@ -219,10 +229,10 @@ export const AUDIT_CATALOG = [
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "calculationCost": "Test de caractères, sans comparaison entre fiches : au plus 200 cellules × 120 caractères par colonne éligible. Le téléchargement des tables reste complet avant cet échantillonnage.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -246,8 +256,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Imports ligne 4.",
     "justification": "Indice fort d’un copier coller mal délimité.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -255,14 +265,17 @@ export const AUDIT_CATALOG = [
       "Pour une ligne, comparer chaque texte au libellé et à l’identifiant de sa propre colonne après harmonisation des espaces et de la casse",
       "Déclencher si au moins trois cellules reprennent leurs en-têtes et représentent au moins 60 % des cellules remplies de la ligne."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N08",
@@ -296,12 +309,14 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N09",
-    "severity": "choice",
-    "level": "Choix à confirmer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "données",
     "title": "Une colonne contient plusieurs éléments sans être de type choix multiple",
     "detection": "Uniquement dans les colonnes de saisie de type Texte (jamais Choix multiple ou Liste de références), hors noms évoquant notes, descriptions et adresses. Sur au plus 200 cellules échantillonnées de 500 caractères maximum : au moins cinq textes non vides et au moins 30 % contenant deux éléments non vides séparés par un point-virgule ou un retour à la ligne.",
@@ -320,19 +335,21 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Données",
     "area": "data",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Uniquement dans les colonnes de saisie de type Texte (jamais Choix multiple ou Liste de références), hors noms évoquant notes, descriptions et adresses. Sur au plus 200 cellules échantillonnées de 500 caractères maximum : au moins cinq textes non vides et au moins 30 % contenant deux éléments non vides séparés par un point-virgule ou un retour à la ligne."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N10",
@@ -351,8 +368,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Dans une colonne Any : 5 nombres réels (12, 18, 20, 9, 4) et 5 textes (« douze », « attente », « inconnu », « cinq », « aucun ») déclenchent le contrôle. Dix textes, même certains ressemblant à des nombres, ne le déclenchent pas.",
     "justification": "Le mélange peut être intentionnel.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -361,13 +378,13 @@ export const AUDIT_CATALOG = [
       "Classer les valeurs reçues selon leur type réel (texte, nombre, booléen, date, référence ou liste), après exclusion des vides, erreurs et censures.",
       "Sur dix valeurs au moins et 200 au plus, signaler deux genres représentant chacun au moins 20 %. Le texte « 12 » reste du texte."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
     "calculationCost": "Un comptage en un seul passage : au plus 200 cellules par colonne Any. Au moins dix valeurs non vides sont nécessaires ; aucune comparaison de chaque ligne avec toutes les autres.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -408,7 +425,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N12",
@@ -442,7 +461,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N13",
@@ -461,8 +482,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "La colonne Code_postal est de type Numérique : 01230 risque d’être conservé comme 1230. Le contrôle se déclenche sur le nom et le type, même dans une table vide.",
     "justification": "La perte historique n’est pas démontrable sans source.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées uniquement",
     "area": "data",
     "ruleVersion": 1,
@@ -471,13 +492,13 @@ export const AUDIT_CATALOG = [
       "Repérer un nom de code, téléphone ou code postal dont le type est Numérique ou Entier.",
       "Afficher un choix à confirmer : le nom suggère un identifiant, sans prouver l’usage ni la perte d’un zéro."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
     "calculationCost": "Métadonnées uniquement : un test du nom et du type de chaque colonne. Aucune valeur de la table métier n’est nécessaire pour ce contrôle.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -501,8 +522,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Montant contient « 1,234.56 », « 2,345.67 », « 1.234,56 », « 2.345,67 » et « 100 ». Deux formats explicites apparaissent au moins deux fois chacun.",
     "justification": "Conversion à confirmer, pas de remplacement automatique.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 1,
@@ -511,13 +532,13 @@ export const AUDIT_CATALOG = [
       "Sur au plus 200 textes courts, compter les motifs 1,234.56 et 1.234,56.",
       "Déclencher seulement avec au moins cinq textes, et deux occurrences de chacun des deux motifs. Un texte ambigu comme 1,234 ne suffit pas."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
     "calculationCost": "Deux motifs de séparateurs testés sur au plus 200 textes de 120 caractères par colonne de montant éligible. Ni conversion, ni analyse sémantique des nombres ambigus.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -556,7 +577,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N16",
@@ -590,7 +613,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N17",
@@ -625,7 +650,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N18",
@@ -659,7 +686,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N19",
@@ -698,7 +727,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N20",
@@ -732,7 +763,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N21",
@@ -766,7 +799,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N22",
@@ -804,7 +839,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N23",
@@ -841,7 +878,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N24",
@@ -879,7 +918,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N25",
@@ -913,7 +954,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N26",
@@ -947,7 +990,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N27",
@@ -985,7 +1030,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N28",
@@ -1021,7 +1068,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N29",
@@ -1059,7 +1108,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N30",
@@ -1096,12 +1147,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N31",
-    "severity": "improve",
-    "level": "À améliorer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "structure",
     "title": "Un lookup renvoie uniquement la première valeur, alors que plusieurs sont disponibles",
     "detection": "Lire les formules simples Table.lookupOne(Colonne=$Champ) ou avec un littéral. Construire une fois par appel un index des critères dans les données échantillonnées de la table cible, puis chercher les critères non uniques utilisés par les lignes sources. Maximum 100 appels indexés et 200 recherches sources par appel ; les clés de texte dépassant 120 caractères, expressions dynamiques et order_by ne sont pas analysées. Un signal exige au moins deux lignes cibles distinctes réellement lues ; l’absence de signal sur l’échantillon ne prouve pas l’unicité.",
@@ -1121,20 +1174,22 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "structure",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Lire les formules simples Table.lookupOne(Colonne=$Champ) ou avec un littéral. Construire une fois par appel un index des critères dans les données échantillonnées de la table cible, puis chercher les critères non uniques utilisés par les lignes sources. Maximum 100 appels indexés et 200 recherches sources par appel ; les clés de texte dépassant 120 caractères, expressions dynamiques et order_by ne sont pas analysées. Un signal exige au moins deux lignes cibles distinctes réellement lues ; l’absence de signal sur l’échantillon ne prouve pas l’unicité."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "calculationCost": "Au plus 100 index d’appels lookupOne simples. Pour chaque appel : index sur l’échantillon cible (au plus 2 000 lignes, dans le plafond global de 100 000 cellules) puis au plus 200 recherches sources. Aucun produit cartésien de toutes les lignes.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N32",
@@ -1170,7 +1225,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N33",
@@ -1206,12 +1263,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N34",
-    "severity": "choice",
-    "level": "Choix à confirmer",
+    "severity": "improve",
+    "level": "À améliorer",
     "domain": "structure",
     "title": "Un calcul pourrait diviser par zéro",
     "detection": "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro. Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR. Les gardes complexes restent hors périmètre.",
@@ -1231,19 +1290,21 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "structure",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro. Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR. Les gardes complexes restent hors périmètre."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N35",
@@ -1279,7 +1340,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N36",
@@ -1298,8 +1361,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "UUID est une colonne de saisie avec la formule d’initialisation UUID() et le réglage « à chaque modification ». Le contrôle lit ce réglage, sans attendre de voir l’identifiant changer.",
     "justification": "Configuration à confirmer.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées uniquement",
     "area": "structure",
     "ruleVersion": 1,
@@ -1308,13 +1371,13 @@ export const AUDIT_CATALOG = [
       "Lire recalcWhen : 0 = nouvelle ligne et champs de recalcDeps ; 1 = jamais automatiquement ; 2 = nouvelle ligne et toute modification manuelle.",
       "Signaler 2, ou 0 avec des dépendances. Ne pas signaler 1. Le contrôle ne mesure jamais combien de fois la formule a été exécutée."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
     "calculationCost": "Métadonnées uniquement : formule d’initialisation, nom de colonne, recalcWhen et recalcDeps. Aucune mesure de fréquence réelle, aucun historique consulté.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -1356,7 +1419,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N38",
@@ -1375,8 +1440,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Une formule présente dans Commandes (1 500 lignes visibles) contient SUM(r.Montant for r in Paiements.all), et Paiements a 6 000 lignes visibles.",
     "justification": "Risque de coût, pas mesure de performance.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Formules (métadonnées) et nombre de lignes visibles, sans inspection des valeurs pour ce contrôle",
     "area": "structure",
     "ruleVersion": 1,
@@ -1386,13 +1451,13 @@ export const AUDIT_CATALOG = [
       "Lire les nombres de lignes déjà reçus : cible au-delà de 5 000, table de la formule au-delà de 1 000.",
       "Signaler un motif à examiner, sans annoncer une durée ni ignorer les caches et optimisations de Grist."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré lors de la deuxième revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026. Calcul clarifié ; conservé pour poursuivre votre arbitrage.",
+    "reviewNote": "Supprimé sur demande lors de la deuxième revue du 29 octobre 2026. Aucun calcul exécuté.",
     "calculationCost": "Un repérage de motifs dans les formules, borné par le budget global de 200 000 caractères, et le nombre de lignes visibles déjà chargé. Aucun parcours des valeurs de la table cible pour ce contrôle.",
-    "reviewStage": "Calcul à arbitrer",
-    "reviewQuestion": "Calcul précisé à la suite de votre question du 29 octobre ; contrôle conservé pour votre prochaine décision.",
+    "reviewStage": "",
+    "reviewQuestion": "",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -1434,7 +1499,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N40",
@@ -1471,42 +1538,118 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N41",
-    "severity": "choice",
-    "level": "Choix à confirmer",
+    "severity": "improve",
+    "level": "À améliorer",
     "domain": "structure",
-    "title": "Des périodes sont rangées dans les noms de colonnes",
-    "detection": "Identifier au moins trois colonnes de saisie terminées par une année 19xx ou 20xx, ou au moins quatre identifiants de mois français. Cette version ne vérifie pas la consécutivité des années : une grille fixe peut être légitime.",
-    "false_positives": "Budget prévisionnel figé et matrice de présentation ; ne pas fusionner automatiquement.",
-    "summary": "Les mois ou années sont répartis dans plusieurs colonnes.",
-    "why": "Les nouveaux exercices demandent de modifier la structure et les formules.",
-    "intended": "Si c’est une grille de préparation annuelle, elle peut convenir.",
+    "title": "Des années sont réparties dans plusieurs colonnes",
+    "detection": "Métadonnées uniquement. Examiner les colonnes de saisie non techniques et leurs libellés. Regrouper par sujet les identifiants ou libellés portant une année 1900–2099 (Budget_2024, Budget_2025, Budget_2026) ou une suite explicite Année 1 / Année 2 / Année 3, Year_1 / Year_2 / Year_3. Déclencher avec au moins trois périodes distinctes d’une même famille. Ne pas regrouper trois sujets sans rapport (Création_2024, Validation_2025, Budget_2026). Les formules, mois et autres numéros comme Telephone_1 sont exclus de cette fiche.",
+    "false_positives": "Une comparaison fixe ou un formulaire réglementaire peut imposer cette présentation. Le motif de nom ne prouve pas à lui seul une mauvaise organisation. Aucune donnée de cellule n’est lue.",
+    "summary": "Des colonnes d’une même table répètent la même information pour plusieurs années : Année 1, Année 2, Année 3, ou Budget 2024, Budget 2025, Budget 2026.",
+    "why": "Ajouter une colonne à chaque nouvelle année rend les filtres, les totaux et les vues plus difficiles à maintenir. Dans Grist, une colonne Année et une ligne par période permettent généralement de conserver une structure stable.",
+    "intended": "Un tableau comparatif fixe peut être utile. Si ces colonnes sont intentionnelles, vérifiez que les vues et calculs restent simples à maintenir.",
     "steps": [
-      "Pour un suivi continu, créez des lignes avec Période et Montant puis affichez une synthèse.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Repérez ce que représentent les colonnes annuelles : budget, cotisation, mesure…",
+      "Préparez une table avec une colonne Année, une colonne Valeur et une Référence vers la fiche concernée. Chaque année devient une ligne.",
+      "Reportez les valeurs et vérifiez les totaux et les liens avant de retirer les anciennes colonnes. Utilisez une vue de synthèse pour retrouver une comparaison par année.",
+      "Utilisez « Relire le document » dans l’audit."
     ],
-    "example": "Cotisation_2024, Cotisation_2025, Cotisation_2026.",
-    "justification": "Présentation parfois volontaire.",
-    "decision": "Écarté",
-    "status": "retiré",
-    "source": "Métadonnées",
+    "example": "Adhérents contient Nom, Cotisation_Annee_1, Cotisation_Annee_2 et Cotisation_Annee_3. Une autre présentation utilise une table Cotisations : Adhérent, Année, Montant.",
+    "justification": "Réintégré après la suppression du bloc N40–N46 de la première revue. Indice de structure, détectable sans lire les cellules.",
+    "decision": "Retenu",
+    "status": "implémenté",
+    "source": "Métadonnées uniquement",
     "area": "structure",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
-      "Identifier au moins trois colonnes de saisie terminées par une année 19xx ou 20xx, ou au moins quatre identifiants de mois français",
-      "Cette version ne vérifie pas la consécutivité des années : une grille fixe peut être légitime."
+      "Lire les identifiants et libellés des colonnes de saisie.",
+      "Repérer les années calendaires ou les numéros accompagnés explicitement de Année / Year.",
+      "Regrouper les colonnes d’un même sujet et signaler trois périodes distinctes ou plus."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Automatique sur les familles de colonnes annuelles reconnues",
     "typology": "Indice à vérifier",
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
+    "testEvidence": "Tests des familles annuelles, libellés accentués et exclusions. Signal observé dans les métadonnées MCP d’Audit_Colonnes_annuelles, avec deux lignes fictives ajoutées pour l’essai.",
+    "reviewNote": "Réintégré lors de la deuxième revue : la carte était partie avec le bloc N40–N46 demandé précédemment.",
     "verification": {
       "unitaire": true,
-      "observeMCP": false,
+      "observeMCP": true,
       "correctionMCP": false
+    },
+    "calculationCost": "Un passage sur les noms et libellés des colonnes. Aucun calcul sur les lignes métier.",
+    "reviewStage": "",
+    "reviewQuestion": "",
+    "exampleDetail": {
+      "context": "Une association range chaque année de cotisation dans une nouvelle colonne.",
+      "before": {
+        "title": "Avant — une nouvelle colonne à chaque année",
+        "headers": [
+          "Objet",
+          "Cotisation Année 1",
+          "Cotisation Année 2",
+          "Cotisation Année 3"
+        ],
+        "rows": [
+          [
+            "Exemple A",
+            "25 €",
+            "25 €",
+            "30 €"
+          ],
+          [
+            "Exemple B",
+            "50 €",
+            "50 €",
+            "60 €"
+          ]
+        ]
+      },
+      "after": {
+        "title": "Après — une ligne par objet et par année",
+        "headers": [
+          "Objet",
+          "Année",
+          "Montant"
+        ],
+        "rows": [
+          [
+            "Exemple A",
+            "1",
+            "25 €"
+          ],
+          [
+            "Exemple A",
+            "2",
+            "25 €"
+          ],
+          [
+            "Exemple A",
+            "3",
+            "30 €"
+          ],
+          [
+            "Exemple B",
+            "1",
+            "50 €"
+          ],
+          [
+            "Exemple B",
+            "2",
+            "50 €"
+          ],
+          [
+            "Exemple B",
+            "3",
+            "60 €"
+          ]
+        ]
+      },
+      "explanation": "La structure reste la même lorsque l’année 4 arrive : on ajoute des lignes, sans nouvelle colonne ni nouvelle formule. Une vue de synthèse peut présenter les montants par année.",
+      "counterexample": "Un formulaire fixe ou une comparaison réglementaire peut imposer trois colonnes annuelles. Vérifiez cet usage avant de transformer la table."
     }
   },
   {
@@ -1544,7 +1687,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N43",
@@ -1581,7 +1726,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N44",
@@ -1617,7 +1764,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N45",
@@ -1653,7 +1802,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N46",
@@ -1689,7 +1840,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N47",
@@ -1725,7 +1878,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N48",
@@ -1761,7 +1916,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N49",
@@ -1798,12 +1955,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N50",
-    "severity": "info",
-    "level": "Bon à savoir",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "données",
     "title": "Certaines cellules regroupent beaucoup de pièces jointes",
     "detection": "Décoder les listes d’identifiants des colonnes Pièces jointes. Déclencher à vingt pièces dans une cellule ou mille liens de pièces au total dans une colonne échantillonnée. Aucun téléchargement et aucune estimation de taille binaire.",
@@ -1823,19 +1982,21 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "data",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Décoder les listes d’identifiants des colonnes Pièces jointes. Déclencher à vingt pièces dans une cellule ou mille liens de pièces au total dans une colonne échantillonnée. Aucun téléchargement et aucune estimation de taille binaire."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Information de contexte",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N51",
@@ -1872,7 +2033,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N52",
@@ -1908,12 +2071,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N53",
-    "severity": "choice",
-    "level": "Choix à confirmer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "droits d’accès",
     "title": "Des champs utilisés pour les droits d’accès sont modifiables",
     "detection": "Fusion N53 + N54. Métadonnées uniquement. Repérer les colonnes de saisie citées comme rec.Colonne dans une condition de droits d’accès de lecture ou modification. Repérer aussi, dans chaque table d’attribut utilisateur, la clé de recherche et les colonnes utilisées comme user.Attribut.Colonne. Vérifier symboliquement les droits de modification et, pour la table d’habilitation, de création, pour les rôles Éditeur et Lecteur. Signaler seulement une autorisation reconnue par le sous-ensemble analysé ; les conditions dépendant de la personne ou d’une ligne restent non vérifiables. Regrouper toutes ces cibles dans une seule carte.",
@@ -1933,19 +2098,21 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "access",
-    "ruleVersion": 2,
+    "ruleVersion": 3,
     "calculationSteps": [
       "Fusion N53 + N54. Métadonnées uniquement. Repérer les colonnes de saisie citées comme rec.Colonne dans une condition de droits d’accès de lecture ou modification. Repérer aussi, dans chaque table d’attribut utilisateur, la clé de recherche et les colonnes utilisées comme user.Attribut.Colonne. Vérifier symboliquement les droits de modification et, pour la table d’habilitation, de création, pour les rôles Éditeur et Lecteur. Signaler seulement une autorisation reconnue par le sous-ensemble analysé ; les conditions dépendant de la personne ou d’une ligne restent non vérifiables. Regrouper toutes ces cibles dans une seule carte."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N54",
@@ -1982,7 +2149,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N55",
@@ -2019,7 +2188,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N56",
@@ -2056,12 +2227,14 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N57",
-    "severity": "choice",
-    "level": "Choix à confirmer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "droits d’accès",
     "title": "Un droit d’accès dépend d’un nom affiché",
     "detection": "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes.",
@@ -2079,19 +2252,21 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées",
     "area": "access",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "calculationSteps": [
       "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes."
     ],
     "implementation": "Automatique sur le sous-ensemble décrit",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Modifié lors de la revue du 29 octobre 2026.",
+    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N58",
@@ -2125,7 +2300,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N59",
@@ -2163,7 +2340,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N60",
@@ -2198,7 +2377,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N61",
@@ -2235,7 +2416,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N62",
@@ -2273,7 +2456,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N63",
@@ -2311,7 +2496,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N64",
@@ -2346,7 +2533,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N65",
@@ -2383,7 +2572,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N66",
@@ -2421,7 +2612,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N67",
@@ -2457,7 +2650,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N68",
@@ -2491,7 +2686,9 @@ export const AUDIT_CATALOG = [
       "observeMCP": false,
       "correctionMCP": false
     },
-    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée."
+    "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N69",
@@ -2526,7 +2723,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "N70",
@@ -2563,7 +2762,9 @@ export const AUDIT_CATALOG = [
       "unitaire": true,
       "observeMCP": false,
       "correctionMCP": false
-    }
+    },
+    "reviewStage": "",
+    "reviewQuestion": ""
   },
   {
     "id": "X13",
@@ -2651,7 +2852,9 @@ export const AUDIT_CATALOG = [
       "counterexample": "Un analyste qui combine souvent les six critères a intérêt à conserver sa vue Exploration. Le constat demande de confirmer le besoin, pas de supprimer automatiquement des filtres."
     },
     "area": "pages",
-    "ruleVersion": 1
+    "ruleVersion": 1,
+    "reviewStage": "",
+    "reviewQuestion": ""
   }
 ];
 export const RETAINED_IDS = AUDIT_CATALOG.filter(x => x.decision === "Retenu").map(x => x.id);

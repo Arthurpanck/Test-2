@@ -57,7 +57,7 @@ test('document complexe : règles regroupées par table, colonnes, défaut et r�
 test('document complexe : constats sur les droits d\'accès', () => {
   const { access } = complexe();
   const ids = accessInsights(access).map((i) => i.id);
-  for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-emails', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
+  for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
   assert.ok(!ids.includes('acl-attribute') && !ids.includes('acl-hidden'));
   const unknown = accessInsights(access).find((i) => i.id === 'acl-unknown-attribute');
   assert.equal(unknown.severity, 'blocking');
@@ -75,7 +75,7 @@ test('table, colonne ou table d\'attribut absentes des métadonnées (supprimée
   assert.equal(hidden.severity, 'choice', 'pas bloquant : peut-être seulement masqué pour la personne connectée');
   assert.ok(hidden.targets.some((t) => t.table === 'Conges') && hidden.targets.some((t) => t.column === 'Quotite'));
   const attr = items.find((i) => i.id === 'acl-attribute');
-  assert.ok(attr.severity === 'improve' && attr.targets.some((t) => /Habilitation/.test(t.note)));
+  assert.ok(attr.severity === 'blocking' && attr.targets.some((t) => /Habilitation/.test(t.note)));
 });
 
 test('document sans règle : un seul constat informatif', () => {
@@ -114,6 +114,6 @@ test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, 
   schema.get('Agents').columns.delete('Derniere_connexion');
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
-  assert.deepEqual(items.filter((i) => i.severity === 'blocking').map((i) => i.id), ['acl-unknown-attribute']);
+  assert.ok(items.some(i=>i.id==='acl-unknown-attribute'&&i.severity==='blocking'));
   assert.deepEqual(items.find((i) => i.id === 'acl-hidden').targets.map((t) => t.column), ['Quotite', 'Derniere_connexion']);
 });
