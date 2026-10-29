@@ -121,6 +121,15 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
 
   // 2. Liens écrits en texte (ou en nombre) au lieu d'une colonne de référence
+  // Index inversé valeur → tables dont la colonne clé la contient : chaque valeur n'est
+  // cherchée qu'une fois, au lieu d'être comparée à toutes les tables une par une.
+  const keyIndex = new Map();
+  keys.forEach((k, ki) => { for (const v of k.values) { const at = keyIndex.get(v); if (at) at.push(ki); else keyIndex.set(v, [ki]); } });
+  const countByKey = (values) => {
+    const n = new Array(keys.length).fill(0);
+    for (const v of values) for (const ki of keyIndex.get(v) || []) n[ki]++;
+    return n;
+  };
   const links = [];
   for (const t of real) {
     for (const c of t.columns) {
@@ -135,12 +144,14 @@ export function structureSmells(tables, profiles = null, access = null) {
         const vals = [...p.distinct].filter((v) => typeof v === 'string');
         const items2 = [...p.items];
         const hits = [];
-        for (const k of keys) {
-          if (k.table === t.name && k.column === c.name) continue;
-          const single = vals.filter((v) => k.values.has(v)).length;
+        const singles = countByKey(vals);
+        const multiples = p.list >= 1 && items2.length >= 2 ? countByKey(items2) : null;
+        keys.forEach((k, ki) => {
+          if (k.table === t.name && k.column === c.name) return;
+          const single = singles[ki];
           if (vals.length >= 2 && pct(single, vals.length) >= 0.8) hits.push({ target: k.table, by: k.column, many: false, data: true, score: pct(single, vals.length) });
-          else if (p.list >= 1 && items2.length >= 2 && pct(items2.filter((v) => k.values.has(v)).length, items2.length) >= 0.8) hits.push({ target: k.table, by: k.column, many: true, data: true, score: 0.8 });
-        }
+          else if (multiples && pct(multiples[ki], items2.length) >= 0.8) hits.push({ target: k.table, by: k.column, many: true, data: true, score: 0.8 });
+        });
         hit = hits.find((h) => byName && h.target === byName.name) || hits.sort((a, b) => b.score - a.score)[0] || null;
       }
       if (!hit && byName && byName.name !== t.name && (type === 'Text' || type === 'Int')) hit = { target: byName.name, by: null, many: false, data: false };

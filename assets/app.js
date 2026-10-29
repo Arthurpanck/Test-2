@@ -2,7 +2,7 @@ import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3
 import { ErdViewer } from './erd.js?v=3.0.0';
 import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.0.0';
 import { validateAuditConfig } from './audit-config.js?v=3.0.0';
-import { sampleAuditData, AUDIT_LIMITS } from './audit-engine.js?v=3.0.0';
+import { sampleAuditData, presampleTable } from './audit-engine.js?v=3.0.0';
 import { profileTables } from './datacheck.js?v=3.0.0';
 import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.0.0';
 import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.0.0';
@@ -43,6 +43,7 @@ const state = {
   pages: null, // buildPages() : pages et widgets
   pagesMeta: null,
   data: {}, failedTables: [], auditMeta: {}, auditConfig: {}, auditConfigError: '',
+  loadProgress: null, // { done, total } pendant la lecture des données
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
   accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
@@ -196,22 +197,36 @@ async function loadData({ force = false } = {}) {
   const ids = [...state.schema.values()].filter((t) => !t.tableId.startsWith('_grist_')).map((t) => t.tableId);
   const key = JSON.stringify(ids.map((id) => [id, [...state.schema.get(id).columns.keys()]]));
   if (!force && key === state.profileKey && state.profiles) return;
+  // Chaque table est réduite à son échantillon dès sa lecture : la table complète n'est jamais
+  // gardée en mémoire (seuls ses ids le sont, pour l'intégrité des références et le nombre de lignes).
   const data = {};
-  state.failedTables = [];
+  const failed = new Set();
   const queue = ids.slice();
+  let done = 0;
+  state.loadProgress = { done, total: ids.length };
+  renderHeader();
   const worker = async () => {
     while (queue.length) {
       const id = queue.shift();
-      try { data[id] = await gristApi.docApi.fetchTable(id); } catch { state.failedTables.push(id); }
+      try { data[id] = presampleTable(id, await gristApi.docApi.fetchTable(id)); } catch { failed.add(id); }
+      state.loadProgress = { done: ++done, total: ids.length };
+      renderHeader();
+      await yieldToBrowser(); // l'interface reste fluide entre deux tables
     }
   };
   await Promise.all([worker(), worker()]);
-  state.data = data;
-  const sampled = sampleAuditData(data);
+  state.loadProgress = null;
+  // Ordre du document (et non d'arrivée) : la répartition du budget d'échantillonnage est stable.
+  state.data = Object.fromEntries(ids.filter((id) => id in data).map((id) => [id, data[id]]));
+  state.failedTables = ids.filter((id) => failed.has(id));
+  const sampled = sampleAuditData(state.data);
   state.profiles = profileTables(sampled.data);
-  for (const c of sampled.coverage) { const p = state.profiles.get(c.table); if(p) { p.rows=c.visibleRows; p.sampled=c.sampled; } }
+  for (const c of sampled.coverage) { const p = state.profiles.get(c.table); if (p) { p.rows = c.visibleRows; p.sampled = c.sampled; } }
   state.profileKey = key;
 }
+
+/** Rend la main au navigateur (affichage, clics) entre deux étapes longues. */
+const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // ---------------------------------------------------------------------------
 // Options du widget (enregistrées dans le document Grist)
@@ -255,6 +270,7 @@ function emptyState(html) {
 
 function unavailableMessage() {
   if (!inGrist) return emptyState('<p>Ce widget s\'utilise dans Grist : ajoutez-le comme widget personnalisé avec l\'accès « Accès complet au document ».</p>');
+  if (state.loadProgress) return emptyState(`<p>Lecture des données : ${state.loadProgress.done} sur ${state.loadProgress.total} tables…</p>`);
   if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
   return emptyState('<p>La structure du document n\'est pas disponible.</p>');
 }
@@ -269,7 +285,8 @@ function renderHeader() {
   } else {
     els.stats.textContent = '';
   }
-  if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
+  if (state.loadProgress) els['read-at'].textContent = `Lecture des données : ${state.loadProgress.done}/${state.loadProgress.total} tables`;
+  else if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
   else if (state.schemaAt) els['read-at'].textContent = `Lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   else els['read-at'].textContent = '';
   els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
