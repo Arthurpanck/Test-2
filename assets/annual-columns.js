@@ -4,7 +4,7 @@ const stem=s=>s.replace(/[\s_-]+/g,' ').trim();
 export function annualColumnFamilies(columns){
  const families=new Map();
  for(const c of columns){
-  if(c.isFormula||!c.colId||/^(id|manualSort|gristHelper_.*|#.*)$/.test(c.colId))continue;
+  if(c.isFormula&&String(c.formula||'').trim()||!c.colId||/^(id|manualSort|gristHelper_.*|#.*)$/.test(c.colId))continue;
   for(const name of new Set([fold(c.colId),fold(c.label)])){
    let match=/^(.*?)(19\d{2}|20\d{2})([^\d].*)?$/.exec(name),family,period;
    if(match){family='calendar:'+stem(match[1]+' '+(match[3]||''));period=Number(match[2]);}
