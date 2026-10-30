@@ -1,5 +1,5 @@
 /** Filtres enregistrés affichés dans les vues Tableau ; aucun accès aux lignes métier. */
-import { columnarToRows } from './converter.js?v=3.4.0';
+import { columnarToRows } from './converter.js?v=3.5.0';
 
 export const VISIBLE_FILTER_THRESHOLD = 5;
 const technical = /^(id|manualSort|gristHelper_.*|#.*)$/;

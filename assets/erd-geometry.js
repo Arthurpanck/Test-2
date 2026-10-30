@@ -100,6 +100,24 @@ export function edgeGeometry(srcRect, srcY, tgtRect, tgtY, kind, { shift = 0 } =
   };
 }
 
+/** Pointe de flèche pleine posée contre le bord d'une table (tip sur le bord, vers l'intérieur). */
+export function arrowHead(x, y, side, size = 8) {
+  const base = x + dirOf(side) * size;
+  return `M${round(base)},${round(y - size / 2)} L${round(x)},${round(y)} L${round(base)},${round(y + size / 2)} Z`;
+}
+
+/**
+ * Tracé d'un lookup (lookupOne / lookupRecords) : de la colonne de formule vers l'en-tête de la
+ * table cherchée, terminé par une flèche. Même routage que les relations, décalé pour s'en distinguer.
+ */
+export function lookupGeometry(srcRect, srcY, tgtRect, tgtY, { shift = 0 } = {}) {
+  const sides = chooseSides(srcRect, tgtRect);
+  const sx = sides.source === 'right' ? srcRect.x + srcRect.w : srcRect.x;
+  const tx = sides.target === 'right' ? tgtRect.x + tgtRect.w : tgtRect.x;
+  const points = orthogonalPoints(sx, srcY, sides.source, tx, tgtY, sides.target, { shift, offset: EDGE_OFFSET + 10 });
+  return { sides, points, path: roundedPath(points), arrow: arrowHead(tx, tgtY, sides.target) };
+}
+
 /** Rectangle englobant d'un ensemble de rectangles. */
 export function boundsOf(rects) {
   if (!rects.length) return { x: 0, y: 0, w: 0, h: 0 };

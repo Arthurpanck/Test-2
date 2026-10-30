@@ -164,12 +164,11 @@ const readGeometry = (page) => page.evaluate(() => {
   await page.waitForTimeout(400);
 
   // Exports
-  const [svgDl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-svg').click()]);
-  await svgDl.saveAs(path.join(outDir, 'erd-export.svg'));
-  const svg = await readFile(await svgDl.path(), 'utf8');
-  check(svg.startsWith('<svg') && svg.includes('Documentation_technique_espace_metier') && (svg.match(/<path d="M/g) || []).length >= 12,
-    `export SVG (${svgDl.suggestedFilename()}, ${svg.length} octets)`);
-  check(await page.locator('#btn-png').count() === 0, 'plus de bouton PNG dans la barre d\'outils');
+  const [pngDl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-png').click()]);
+  await pngDl.saveAs(path.join(outDir, 'erd-export.png'));
+  const pngBytes = await readFile(await pngDl.path());
+  check(pngDl.suggestedFilename().endsWith('.png') && pngBytes.slice(1, 4).toString() === 'PNG' && pngBytes.length > 20000, `export PNG (${pngDl.suggestedFilename()}, ${pngBytes.length} octets)`);
+  check(await page.locator('#btn-svg').count() === 0, 'plus de bouton SVG dans la barre d\'outils');
   // Le PNG sert encore à l'image du rapport Word : on vérifie le rendu directement.
   await page.locator('#tab-report').click();
   await page.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });

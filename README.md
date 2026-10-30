@@ -223,3 +223,19 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
   - les effets de règle sont formulés « autorise lire et modifier » ;
   - les réglages « Modifier la structure » et « Règles ajoutées d'office » (`*SPECIAL:SeedRule`) sont expliqués.
 - **Analyse :** « Périmètre des contrôles » devient « Ce qui a été examiné ». Chaque vérification y figure en clair, rangée selon son résultat. Le rapport reprend ce tableau.
+
+## Schéma, tables et lookups — 3.5.0
+
+- **Légende du schéma :** elle distingue la table (en-tête bleu) de la table de synthèse (violet). L'export du schéma se fait en image PNG, à la place du SVG.
+- **Lookups :** une case « Lookups », décochée par défaut, se trouve entre « Aller à une table » et l'export. Le choix est mémorisé.
+  - Elle affiche les `lookupOne` (orange tireté) et les `lookupRecords` (vert pointillé) écrits dans les formules et les formules d'initialisation, de la colonne vers la table cherchée.
+  - La lecture est textuelle, sans exécution : les chaînes et les commentaires sont ignorés.
+  - Une table de synthèse cherchée (`X_summary_Y`) est rattachée à `X_Summary`.
+  - Ces traits ne changent pas la disposition du schéma.
+- **Tables :** chaque table suit le modèle « Table pour exportation » : Colonne (nom en base), Nom affiché, Type SQLite, Type déclaré (Grist), Rôle, Calculé ?, Formule.
+  - Le type SQLite suit `DocStorage._getSqlType()` de grist-core. Par exemple, `DateTime:Europe/Paris` est stocké en BLOB.
+  - Le type déclaré est en français.
+  - Le rôle vaut Clé primaire, Dérivé (v_*) ou Donnée.
+  - La colonne « Calculé ? » vaut Calculé, ou Initialisé pour une formule d'initialisation.
+  - L'export de l'onglet devient un classeur Excel dans ce format.
+- **Rapport :** la section « Tables et colonnes » reprend ce format, en pages paysage. La lecture du schéma mentionne les lookups quand ils sont affichés.

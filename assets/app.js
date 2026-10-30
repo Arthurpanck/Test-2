@@ -1,19 +1,22 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.4.0';
-import { ErdViewer } from './erd.js?v=3.4.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.4.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.4.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.4.0';
-import { profileTables } from './datacheck.js?v=3.4.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.4.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.4.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.4.0';
-import { matrixXlsx } from './rights-export.js?v=3.4.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.5.0';
+import { ErdViewer } from './erd.js?v=3.5.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.5.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.5.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.5.0';
+import { profileTables } from './datacheck.js?v=3.5.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.5.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.5.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.5.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.5.0';
+import { findLookups } from './lookups.js?v=3.5.0';
+import { tablesXlsx } from './tables-export.js?v=3.5.0';
+import { matrixXlsx } from './rights-export.js?v=3.5.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.4.0';
+} from './rights-matrix.js?v=3.5.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.4.0';
+} from './report.js?v=3.5.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -25,7 +28,7 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-svg', 'schema-body',
+  'find-table', 'find-table-list', 'btn-png', 'show-lookups', 'show-lookups-count', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
@@ -70,7 +73,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: false }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -261,6 +264,7 @@ function applyOptions(options) {
     // enregistré d'office avec la disposition) : sinon « Relations », le réglage par défaut.
     const chosen = d.detailChosen && ['all', 'keys', 'tables'].includes(d.detail);
     state.diagram = {
+      lookups: d.lookups === true,
       detail: chosen ? d.detail : 'keys',
       ...(chosen ? { detailChosen: true } : {}),
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
@@ -401,26 +405,31 @@ function renderTables() {
   }
 
   const cards = visible.map((t) => {
-    const rows = t.shownColumns.map((c) => {
-      let link = '';
-      if (c.ref) {
-        link = known.has(c.ref.table)
-          ? `<button class="chip" type="button" data-goto-table="${esc(c.ref.table)}">${esc(c.ref.table)}</button>`
-          : `<span class="chip chip--plain">${esc(c.ref.table)} · table absente</span>`;
-        if (c.ref.kind === '<>') link += '<span class="col-many">plusieurs</span>';
+    // Format « Table pour exportation » : nom en base, nom affiché, type SQLite, type déclaré,
+    // rôle, calculé, formule (table-format.js, partagé avec le rapport et l'export Excel).
+    const shown = new Set(t.shownColumns);
+    const lines = tableRows(t, (c) => shown.has(c)).filter((r) => !r.isKey || state.cols === 'all');
+    const rows = lines.map((r) => {
+      const c = r.column;
+      const cls = [r.isKey ? 'is-key' : '', c?.isFormula ? 'is-formula' : '', c?.ref ? 'is-ref' : '', c?.empty ? 'is-empty' : '', c && (matches(c.name) || matches(c.label)) ? 'is-match' : ''].filter(Boolean).join(' ');
+      let declared = esc(r.declared.text);
+      if (r.declared.target) {
+        const target = c.ref?.table || r.declared.target;
+        const chip = known.has(target)
+          ? `<button class="chip" type="button" data-goto-table="${esc(target)}">${esc(r.declared.target)}</button>`
+          : `<span class="chip chip--plain">${esc(r.declared.target)} · table absente</span>`;
+        declared = `${esc(r.declared.label)} → ${chip}${r.declared.reverse ? `<span class="col-label">inverse de ${esc(r.declared.reverse)}</span>` : ''}`;
       }
-      const cls = [c.isFormula ? 'is-formula' : '', c.ref ? 'is-ref' : '', c.empty ? 'is-empty' : '', matches(c.name) || matches(c.label) ? 'is-match' : ''].filter(Boolean).join(' ');
-      const flag = c.isFormula ? '<span class="col-flag">formule</span>' : c.details?.trigger ? '<span class="col-flag">initialisée</span>' : '';
-      const label = c.label && c.label !== c.name ? `<span class="col-label">${esc(c.label)}</span>` : '';
       return `<tr${cls ? ` class="${cls}"` : ''}>
-        <td><span class="col-name">${esc(c.name)}</span>${label}</td>
-        <td><span class="col-type">${esc(columnTypeLabel(c))}</span>${flag}</td>
-        <td>${link}</td>
-        <td>${columnDetailsHtml(c)}</td></tr>`;
+        <td><span class="col-name">${esc(r.name)}</span>${c ? columnDetailsHtml(c) : ''}</td>
+        <td>${r.label ? `<span class="col-display">${esc(r.label)}</span>` : ''}</td>
+        <td><code class="col-sql">${esc(r.sqlite)}</code></td>
+        <td><span class="col-type">${declared}</span></td>
+        <td>${r.isKey ? `<strong>${esc(r.role)}</strong>` : esc(r.role)}</td>
+        <td>${r.computed ? `<span class="col-flag">${esc(r.computed)}</span>` : ''}</td>
+        <td>${r.formula ? `<code class="col-formula">${esc(r.formula)}</code>` : ''}</td></tr>`;
     }).join('');
-    const pk = state.cols === 'all'
-      ? `<tr><td><span class="col-name">id</span></td><td><span class="col-type">${ID_TYPE_LABEL}</span></td><td></td><td>${badge('Clé de la ligne')}</td></tr>`
-      : '';
+    const pk = '';
     const refs = incoming.get(t.name) || [];
     const foot = refs.length
       ? `<div class="card__foot"><span>Référencée par</span><ul class="chips">${refs.map((r) => `<li><button class="chip" type="button" data-goto-table="${esc(r.table)}">${esc(r.table)}.${esc(r.column)}</button></li>`).join('')}</ul></div>`
@@ -434,9 +443,9 @@ function renderTables() {
         <span class="card__actions"><button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(t.name)}">Voir sur le schéma</button></span>
       </header>
       ${t.description ? `<p class="card__desc">${esc(t.description)}</p>` : ''}
-      <div class="table-scroll"><table class="grid-table">
+      <div class="table-scroll"><table class="grid-table cols-table">
         <caption class="fr-sr-only">Colonnes de ${esc(t.name)}</caption>
-        <thead><tr><th scope="col">Colonne</th><th scope="col">Type</th><th scope="col">Lien</th><th scope="col">Détails</th></tr></thead>
+        <thead><tr>${TABLE_COLUMNS.map((h) => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead>
         <tbody>${pk}${rows}</tbody>
       </table></div>
       ${foot}
@@ -463,28 +472,17 @@ function updateTablesIndex() {
 }
 
 /** Formules, choix, condition de liste et description d'une colonne. */
+/** Informations complémentaires d'une colonne (choix, liste filtrée, déclenchement, description). */
 function columnDetailsHtml(c) {
-  const lines = detailLines(c, { includeLabel: false });
-  return `<details class="column-information"><summary>Informations de la colonne</summary><dl class="col-details"><dt>Identifiant</dt><dd><code>${esc(c.name)}</code></dd><dt>Type</dt><dd>${esc(columnTypeLabel(c))}</dd>${lines.map((l) => {
+  const lines = detailLines(c, { includeLabel: false }).filter((l) => !['Formule', 'Formule d\'initialisation'].includes(l.label));
+  const d = c.details || {};
+  if (!lines.length && !d) return '';
+  return `<details class="column-information"><summary>Informations</summary><dl class="col-details">${lines.map((l) => {
     let value = esc(l.text);
     if (l.mono) value = `<code>${value}</code>`;
-    else if (l.label === 'Choix') value = `<ul class="chips">${c.details.choices.map((x) => `<li><span class="chip chip--plain">${esc(x)}</span></li>`).join('')}</ul>`;
+    else if (l.label === 'Choix') value = `<ul class="chips">${d.choices.map((x) => `<li><span class="chip chip--plain">${esc(x)}</span></li>`).join('')}</ul>`;
     return `<dt>${esc(l.label)}</dt><dd>${value}</dd>`;
-  }).join('')}</dl>${c.details?.description?'':'<p class="fr-hint-text">Aucune description renseignée.</p>'}</details>`;
-}
-
-function columnsCsv() {
-  const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const rows = [['Table', 'Colonne', 'Libellé', 'Type de colonne', 'Formule', 'Relation vers', 'Texte de la formule', 'Choix', 'Description']];
-  for (const t of state.out.tables) {
-    rows.push([t.name, 'id', '', ID_TYPE_LABEL, 'non', '', '', '', '']);
-    for (const c of t.columns) {
-      const d = c.details || {};
-      rows.push([t.name, c.name, c.label || '', columnTypeLabel(c), c.isFormula ? 'oui' : d.trigger ? 'initialisation' : 'non',
-        c.ref ? c.ref.table : '', d.formula || '', (d.choices || []).join(', '), d.description || '']);
-    }
-  }
-  return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
+  }).join('')}</dl>${d.description ? '' : '<p class="fr-hint-text">Aucune description renseignée.</p>'}</details>`;
 }
 
 const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', improve: 'fr-icon-warning-line', choice: 'fr-icon-question-line', info: 'fr-icon-information-line', accepted: 'fr-icon-check-line' };
@@ -1073,7 +1071,7 @@ function renderReportSections() {
 async function schemaSnapshot() {
   const out = state.out;
   const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
-  const key = JSON.stringify([state.diagramKey || out.dbml, positions]);
+  const key = JSON.stringify([state.diagramKey || out.dbml, positions, Boolean(state.diagram.lookups)]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -1082,6 +1080,7 @@ async function schemaSnapshot() {
   const v = new ErdViewer(host);
   try {
     await v.setData(out.tables, { positions, detail: 'all' });
+    if (state.diagram.lookups) v.setLookups(documentLookups(), true);
     const blob = await v.toPng(2);
     const b = v.bounds();
     const png = new Uint8Array(await blob.arrayBuffer());
@@ -1103,6 +1102,7 @@ function reportContext(schema) {
     insights: state.insights,
     access: state.access,
     matrix: matrixData(),
+    schemaLookups: Boolean(state.diagram.lookups) && documentLookups().length > 0,
     profiles: state.profiles,
     pages: state.pages,
     dbml: state.out.dbml,
@@ -1163,7 +1163,7 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-svg', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'show-lookups', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
@@ -1187,6 +1187,8 @@ function renderDiagram() {
   const out = state.out;
   const body = els['schema-body'];
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
+  els['show-lookups'].checked = Boolean(state.diagram.lookups);
+  els['show-lookups-count'].textContent = state.out ? String(documentLookups().length) : '';
   body.classList.add('no-minimap');
   if (!out || !out.tables.length) {
     viewer?.destroy();
@@ -1196,18 +1198,28 @@ function renderDiagram() {
     updateDiagramControls(false);
     return Promise.resolve();
   }
-  const key = JSON.stringify(out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]));
+  const lookups = documentLookups();
+  const key = JSON.stringify([out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups]);
   if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
   const v = ensureViewer();
   updateDiagramControls(true);
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail })
+    .then(() => v.setLookups(lookups, state.diagram.lookups))
     .catch((err) => {
       console.error(err);
       toast(`Le schéma n'a pas pu être dessiné : ${err.message || err}`, 'error');
     });
   return diagramReady;
+}
+
+let lookupsCache = null;
+/** Lookups des formules du document (calculés une fois par lecture de la structure). */
+function documentLookups() {
+  if (!state.out) return [];
+  if (lookupsCache?.out !== state.out) lookupsCache = { out: state.out, list: findLookups(state.out.tables, state.schema) };
+  return lookupsCache.list;
 }
 
 async function showOnDiagram(name) {
@@ -1276,7 +1288,9 @@ function bindEvents() {
     els[id].addEventListener('change', () => { if (els[id].checked) { state.cols = els[id].value; renderTables(); } });
   }
   els['btn-csv'].addEventListener('click', () => {
-    if (state.out) downloadFile('colonnes-document.csv', columnsCsv(), 'text/csv;charset=utf-8');
+    if (!state.out) return;
+    downloadFile(`tables-${fileBase()}.xlsx`, tablesXlsx(state.out.tables, { docName: state.docName, date: new Date() }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast('Classeur Excel des tables téléchargé.');
   });
 
   // Droits d'accès
@@ -1341,8 +1355,19 @@ function bindEvents() {
   };
   els['find-table'].addEventListener('change', findTable);
   els['find-table'].addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); findTable(); } });
-  els['btn-svg'].addEventListener('click', () => {
-    if (viewer) downloadFile('schema-document.svg', viewer.toSvg(), 'image/svg+xml');
+  els['btn-png'].addEventListener('click', async () => {
+    if (!viewer) return;
+    try {
+      downloadFile(`schema-${fileBase()}.png`, await viewer.toPng(2), 'image/png');
+    } catch (err) {
+      console.error(err);
+      toast(`L'image n'a pas pu être produite : ${err.message || err}`, 'error');
+    }
+  });
+  els['show-lookups'].addEventListener('change', () => {
+    state.diagram = { ...state.diagram, lookups: els['show-lookups'].checked };
+    viewer?.setLookups(documentLookups(), state.diagram.lookups);
+    saveDiagramSoon();
   });
 
   // Onglets : clic et clavier (flèches, Début, Fin)
