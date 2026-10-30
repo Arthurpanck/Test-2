@@ -53,7 +53,8 @@ test('le rapport Word contient toutes les sections et les données du document',
   assert.ok(xml.includes('Aucun problème bloquant détecté'), 'verdict');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
   assert.ok(xml.includes('>Code DBML<') && xml.includes('Table '), 'section DBML à la fin');
-  assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple<') && xml.includes('>Date et Heure<'), 'types de colonnes en français');
+  assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple → ') && xml.includes('>Date et Heure'), 'types de colonnes en français');
+  assert.ok(['Colonne (nom en base)', 'Type SQLite', 'Type déclaré (Grist)', 'Calculé ?', '>Clé primaire<', '>INTEGER<', '>Donnée<'].every((x) => xml.includes(x)), 'format « Table pour exportation »');
   assert.ok(Object.keys(zip.files).some((f) => f.startsWith('word/media/')), 'image du schéma intégrée');
 });
 
@@ -89,7 +90,7 @@ test('document complexe : droits d\'accès, formules et détails dans le Word', 
   assert.ok(xml.includes('user.Habilitation'), 'attribut utilisateur');
   assert.ok(xml.includes('Fiches réservées au service RH.'), 'message de refus');
   assert.ok(xml.includes('>Refusé<') && xml.includes('>Autorisé<'), 'permissions en clair');
-  assert.ok(has(xml, 'Formule d\'initialisation') && xml.includes('NOW()'), 'formule d\'initialisation');
+  assert.ok(xml.includes('>Initialisé<') && xml.includes('NOW()'), 'formule d\'initialisation');
   assert.ok(xml.includes('quand cette colonne change : Statut'), 'déclenchement sur une colonne');
   assert.ok(xml.includes('Catégorie A · Catégorie B'), 'choix');
   assert.ok(xml.includes('choice.Service == $Projet.Service_pilote'), 'liste filtrée');
@@ -134,7 +135,7 @@ test('droits d\'accès : « Qui peut faire quoi ? » en paysage, cases colorées
   assert.ok(xml.includes('>Qui peut faire quoi ?<'), 'sous-titre');
   const sects = [...xml.matchAll(/<w:pgSz [^>]*>/g)].map((m) => m[0]);
   assert.ok(sects.some((x) => x.includes('w:orient="landscape"') && x.includes('w:w="16838"')), `page en paysage (${sects.join(' ')})`);
-  assert.ok(sects.filter((x) => x.includes('w:orient="landscape"')).length === 1 && sects.length >= 3, 'retour au portrait après la matrice');
+  assert.ok(sects.filter((x) => x.includes('w:orient="landscape"')).length === 2 && sects.length >= 5, 'tables et matrice en paysage, portrait entre les deux');
   assert.ok(xml.includes('w:fill="DFFEE6"') && xml.includes('w:fill="FFE9E9"') && xml.includes('w:fill="EEEEEE"'), 'cases vertes, rouges et grises');
   assert.ok(xml.includes('<w:gridSpan w:val="4"/>'), 'droits de structure sur quatre cases');
   assert.ok(xml.includes('>Habilitation.Role = « RH » · 7 services<') && xml.includes('>Tous les autres<'), 'groupes');
@@ -146,5 +147,5 @@ test('droits d\'accès : « Qui peut faire quoi ? » en paysage, cases colorées
   assert.ok(html.includes('doc__fill--ok') && html.includes('colspan="4"') && html.includes('doc__th-group'), 'aperçu HTML');
   // Sans règle : ni matrice ni paysage
   const plain = await docxXml(buildReport(context()));
-  assert.ok(!plain.xml.includes('w:orient="landscape"') && !plain.xml.includes('Qui peut faire quoi'));
+  assert.ok(!plain.xml.includes('Qui peut faire quoi'));
 });

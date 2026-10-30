@@ -9,10 +9,10 @@
  * - Export SVG (et PNG pour le rapport Word).
  */
 import {
-  edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.4.0';
-import { readTheme } from './report.js?v=3.4.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.4.0';
+  edgeGeometry, lookupGeometry, boundsOf, fitTransform, buildElkGraph,
+} from './erd-geometry.js?v=3.5.0';
+import { readTheme } from './report.js?v=3.5.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.5.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -103,6 +103,8 @@ export class ErdViewer {
     this.view = { x: 0, y: 0, k: 1 };
     this.nodes = new Map();
     this.edges = [];
+    this.lookups = []; // { source, column, target, kind: 'one' | 'records' } : dessinés seulement si showLookups
+    this.showLookups = false;
     this.positions = new Map(); // positions connues (mémorisées ou calculées)
     this.manual = false; // l'utilisateur a déplacé des tables
     this.detail = 'all';
@@ -137,7 +139,14 @@ export class ErdViewer {
           <div class="erd__legend-group">
             <span class="erd__legend-item"><svg class="erd__legend-edge" viewBox="0 0 32 14"><path d="M1 7h30M21 7 31 1.5M21 7 31 12.5"/><path class="erd__legend-side" d="M31.5 0v14"/></svg>plusieurs lignes</span>
             <span class="erd__legend-item"><svg class="erd__legend-edge" viewBox="0 0 32 14"><path d="M1 7h30M23 1.5v11"/><path class="erd__legend-side" d="M31.5 0v14"/></svg>une ligne</span>
-            <span class="erd__legend-item"><span class="erd__legend-swatch"></span>synthèse</span>
+          </div>
+          <div class="erd__legend-group">
+            <span class="erd__legend-item"><span class="erd__legend-swatch erd__legend-swatch--table"></span>table</span>
+            <span class="erd__legend-item"><span class="erd__legend-swatch"></span>table de synthèse</span>
+          </div>
+          <div class="erd__legend-group erd__legend-lookups">
+            <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--one" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>lookupOne</span>
+            <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--records" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>lookupRecords</span>
           </div>
         </div>
         <svg class="erd__minimap" role="img" aria-label="Mini-carte : cliquer pour centrer la vue"></svg>
@@ -265,6 +274,40 @@ export class ErdViewer {
         <path class="erd-edge__mark"/>
       </g>`).join('');
     this.edges.forEach((e, i) => { e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`); });
+    this.renderLookups();
+  }
+
+  /**
+   * Lookups (lookupOne, lookupRecords) trouvés dans les formules : de la colonne de formule vers la
+   * table cherchée. Ils ne comptent pas dans la disposition : les afficher ne déplace aucune table.
+   */
+  setLookups(lookups, show = this.showLookups) {
+    this.lookups = (lookups || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
+    this.showLookups = Boolean(show);
+    this.root.classList.toggle('erd--lookups', this.showLookups);
+    this.renderLookups();
+    this.drawEdges();
+    this.applyHighlight();
+  }
+
+  renderLookups() {
+    for (const g of this.edgeLayer.querySelectorAll('.erd-lookup')) g.remove();
+    if (!this.lookups.length) return;
+    // Plusieurs lookups entre deux mêmes tables : décalés pour rester distincts.
+    const pairs = new Map();
+    for (const l of this.lookups) {
+      const key = `${l.source}\u0000${l.target}`;
+      if (!pairs.has(key)) pairs.set(key, []);
+      pairs.get(key).push(l);
+    }
+    for (const group of pairs.values()) group.forEach((l, i) => { l.shift = 14 + i * 8; });
+    this.edgeLayer.insertAdjacentHTML('beforeend', this.lookups.map((l, i) => `
+      <g class="erd-lookup erd-lookup--${l.kind}" data-lookup="${i}">
+        <path class="erd-lookup__hit"><title>${esc(`${l.source}.${l.column} → ${l.target} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'})`)}</title></path>
+        <path class="erd-lookup__line"/>
+        <path class="erd-lookup__arrow"/>
+      </g>`).join(''));
+    this.lookups.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-lookup="${i}"]`); });
   }
 
   /** Mesure la taille de chaque table et la position de ses lignes ; vrai si quelque chose a changé. */
@@ -394,6 +437,24 @@ export class ErdViewer {
       line.setAttribute('d', g.path);
       mark.setAttribute('d', `${g.sourceMarker} ${g.targetMarker}`);
     }
+    if (this.showLookups) {
+      for (const l of this.lookups) {
+        if (onlyFor && l.source !== onlyFor && l.target !== onlyFor) continue;
+        const s = this.nodes.get(l.source);
+        const t = this.nodes.get(l.target);
+        if (!s || !t || !l.el) continue;
+        const g = lookupGeometry(
+          { x: s.x, y: s.y, w: s.w, h: s.h }, this.anchorY(s, l.column),
+          { x: t.x, y: t.y, w: t.w, h: t.h }, t.y + t.headY,
+          { shift: l.shift },
+        );
+        l.geometry = g;
+        const [hit, line, arrow] = l.el.querySelectorAll('path');
+        hit.setAttribute('d', g.path);
+        line.setAttribute('d', g.path);
+        arrow.setAttribute('d', g.arrow);
+      }
+    }
     this.sizeEdgeLayer();
   }
 
@@ -495,6 +556,18 @@ export class ErdViewer {
         linkedRows.add(`${e.target}\u0000id`);
       }
     }
+    for (const l of this.showLookups ? this.lookups : []) {
+      let on = false;
+      if (focus?.lookup !== undefined) on = this.lookups[focus.lookup] === l;
+      else if (focus?.column) on = l.source === focus.table && l.column === focus.column;
+      else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
+      l.el?.classList.toggle('is-active', on);
+      if (on) {
+        related.add(l.source); related.add(l.target);
+        linkedRows.add(`${l.source}\u0000${l.column}`);
+        active.push(l);
+      }
+    }
     if (focus?.table) related.add(focus.table);
     for (const n of this.nodes.values()) {
       n.el.classList.toggle('is-related', related.has(n.id));
@@ -585,11 +658,13 @@ export class ErdViewer {
     this.root.addEventListener('pointerover', (ev) => {
       if (drag?.moved) return;
       const edgeEl = ev.target.closest('.erd-edge');
+      const lookupEl = ev.target.closest('.erd-lookup');
       const nodeEl = ev.target.closest('.erd-node');
       let next = null;
       if (edgeEl) next = { edge: Number(edgeEl.dataset.edge) };
+      else if (lookupEl) next = { lookup: Number(lookupEl.dataset.lookup) };
       else if (nodeEl) {
-        const row = ev.target.closest('.erd-row--fk');
+        const row = ev.target.closest('.erd-row--fk, .erd-row--formula');
         next = row ? { table: nodeEl.dataset.id, column: row.dataset.col } : { table: nodeEl.dataset.id };
       }
       if (JSON.stringify(next) !== JSON.stringify(this.hover)) { this.hover = next; this.applyHighlight(); }
@@ -659,6 +734,7 @@ export class ErdViewer {
     const c = {
       bg: '#ffffff', border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
       ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
+      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const parts = [];
@@ -667,6 +743,12 @@ export class ErdViewer {
       if (!e.geometry) continue;
       parts.push(`<path d="${e.geometry.path}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
       parts.push(`<path d="${e.geometry.sourceMarker} ${e.geometry.targetMarker}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
+    }
+    for (const l of this.showLookups ? this.lookups : []) {
+      if (!l.geometry) continue;
+      const col = l.kind === 'one' ? c.lookupOne : c.lookupRecords;
+      parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${col}" stroke-width="1.75" stroke-dasharray="${l.kind === 'one' ? '7 4' : '2 3'}" stroke-linecap="round"/>`);
+      parts.push(`<path d="${l.geometry.arrow}" fill="${col}"/>`);
     }
     for (const n of this.nodes.values()) {
       const headH = n.el.firstElementChild.offsetHeight;

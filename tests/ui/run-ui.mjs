@@ -23,7 +23,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const tabs = await frame.locator('[role=tab]').allTextContents();
   check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Widgets,Analyse,Rapport', `ordre des onglets (${tabs.join(', ')})`);
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
-  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-png', '#btn-goto-report', '[data-goto-line]']) {
+  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-goto-report', '[data-goto-line]']) {
     check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
   }
   check(await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count() === 0, 'pas de bouton dbdiagram.io');
@@ -40,7 +40,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const barBox = await frame.locator('#tabpanel-schema .toolbar').boundingBox();
   check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, 'barre d\'outils collée sous les onglets');
   check(barBox.height < 72, `barre d'outils du schéma sur une seule ligne (${Math.round(barBox.height)} px)`);
-  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, input:not([type=radio]), .fr-segmented__elements)')]
+  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, input:not([type=radio]):not([type=checkbox]), .fr-segmented__elements, .toolbar__check)')]
     .filter((e) => e.offsetParent).map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { id: e.id || e.className, top: Math.round(r.top), h: Math.round(r.height), shadow: cs.boxShadow }; }));
   const tops = new Set(ctrl.map((c) => c.top));
   const heights = new Set(ctrl.map((c) => c.h));
@@ -70,9 +70,14 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(await frame.locator('.tbl').count() >= 2, 'recherche « service »');
   await frame.locator('#filter-input').fill('');
   await page.waitForTimeout(200);
-  const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
-  const csvText = await readFile(await csv.path(), 'utf8');
-  check(csvText.includes('Interventions;Echeance;;Référence;non;Dates_cles'), `export CSV des colonnes`);
+  check((await frame.locator('.tbl').first().locator('thead th').allTextContents()).join('|') === 'Colonne (nom en base)|Nom affiché|Type SQLite|Type déclaré (Grist)|Rôle|Calculé ?|Formule', 'tables : sept colonnes du modèle');
+  const echeance = await frame.locator('#tbl-Interventions tr', { hasText: 'Echeance' }).first().locator('td').allTextContents();
+  check(echeance[2] === 'INTEGER' && echeance[3].startsWith('Référence → Dates_cles') && echeance[4] === 'Donnée', `tables : ligne d'une référence (${echeance.slice(2, 5).join(' | ')})`);
+  check((await frame.locator('.tbl tr.is-key').first().locator('td').allTextContents()).slice(0, 5).join('|') === 'id||INTEGER||Clé primaire', 'tables : clé primaire');
+  const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
+  const xz = await JSZip.loadAsync(await readFile(await xl.path()));
+  const xs = await xz.file('xl/sharedStrings.xml').async('string');
+  check(xl.suggestedFilename().endsWith('.xlsx') && xs.includes('Type déclaré (Grist)') && xs.includes('Référence → Dates_cles') && Boolean(xz.file('xl/tables/table1.xml')), 'export Excel des tables');
   await shot(page, '03-tables.png');
   await frame.locator('.tbl').first().locator('[data-goto-schema]').click();
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'bouton Schéma d\'une carte');
@@ -145,12 +150,26 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#btn-zoom-fit').click();
   await page.waitForTimeout(300);
   await shot(page, '10-complexe-schema.png');
+  // Lookups : décochés par défaut, puis lookupOne et lookupRecords en deux couleurs
+  check(!(await frame.locator('#show-lookups').isChecked()) && await frame.locator('.erd--lookups').count() === 0 && (await frame.locator('#show-lookups-count').textContent()) === '6', 'schéma : lookups masqués par défaut (6 trouvés)');
+  await frame.locator('label[for="show-lookups"]').click();
+  await page.waitForTimeout(300);
+  const lk = await frame.evaluate(() => ({
+    one: document.querySelectorAll('.erd-lookup--one').length, records: document.querySelectorAll('.erd-lookup--records').length,
+    drawn: [...document.querySelectorAll('.erd-lookup__line')].every((p) => (p.getAttribute('d') || '').startsWith('M')),
+    colors: [...new Set([...document.querySelectorAll('.erd-lookup__line')].map((p) => getComputedStyle(p).stroke))].length,
+    legend: getComputedStyle(document.querySelector('.erd__legend-lookups')).display,
+  }));
+  check(lk.one === 1 && lk.records === 5 && lk.drawn && lk.colors === 2 && lk.legend === 'flex', `schéma : lookups affichés (${JSON.stringify(lk)})`);
+  await page.waitForTimeout(1000);
+  check(await frame.evaluate(() => window.__options.diagram?.lookups) === true, 'schéma : choix des lookups mémorisé');
+  await shot(page, '10b-complexe-lookups.png');
 
   // Tables : détails
   await frame.locator('#tab-tables').click();
   check(await frame.locator('#btn-details').count() === 0 && await frame.locator('#btn-minimap').count() === 0, 'plus de boutons Détails ni Mini-carte');
   const agents = await frame.locator('#tbl-Agents').textContent();
-  check(agents.includes('Formule d\'initialisation') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'), 'complexe : formule d\'initialisation et déclenchement');
+  check(agents.includes('Initialisé') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'), 'complexe : formule d\'initialisation et déclenchement');
   check(agents.includes('Catégorie A') && agents.includes('Une ligne par agent'), 'complexe : choix et description de table');
   check((await frame.locator('#tbl-Taches').textContent()).includes('choice.Service == $Projet.Service_pilote'), 'complexe : liste filtrée');
   await frame.locator('[data-index-table="Taches"]').click();
@@ -203,7 +222,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await dl.saveAs(path.join(outDir, 'rapport-complexe.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport-complexe.docx')));
   const xml = await zip.file('word/document.xml').async('string');
-  check(xml.includes('user.Habilitation') && xml.includes('Formule d'), 'rapport complexe : droits d\'accès et formules');
+  check(xml.includes('user.Habilitation') && xml.includes('>Initialisé<'), 'rapport complexe : droits d\'accès et formules');
   check(errors.length === 0, `complexe : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }

@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.4.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.4.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.5.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.5.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.4.0"></script>
+  <script type="module" src="assets/app.js?v=3.5.0"></script>
 </head>
 <body>
   <div class="app">
@@ -67,8 +67,11 @@
           <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
           <datalist id="find-table-list"></datalist>
         </div>
+        <label class="toolbar__check" for="show-lookups" title="Affiche les lookupOne (orange) et lookupRecords (vert) écrits dans les formules">
+          <input type="checkbox" id="show-lookups"><span class="toolbar__check-box" aria-hidden="true"></span>Lookups<span class="toolbar__check-count" id="show-lookups-count"></span>
+        </label>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-file-download-line toolbar__collapse" id="btn-svg" type="button" title="Télécharger le schéma en SVG">Exporter en SVG</button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-file-download-line toolbar__collapse" id="btn-png" type="button" title="Télécharger le schéma en image PNG">Exporter en PNG</button>
         </div>
       </div>
       <div class="page__body page__body--flush diagram" id="schema-body"></div>
@@ -94,7 +97,7 @@
           </fieldset>
         </div>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-csv" type="button">Exporter les colonnes (CSV)</button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-csv" type="button">Exporter les tables (Excel)</button>
         </div>
       </div>
       <div class="page__body" id="tables-body"></div>

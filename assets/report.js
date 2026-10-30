@@ -12,12 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.4.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.4.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.4.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.4.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.4.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.4.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.5.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.5.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.5.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.5.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.5.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.5.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.5.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -32,6 +33,7 @@ export const THEME_KEYS = {
   type: '#18753c', formula: '#a558a0', key: '#b34000',
   blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
   neutral: '#3a3a3a', fillOk: '#dffee6', fillKo: '#ffe9e9', fillUk: '#eeeeee',
+  lookupOne: '#d64d00', lookupRecords: '#009081',
 };
 /** Cases colorées (matrice des droits) : fond et texte. */
 const FILLS = { ok: ['fillOk', 'ready'], ko: ['fillKo', 'blocking'], uk: ['fillUk', 'neutral'], surface: ['surface', 'text'] };
@@ -193,14 +195,16 @@ export const REPORT_SECTIONS = [
       if (!ctx.schema) return [{ type: 'paragraph', text: 'Le schéma n\'a pas pu être dessiné.', color: 'muted' }];
       return [
         { type: 'image', png: ctx.schema.png, width: ctx.schema.width, height: ctx.schema.height, alt: 'Schéma des tables et de leurs relations' },
-        { type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : chaque carte est une table, la première ligne est sa clé « id ». Un trait relie une colonne de référence à la table visée ; la patte d\'oie marque le côté « plusieurs ». Les colonnes de formule sont précédées de « ƒ ».' },
+        { type: 'paragraph', color: 'muted', size: 'small', text: `Lecture : chaque carte est une table (en-tête bleu ; violet pour une table de synthèse), la première ligne est sa clé « id ». Un trait relie une colonne de référence à la table visée ; la patte d'oie marque le côté « plusieurs lignes », la barre le côté « une ligne ». Les colonnes de formule sont précédées de « ƒ ».${ctx.schemaLookups ? ' Lookups des formules : orange tireté pour lookupOne, vert pointillé pour lookupRecords, flèche vers la table cherchée.' : ''}` },
       ];
     },
   },
   {
     id: 'tables',
     title: 'Tables et colonnes',
-    description: 'Chaque table avec ses colonnes, leurs types, leurs liens, formules et choix',
+    description: 'Chaque table colonne par colonne : nom en base, nom affiché, types SQLite et Grist, rôle, formule',
+    // Sept colonnes, formules comprises : pages en paysage.
+    landscapeStart: () => true,
     build(ctx) {
       const blocks = [];
       const rel = relationsOf(ctx.tables);
@@ -208,19 +212,28 @@ export const REPORT_SECTIONS = [
         const refs = rel.filter((r) => r.to === t.name).map((r) => `${r.from}.${r.column}`);
         blocks.push({ type: 'heading', level: 2, text: t.kind === 'summary' ? `${t.name} (synthèse)` : t.name });
         if (t.description) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: t.description });
-        blocks.push({ type: 'table', header: t.kind === 'summary' ? 'summary' : 'primary',
-          columns: [{ label: 'Colonne', width: 24 }, { label: 'Type', width: 18 }, { label: 'Lien vers', width: 18 }, { label: 'Détails', width: 40 }],
-          rows: [
-            [{ text: 'id', bold: true }, { text: ID_TYPE_LABEL, color: 'type' }, '', { text: 'Clé de la ligne', color: 'muted' }],
-            ...t.columns.map((c) => [
-              { lines: [{ text: c.name, bold: true }, ...(c.label && c.label !== c.name ? [{ text: c.label, color: 'muted' }] : [])] },
-              { lines: [{ text: columnTypeLabel(c), color: c.isFormula ? 'formula' : 'type' }, ...(c.isFormula ? [{ text: 'formule', color: 'formula' }] : [])] },
-              c.ref ? `${c.ref.table}${c.ref.kind === '<>' ? ' (plusieurs)' : ''}` : '',
-              { lines: detailLines(c, { includeLabel: false }).map((d) => ({ label: d.label, text: d.text, mono: d.mono })) },
-            ]),
-          ] });
+        const rows = tableRows(t);
+        blocks.push({ type: 'table', size: 'small', header: t.kind === 'summary' ? 'summary' : 'primary',
+          columns: TABLE_COLUMNS.map((label, i) => ({ label, width: [15, 14, 8, 15, 9, 7, 32][i] })),
+          rows: rows.map((r) => [
+            { text: r.name, bold: r.isKey },
+            r.label,
+            { text: r.sqlite, mono: true },
+            { text: r.declared.text, color: r.column?.isFormula ? 'formula' : 'type' },
+            r.role,
+            { text: r.computed, color: 'formula', bold: Boolean(r.computed) },
+            r.formula ? { text: r.formula, mono: true } : '',
+          ]) });
+        // Ce que le modèle n'a pas de colonne pour : choix, liste filtrée, déclenchement, description.
+        const extras = [];
+        for (const c of t.columns) {
+          const lines = detailLines(c, { includeLabel: false }).filter((l) => !['Formule', 'Formule d\'initialisation'].includes(l.label));
+          if (lines.length) extras.push(`${c.name} — ${lines.map((l) => `${l.label.toLowerCase()} : ${l.text}`).join(' ; ')}`);
+        }
+        if (extras.length) blocks.push({ type: 'list', items: extras });
         if (refs.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Référencée par : ${refs.join(', ')}.` });
       }
+      blocks.push({ type: 'orientation', landscape: false });
       return blocks;
     },
   },
@@ -505,6 +518,12 @@ export function renderDocx(blocks, theme, d) {
     color: r.color ? color(r.color) : base.color, size: base.size,
     font: r.mono ? theme.mono : undefined,
   });
+  // Texte sur plusieurs lignes (formules) : un saut de ligne Word par retour à la ligne.
+  const runs = (r, base = {}) => String(r.text ?? '').split('\n').map((line, i) => new d.TextRun({
+    text: line, break: i ? 1 : undefined, bold: r.bold || base.bold, italics: r.italic,
+    color: r.color ? color(r.color) : base.color, size: base.size,
+    font: r.mono ? theme.mono : undefined,
+  }));
   const thinBorder = { style: d.BorderStyle.SINGLE, size: 4, color: color('border') };
   const borders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
   // Sections Word : une nouvelle à chaque changement d'orientation (matrice des droits en paysage).
@@ -609,7 +628,7 @@ export function renderDocx(blocks, theme, d) {
                 run(l, { size: small ? pt(8) : pt(l.mono ? 9 : 10) }),
               ],
             }))
-            : [new d.Paragraph({ alignment, indent, children: [run({ ...c, color: head ? undefined : (fill ? fill[1] : c.color) }, { color: head ? hex(theme.onPrimary) : undefined, size: textSize, bold: head })] })];
+            : [new d.Paragraph({ alignment, indent, children: runs({ ...c, color: head ? undefined : (fill ? fill[1] : c.color) }, { color: head ? hex(theme.onPrimary) : undefined, size: c.mono && !head ? textSize - 1 : textSize, bold: head }) })];
           return new d.TableCell({
             width: { size: w, type: d.WidthType.PERCENTAGE },
             columnSpan: span > 1 ? span : undefined,
@@ -689,6 +708,8 @@ export function renderDocx(blocks, theme, d) {
         }
         break;
       case 'pagebreak': {
+        // Juste après un saut de section (nouvelle page), un saut de page laisserait une page blanche.
+        if (!sections[sections.length - 1].children.length) break;
         const p = new d.Paragraph({ children: [new d.PageBreak()] });
         pageBreaks.add(p);
         children.push(p);
