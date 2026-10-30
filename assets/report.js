@@ -12,11 +12,12 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.3.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.3.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.3.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.3.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.3.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.4.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.4.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.4.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.4.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.4.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.4.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -81,7 +82,7 @@ export function generalRows(a) {
       : 'Propriétaires et éditeurs (réglage par défaut de Grist). Les éditeurs peuvent aussi écrire des formules.',
   ]];
   for (const sp of a.special) {
-    if (sp.id === 'SeedRules' || sp.id === 'SchemaEdit') continue;
+    if (sp.id === 'SchemaEdit') continue;
     const who = sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text);
     rows.push([{ text: sp.label, bold: true }, who.length ? `${sp.allowed} Personnes visées : ${who.join(' ; ')}.` : sp.byDefault]);
   }
@@ -328,7 +329,16 @@ export const REPORT_SECTIONS = [
         blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Points marqués « C\'est voulu » dans le widget.' });
         blocks.push({ type: 'list', items: accepted.map((it) => `${it.title} — ${it.targets.map((t) => targetLabel(t)).join(', ')}`) });
       }
-      if (ctx.insights.audit) { blocks.push({type:'heading',level:2,text:'Couverture des contrôles détaillés'}); blocks.push({type:'list',items:ctx.insights.audit.checks.map(c=>`${c.id} — ${c.state} : ${c.reason}`)}); }
+      if (ctx.insights.audit) {
+        const STATE = { detected: 'constat trouvé', limited: 'examiné en partie', checked: 'examiné, rien trouvé', unavailable: 'impossible à vérifier ici' };
+        const title = (id) => AUDIT_CATALOG.find((c) => c.id === id)?.title || id;
+        blocks.push({ type: 'heading', level: 2, text: 'Ce que l\'analyse a examiné' });
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Vérifications détaillées et leur résultat sur ce document. Données : au plus 2 000 lignes par table et 100 000 cellules en tout.' });
+        blocks.push({ type: 'table', columns: [{ label: 'Vérification', width: 44 }, { label: 'Résultat', width: 20 }, { label: 'Précision', width: 36 }],
+          rows: ctx.insights.audit.checks.map((c) => [{ lines: [{ text: title(c.id), bold: true }, { text: c.id, color: 'muted' }] },
+            { text: STATE[c.state] || c.state, color: c.state === 'detected' ? 'blocking' : c.state === 'checked' ? 'ready' : 'muted' },
+            { text: c.state === 'checked' ? '' : c.reason, color: 'muted' }]) });
+      }
       blocks.push({ type: 'heading', level: 2, text: 'Ce qui a été vérifié' });
       blocks.push({ type: 'list', plain: true, items: checks.map((c) => `${c.ok ? '✓' : '✗'}  ${c.label}`) });
       return blocks;

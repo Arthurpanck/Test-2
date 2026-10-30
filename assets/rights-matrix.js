@@ -10,7 +10,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.3.0';
+import { columnarToRows } from './converter.js?v=3.4.0';
 
 export const ACTIONS = [['R', 'Lire'], ['U', 'Modifier'], ['C', 'Créer'], ['D', 'Supprimer']];
 const ACTION_LABEL = { R: 'Lire', U: 'Modifier', C: 'Créer', D: 'Supprimer', S: 'Structure' };
@@ -97,9 +97,12 @@ function asCond(v) {
 function mergeCond(a, b) {
   const x = asCond(a), y = asCond(b);
   const parts = [x, y].filter(isSym);
+  const rows = uniq(parts.flatMap((p) => p.rows));
   return sym(COND, {
-    rows: uniq(parts.flatMap((p) => p.rows)),
-    profile: uniq(parts.flatMap((p) => p.profile)),
+    rows,
+    // « user.Droits.SRH and rec.X == user.Droits.SRH » : la ligne demande déjà le SRH de la personne,
+    // le critère de profil sur la même colonne n'ajoute rien (pas de « SRH + SRH »).
+    profile: uniq(parts.flatMap((p) => p.profile)).filter((p) => !rows.includes(p)),
     unknown: parts.some((p) => p.unknown),
     sources: uniq(parts.flatMap((p) => p.sources)),
   });
@@ -428,7 +431,7 @@ export function ruleEffect(rule) {
   const crud = (ks) => ['R', 'U', 'C', 'D'].every((k) => ks.includes(k));
   if (!off.length && crud(on)) return 'autorise tout';
   if (!on.length && crud(off)) return 'refuse tout';
-  if (on.length && !off.length) return `${names(on)} seulement`;
+  if (on.length && !off.length) return `autorise ${names(on)}`;
   if (off.length && !on.length) return `refuse ${names(off)}`;
   return `autorise ${names(on)} ; refuse ${names(off)}`;
 }

@@ -1,18 +1,19 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.3.0';
-import { ErdViewer } from './erd.js?v=3.3.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.3.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.3.0';
-import { profileTables } from './datacheck.js?v=3.3.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.3.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.3.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.3.0';
-import { matrixXlsx } from './rights-export.js?v=3.3.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.4.0';
+import { ErdViewer } from './erd.js?v=3.4.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.4.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.4.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.4.0';
+import { profileTables } from './datacheck.js?v=3.4.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.4.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.4.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.4.0';
+import { matrixXlsx } from './rights-export.js?v=3.4.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.3.0';
+} from './rights-matrix.js?v=3.4.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.3.0';
+} from './report.js?v=3.4.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -63,13 +64,13 @@ const state = {
   level: 'all',
   area: 'all', // domaine des constats affichés
   analysisFilter: '',
-  auditOpen: false, // panneau « Périmètre des contrôles »
+  auditOpen: false, // panneau « Ce que l'analyse a examiné »
   widgetsFilter: '',
   wkind: 'all',
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'all', positions: null }, // mémorisé dans les options du widget
+  diagram: { detail: 'keys', positions: null }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -256,8 +257,12 @@ function applyOptions(options) {
   if (Array.isArray(options?.accepted)) state.accepted = new Set(options.accepted.map(String));
   const d = options?.diagram;
   if (d && typeof d === 'object') {
+    // Le détail enregistré ne compte que s'il a été choisi (avant la 3.3, « Colonnes » était
+    // enregistré d'office avec la disposition) : sinon « Relations », le réglage par défaut.
+    const chosen = d.detailChosen && ['all', 'keys', 'tables'].includes(d.detail);
     state.diagram = {
-      detail: ['all', 'keys', 'tables'].includes(d.detail) ? d.detail : 'all',
+      detail: chosen ? d.detail : 'keys',
+      ...(chosen ? { detailChosen: true } : {}),
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
     };
   }
@@ -439,7 +444,7 @@ function renderTables() {
   }).join('');
   const index = `<nav class="tables-index" aria-label="Index des tables">
       <p class="tables-index__head">${esc(plural(visible.length, 'table', 'tables'))}</p>
-      <ul>${visible.map((t) => `<li><button type="button" data-index-table="${esc(t.name)}"${t.kind === 'summary' ? ' class="is-summary"' : ''}>${esc(t.name)}<span>${t.columns.length + 1}</span></button></li>`).join('')}</ul>
+      <ul>${visible.map((t) => `<li><button type="button" data-index-table="${esc(t.name)}"${t.kind === 'summary' ? ' class="is-summary"' : ''}><span class="tables-index__name">${esc(t.name).replace(/_/g, '_<wbr>')}</span><span>${t.columns.length + 1}</span></button></li>`).join('')}</ul>
     </nav>`;
   els['tables-body'].innerHTML = `<div class="view">${header}<div class="tables-layout">${index}<div class="tables-list">${cards}</div></div></div>`;
   updateTablesIndex();
@@ -499,10 +504,28 @@ function auditCoverageText(audit) {
   return parts.join(' · ');
 }
 
-/** Panneau « Périmètre des contrôles », ouvert depuis la barre d'outils. */
+/**
+ * Panneau « Ce que l'analyse a examiné », ouvert depuis la barre d'outils : chaque vérification
+ * détaillée (catalogue N01…X13), en clair, rangée selon son résultat sur ce document.
+ */
+const AUDIT_STATES = [
+  ['detected', 'Un constat a été trouvé', 'Voir la carte correspondante dans la liste.'],
+  ['limited', 'Examiné en partie', 'La vérification a porté sur un échantillon ou a atteint une limite : l\'absence de constat ne vaut pas garantie.'],
+  ['checked', 'Examiné, rien trouvé', ''],
+  ['unavailable', 'Impossible à vérifier ici', 'Une information manquait (table illisible, métadonnée absente…).'],
+];
 function auditConfigurationPanel(audit) {
- if(!audit)return '';
- return `<section class="audit-panel" id="audit-panel" aria-labelledby="audit-panel-title"><div class="audit-panel__head"><h3 id="audit-panel-title">Périmètre des contrôles</h3><button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" data-action="audit-close">Fermer</button></div><p>Les contrôles métier retirés ne sont plus calculés. Les contrôles de données utilisent au plus 2 000 lignes par table et 100 000 cellules au total. Les espaces, listes textuelles, mélanges de types et formats numériques examinent au plus 200 cellules par colonne. Les tables sont encore récupérées intégralement avant échantillonnage.</p><ul>${audit.checks.map(c=>`<li>${esc(c.id)} — ${esc(({detected:'Constat observé',checked:'Examiné sans signal',unavailable:'Non vérifiable',limited:'Vérification limitée'})[c.state]||c.state)} : ${esc(c.reason)}</li>`).join('')}</ul></section>`;
+  if (!audit) return '';
+  const title = (id) => AUDIT_CATALOG.find((c) => c.id === id)?.title || id;
+  const groups = AUDIT_STATES.map(([state, label, hint]) => {
+    const list = audit.checks.filter((c) => c.state === state);
+    if (!list.length) return '';
+    return `<div class="audit-panel__group"><p class="audit-panel__label">${esc(label)} <span class="count">${list.length}</span></p>${hint ? `<p class="audit-panel__hint">${esc(hint)}</p>` : ''}
+      <ul>${list.map((c) => `<li><strong>${esc(title(c.id))}</strong> <span class="audit-panel__id">${esc(c.id)}</span>${state === 'checked' ? '' : `<br><span class="audit-panel__reason">${esc(c.reason)}</span>`}</li>`).join('')}</ul></div>`;
+  }).join('');
+  return `<section class="audit-panel" id="audit-panel" aria-labelledby="audit-panel-title"><div class="audit-panel__head"><h3 id="audit-panel-title">Ce que l'analyse a examiné</h3><button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" data-action="audit-close">Fermer</button></div>
+    <p>L'analyse lance ${audit.checks.length} vérifications détaillées sur la structure, les formules, les droits d'accès et un échantillon des données. Sur les données, elle lit au plus 2 000 lignes par table et 100 000 cellules en tout ; les vérifications sur le texte regardent au plus 200 cellules par colonne. Voici le résultat de chacune.</p>
+    <div class="audit-panel__groups">${groups}</div></section>`;
 }
 
 const LEVEL_TILES = [
@@ -529,7 +552,7 @@ function renderAnalysis() {
   const toConfigure = ins.audit ? ins.audit.checks.filter((c) => c.state === 'configuration').length : 0;
   const auditBtn = els['btn-audit-settings'];
   auditBtn.disabled = !ins.audit;
-  auditBtn.textContent = toConfigure ? `Périmètre des contrôles · ${toConfigure} à configurer` : 'Périmètre des contrôles';
+  auditBtn.textContent = toConfigure ? `Ce qui a été examiné · ${toConfigure} à configurer` : 'Ce qui a été examiné';
   auditBtn.setAttribute('aria-expanded', String(state.auditOpen));
 
   const known = new Set(state.out.tables.map((t) => t.name));
@@ -606,12 +629,12 @@ function renderAnalysis() {
   els['analysis-body'].innerHTML = `<div class="view">${verdict}${state.auditOpen ? auditConfigurationPanel(ins.audit) : ''}
     <div class="analysis">
       <div class="insights"><p class="insights__title">${esc(listTitle)}</p>${list}</div>
-      <details class="coverage"${coverageOpen() ? ' open' : ''}><summary class="coverage__head"><span><span class="coverage__title">Couverture des contrôles</span>
-        <span class="coverage__sub">${esc(plural(ins.checks.length, 'contrôle', 'contrôles'))} · ${esc(plural(okCount, 'sans constat', 'sans constat'))}</span></span></summary><ul>${checks}</ul></details>
+      <details class="coverage"${coverageOpen() ? ' open' : ''}><summary class="coverage__head"><span><span class="coverage__title">Vérifications principales</span>
+        <span class="coverage__sub">${esc(plural(ins.checks.length, 'vérification', 'vérifications'))} · ${esc(plural(okCount, 'sans constat', 'sans constat'))}</span></span></summary><ul>${checks}</ul></details>
     </div></div>`;
 }
 
-/** Couverture des contrôles : ouverte à côté des constats, repliée quand elle passe au-dessus (widget étroit). */
+/** Vérifications principales : ouvertes à côté des constats, repliée quand elle passe au-dessus (widget étroit). */
 function coverageOpen() {
   const el = els['analysis-body'].querySelector('.coverage');
   if (el) return el.open;
@@ -660,6 +683,22 @@ function accessMatches(q, ...values) {
 }
 
 const SETTING_KIND = { success: 'ok', warning: 'improve', info: 'info' };
+
+/** « autorise tout », « autorise lire et modifier », « refuse supprimer »… d'une règle lue par buildAccess(). */
+function permsText(r) {
+  const names = (bits) => bits.map((b) => PERMISSION_LABEL[b].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' et $1');
+  const on = Object.keys(r.perms).filter((b) => r.perms[b] === 'allow'), off = Object.keys(r.perms).filter((b) => r.perms[b] === 'deny');
+  if (on.length >= 4 && !off.length) return 'tout autorisé';
+  if (off.length >= 4 && !on.length) return 'tout refusé';
+  return [on.length ? `autorise ${names(on)}` : '', off.length ? `refuse ${names(off)}` : ''].filter(Boolean).join(', ');
+}
+
+/** Structure restreinte : qui la refuse, et à qui elle reste permise. */
+function structureText(a) {
+  const deny = a.defaults.filter((r) => r.perms.S === 'deny').map((r) => r.who.text);
+  const allow = a.defaults.filter((r) => r.perms.S === 'allow').map((r) => r.who.text);
+  return `Une règle par défaut refuse de modifier tables, colonnes et formules (permission Structure) : ${deny.join(' ; ')}.${allow.length ? ` Elle reste permise à : ${allow.join(' ; ')}.` : ''}`;
+}
 
 /** Nom de fichier tiré du nom du document (sans accents ni ponctuation). */
 const fileBase = () => (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'document';
@@ -755,7 +794,7 @@ function rightsMatrixHtml() {
           <button type="button" data-matrix-detail="tables" aria-pressed="${!showCols}">Par table</button>
           <button type="button" data-matrix-detail="columns" aria-pressed="${showCols}">Par table et par colonne</button>
         </div>
-        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-download-line mx__export" data-matrix-xlsx="1"
+        <button type="button" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line mx__export" data-matrix-xlsx="1"
           title="Matrice, détail de chaque case (filtrable) et paramètres de lecture">Exporter en Excel</button></div>
       <div class="mx__scroll" role="region" aria-label="Droits par rôle métier et par action" tabindex="0" style="${gridVars}">${head}${body}</div>
       <div class="mx__detail" aria-live="polite"${detail ? '' : ' hidden'}>${detail}</div>
@@ -822,7 +861,7 @@ function renderAccess() {
   settings.push({
     name: 'Modifier la structure',
     badge: a.structureRestricted ? ['success', 'Restreinte'] : [a.restrictsRead ? 'warning' : 'info', 'Éditeurs autorisés'],
-    text: a.structureRestricted ? 'Les droits d’accès par défaut refusent la permission Structure.' : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
+    text: a.structureRestricted ? structureText(a) : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
   });
   for (const id of ['FullCopies', 'AccessRules']) {
     const sp = a.special.find((x) => x.id === id);
@@ -834,7 +873,12 @@ function renderAccess() {
     });
   }
   for (const sp of a.special.filter((x) => !['FullCopies', 'AccessRules'].includes(x.id))) {
-    settings.push({ name: sp.label, badge: ['info', 'Défini'], text: sp.allowed });
+    const seed = sp.id === 'SeedRule' || sp.id === 'SeedRules';
+    settings.push({
+      name: sp.label,
+      badge: ['info', seed ? 'Activé' : 'Défini'],
+      text: seed && sp.rules.length ? `${sp.allowed} Règle ajoutée : ${sp.rules.map((r) => `${r.who.text}, ${permsText(r)}`).join(' ; ')}. C'est pourquoi chaque table protégée commence par une règle pour les propriétaires.` : sp.allowed,
+    });
   }
   const settingsHtml = `<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
     <div class="card">${settings.map((x) => `<div class="settings-row"><p class="settings-row__name">${esc(x.name)}</p>
@@ -1284,7 +1328,7 @@ function bindEvents() {
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) {
     els[id].addEventListener('change', () => {
       if (!els[id].checked) return;
-      state.diagram = { ...state.diagram, detail: els[id].value };
+      state.diagram = { ...state.diagram, detail: els[id].value, detailChosen: true };
       viewer?.setDetail(els[id].value);
       saveDiagramSoon();
     });

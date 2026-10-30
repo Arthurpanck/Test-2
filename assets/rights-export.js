@@ -3,41 +3,54 @@
  * détail filtrable (une ligne par case) et les paramètres de lecture.
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
-import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.3.0';
-import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.3.0';
+import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.4.0';
+import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.4.0';
 
-const BLUE = '000091', BLUE_LIGHT = 'E3E3FD', GREY = 'F6F6F6', BORDER = 'DDDDDD';
+const BLUE = '000091', GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD', WHITE = 'FFFFFF';
 const TONE = { ok: ['DFFEE6', '18753C'], ko: ['FFE9E9', 'CE0500'], uk: ['EEEEEE', '3A3A3A'] };
 
+// Feuille « Qui peut faire quoi » : le rendu de la vue « Par table et par colonne » de l'onglet Accès
+// (en-têtes gris, colonnes en retrait, cases en badges séparés par un liseré blanc).
 const STYLES = {
-  title: { font: { bold: true, size: 16, color: BLUE } },
+  title: { font: { bold: true, size: 16, color: '161616' } },
   subtitle: { font: { size: 10, color: '666666' } },
-  note: { font: { size: 10, color: '3A3A3A' }, align: { wrap: true, v: 'top' } },
-  corner: { font: { bold: true, size: 10, color: 'FFFFFF' }, fill: BLUE, border: BORDER, align: { v: 'bottom' } },
-  group: { font: { bold: true, size: 11, color: 'FFFFFF' }, fill: BLUE, border: BORDER, align: { v: 'center', wrap: true } },
-  head: { font: { bold: true, size: 10, color: BLUE }, fill: BLUE_LIGHT, border: BORDER, align: { v: 'center', wrap: true } },
-  headCenter: { font: { bold: true, size: 10, color: BLUE }, fill: BLUE_LIGHT, border: BORDER, align: { h: 'center', v: 'center', wrap: true } },
-  structure: { font: { bold: true, size: 10 }, fill: GREY, border: BORDER, align: { v: 'center', wrap: true } },
-  level: { font: { size: 10, color: '666666' }, border: BORDER, align: { v: 'center' } },
-  table: { font: { bold: true, size: 10 }, border: BORDER, align: { v: 'center' } },
-  tableMuted: { font: { size: 10, color: '666666' }, border: BORDER, align: { v: 'center' } },
-  column: { font: { size: 10, color: '3A3A3A' }, border: BORDER, align: { v: 'center' } },
-  empty: { border: BORDER },
-  na: { font: { size: 10, color: '929292' }, border: BORDER, align: { h: 'center', v: 'center' } },
-  text: { font: { size: 10 }, border: BORDER, align: { v: 'top', wrap: true } },
-  textMuted: { font: { size: 10, color: '3A3A3A' }, border: BORDER, align: { v: 'top', wrap: true } },
-  mono: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: BORDER, align: { v: 'top', wrap: true } },
-  key: { font: { bold: true, size: 10 }, border: BORDER, fill: GREY, align: { v: 'top', wrap: true } },
-  ...Object.fromEntries(Object.entries(TONE).flatMap(([k, [fill, color]]) => [
-    [k, { font: { bold: true, size: 10, color }, fill, border: BORDER, align: { h: 'center', v: 'center', wrap: true } }],
-    [`${k}Left`, { font: { bold: true, size: 10, color }, fill, border: BORDER, align: { v: 'top', wrap: true } }],
-  ])),
+  note: { font: { size: 10, color: '666666' }, align: { wrap: true, v: 'top' } },
+  hGroup: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { top: EDGE } },
+  hGroupEdge: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { top: EDGE, left: EDGE } },
+  hSub: { font: { size: 9, color: '666666' }, fill: GREY },
+  hSubEdge: { font: { size: 9, color: '666666' }, fill: GREY, border: { left: EDGE } },
+  hLabel: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'bottom' } },
+  hAction: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE }, align: { h: 'center', v: 'center' } },
+  hActionEdge: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE, left: EDGE }, align: { h: 'center', v: 'center' } },
+  sLabel: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
+  sSub: { font: { size: 9, color: '666666' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
+  table: { font: { bold: true, size: 11, color: '161616' }, border: { bottom: LINE }, align: { v: 'center' } },
+  tableFaint: { font: { size: 9, color: '929292' }, border: { bottom: LINE }, align: { v: 'center' } },
+  column: { font: { size: 10, color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'center', indent: 2 } },
+  blank: { border: { bottom: LINE } },
+  na: { font: { size: 10, color: '929292' }, border: { bottom: LINE }, align: { h: 'center', v: 'center' } },
+  naEdge: { font: { size: 10, color: '929292' }, border: { bottom: LINE, left: EDGE }, align: { h: 'center', v: 'center' } },
+  // Feuilles « Détail par case » et « Paramètres »
+  head: { font: { bold: true, size: 10, color: '161616' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center', wrap: true } },
+  text: { font: { size: 10 }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  textMuted: { font: { size: 10, color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  mono: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  key: { font: { bold: true, size: 10 }, border: { bottom: LINE }, fill: GREY, align: { v: 'top', wrap: true } },
+  ...Object.fromEntries(Object.entries(TONE).flatMap(([k, [fill, color]]) => {
+    const font = { bold: true, size: 9, color };
+    return [
+      [k, { font, fill, border: { all: WHITE, style: 'medium' }, align: { h: 'center', v: 'center', wrap: true } }],
+      [`${k}Wide`, { font, fill, border: { top: WHITE, bottom: WHITE, style: 'medium' }, align: { h: 'centerContinuous', v: 'center' } }],
+      [`${k}Left`, { font: { bold: true, size: 10, color }, fill, border: { bottom: LINE }, align: { v: 'top', wrap: true } }],
+    ];
+  })),
 };
 
 /** Texte complet de la case (sans « … » : toutes les colonnes qui décident). */
 const fullText = (c) => ({ allow: 'Oui', deny: 'Non', unknown: '?', na: '—' }[c.state] ?? c.labels.join(' + '));
 const tone = (c) => (c.state === 'allow' || c.state === 'rows-allow' ? 'ok' : c.state === 'deny' || c.state === 'rows-deny' ? 'ko' : c.state === 'na' ? 'na' : 'uk');
-const valueCell = (c, align = 'center') => (c.state === 'na' ? { v: '—', s: 'na' } : { v: fullText(c), s: align === 'left' ? `${tone(c)}Left` : tone(c) });
+/** Case de la matrice, en badge (MAJUSCULES comme dans le widget). */
+const badgeCell = (c, edge) => (c.state === 'na' ? { v: '—', s: edge ? 'naEdge' : 'na' } : { v: fullText(c).toUpperCase(), s: tone(c) });
 const fmtDate = (d) => `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 
 export const MATRIX_HELP = 'Pour chaque rôle métier, ce que permettent les règles. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne. En rouge : oui, sauf sur ces lignes. « ? » : condition que le widget ne sait pas lire, à vérifier dans Grist. « — » : sans objet pour une colonne.';
@@ -49,49 +62,46 @@ export const MATRIX_WARNING = 'Lecture des règles, sans connexion réelle : pou
  */
 export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
   const n = mx.groups.length * ACTIONS.length;
-  const lastCol = 3 + n - 1;
+  const lastCol = 2 + n - 1;
   const attrTable = mx.role?.table || '';
   const sub = `${docName || 'Document Grist'} · lu le ${fmtDate(date)} · rôle Grist supposé : Éditeur`;
 
-  // ---- Feuille 1 : la matrice ----
+  // ---- Feuille 1 : la matrice, comme la vue « Par table et par colonne » ----
   const rows = [];
-  const merges = [];
-  const wide = (r) => merges.push(`A${r + 1}:${colName(lastCol)}${r + 1}`);
-  rows.push({ height: 24, cells: [{ v: 'Qui peut faire quoi ?', s: 'title' }] }); wide(0);
-  rows.push({ cells: [{ v: sub, s: 'subtitle' }] }); wide(1);
-  rows.push({ height: 42, cells: [{ v: `${MATRIX_HELP} ${MATRIX_WARNING}`, s: 'note' }] }); wide(2);
-  rows.push({ height: 6, cells: [] });
-  // Rôles métier (ligne 5) et droits de structure (ligne 6), au-dessus de la ligne des filtres
-  const groupRow = [{ v: 'Rôle métier', s: 'corner' }, { v: '', s: 'corner' }, { v: '', s: 'corner' }];
-  const structRow = [{ v: 'Droits de structure : tables, colonnes et formules', s: 'structure' }, { v: '', s: 'structure' }, { v: '', s: 'structure' }];
-  merges.push('A5:C5', 'A6:C6');
-  mx.groups.forEach((g, gi) => {
-    const c0 = 3 + gi * ACTIONS.length;
-    const sc = mx.cell('*structure', gi, 'S');
-    for (let k = 0; k < ACTIONS.length; k++) {
-      groupRow.push(k ? { v: '', s: 'group' } : { v: `${g.name}\n${g.sub}`, s: 'group' });
-      structRow.push(k ? { v: '', s: tone(sc) } : valueCell(sc));
-    }
-    merges.push(`${cellRef(4, c0)}:${cellRef(4, c0 + ACTIONS.length - 1)}`, `${cellRef(5, c0)}:${cellRef(5, c0 + ACTIONS.length - 1)}`);
-  });
-  rows.push({ height: 36, cells: groupRow }, { height: 22, cells: structRow });
-  rows.push({ height: 20, cells: [{ v: 'Niveau', s: 'head' }, { v: 'Table', s: 'head' }, { v: 'Colonne', s: 'head' },
-    ...mx.groups.flatMap(() => ACTIONS.map(([, l]) => ({ v: l, s: 'headCenter' })))] });
+  const merges = [`A3:${colName(lastCol)}3`];
+  rows.push({ height: 26, cells: [{ v: `Qui peut faire quoi ? · ${mx.tableCount} tables`, s: 'title' }] });
+  rows.push({ height: 16, cells: [{ v: sub, s: 'subtitle' }] });
+  rows.push({ height: 30, cells: [{ v: `${MATRIX_HELP} ${MATRIX_WARNING}`, s: 'note' }] });
+  rows.push({ height: 8, cells: [] });
+  // En-tête sur trois lignes : rôle métier, sa définition, puis les actions (ligne des filtres)
+  const groupCells = [], subCells = [], actionCells = [];
+  mx.groups.forEach((g) => ACTIONS.forEach(([, label], k) => {
+    groupCells.push({ v: k ? '' : g.name, s: k ? 'hGroup' : 'hGroupEdge' });
+    subCells.push({ v: k ? '' : g.sub, s: k ? 'hSub' : 'hSubEdge' });
+    actionCells.push({ v: label, s: k ? 'hAction' : 'hActionEdge' });
+  }));
+  rows.push({ height: 20, cells: [{ v: '', s: 'hGroup' }, { v: '', s: 'hGroup' }, ...groupCells] });
+  rows.push({ height: 15, cells: [{ v: '', s: 'hSub' }, { v: '', s: 'hSub' }, ...subCells] });
+  rows.push({ height: 20, cells: [{ v: 'Table', s: 'hLabel' }, { v: 'Colonne', s: 'hLabel' }, ...actionCells] });
   for (const row of mx.rows) {
-    if (row.kind === 'structure') continue;
+    if (row.kind === 'structure') {
+      // Une seule case par rôle, centrée sur ses quatre colonnes (sans fusion : tri et filtres restent possibles)
+      rows.push({ height: 26, cells: [{ v: row.label, s: 'sLabel' }, { v: 'Tables, colonnes et formules', s: 'sSub' },
+        ...mx.groups.flatMap((g, gi) => { const c = mx.cell(row.key, gi, 'S'); return ACTIONS.map((_, k) => ({ v: k ? '' : fullText(c).toUpperCase(), s: `${tone(c)}Wide` })); })] });
+      continue;
+    }
     const isCol = row.kind === 'column';
-    rows.push({ cells: [
-      { v: isCol ? 'Colonne' : 'Table', s: 'level' },
-      { v: row.table, s: isCol ? 'tableMuted' : 'table' },
-      { v: isCol ? row.column : '', s: isCol ? 'column' : 'empty' },
-      ...mx.groups.flatMap((g, gi) => ACTIONS.map(([bit]) => valueCell(mx.cell(row.key, gi, bit)))),
+    rows.push({ height: isCol ? 20 : 22, cells: [
+      { v: row.table, s: isCol ? 'tableFaint' : 'table' },
+      { v: isCol ? row.column : '', s: isCol ? 'column' : 'blank' },
+      ...mx.groups.flatMap((g, gi) => ACTIONS.map(([bit], k) => badgeCell(mx.cell(row.key, gi, bit), k === 0))),
     ] });
   }
   const matrix = {
     name: 'Qui peut faire quoi', tabColor: BLUE, showGrid: false, landscape: true,
-    cols: [10, 28, 22, ...Array(n).fill(12)],
+    cols: [30, 24, ...Array(n).fill(11.5)],
     rows, merges,
-    freeze: { rows: 7, cols: 3 },
+    freeze: { rows: 7, cols: 2 },
     autoFilter: `A7:${cellRef(rows.length - 1, lastCol)}`,
     printTitles: '$5:$7',
   };

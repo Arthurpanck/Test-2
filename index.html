@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.3.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.3.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.4.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.4.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.3.0"></script>
+  <script type="module" src="assets/app.js?v=3.4.0"></script>
 </head>
 <body>
   <div class="app">
@@ -55,8 +55,8 @@
           <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
             <legend class="fr-segmented__legend">Détail affiché</legend>
             <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="all" type="radio" id="detail-all" name="detail" checked><label class="fr-label" for="detail-all">Colonnes</label></div>
-              <div class="fr-segmented__element"><input value="keys" type="radio" id="detail-keys" name="detail"><label class="fr-label" for="detail-keys">Relations</label></div>
+              <div class="fr-segmented__element"><input value="keys" type="radio" id="detail-keys" name="detail" checked><label class="fr-label" for="detail-keys">Relations</label></div>
+              <div class="fr-segmented__element"><input value="all" type="radio" id="detail-all" name="detail"><label class="fr-label" for="detail-all">Colonnes</label></div>
               <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
             </div>
           </fieldset>
@@ -160,7 +160,7 @@
           </fieldset>
         </div>
         <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-settings-5-line toolbar__collapse" id="btn-audit-settings" type="button" aria-expanded="false" aria-controls="audit-panel">Périmètre des contrôles</button>
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-settings-5-line toolbar__collapse" id="btn-audit-settings" type="button" aria-expanded="false" aria-controls="audit-panel">Ce qui a été examiné</button>
         </div>
       </div>
       <div class="page__body" id="analysis-body"></div>

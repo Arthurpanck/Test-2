@@ -64,7 +64,7 @@ test('cas Fournisseurs : SERVICE / SERVICE / SERVICE + MANAGER / SERVICE + MANAG
   assert.equal(cellSentence(rh[2], { attrTable: 'Habilitations' }), 'Oui, mais 2 colonnes décident : la ligne doit appartenir à son Service, et la case Manager doit être cochée ou renseignée dans Habilitations.');
   const steps = cellSteps(rh[2], 'C');
   assert.deepEqual(steps.slice(-3).map((s) => s.badge), ['Selon la ligne (Service + Manager)', 'Ne porte pas sur Créer', 'Décide']);
-  assert.deepEqual(steps.slice(-3).map((s) => s.title), ['Règle 24 · autorise tout', 'Règle 25 · lire et modifier seulement', 'Règle 26 · refuse tout']);
+  assert.deepEqual(steps.slice(-3).map((s) => s.title), ['Règle 24 · autorise tout', 'Règle 25 · autorise lire et modifier', 'Règle 26 · refuse tout']);
 });
 
 test('libellés, couleurs et explications', () => {
@@ -107,4 +107,27 @@ test('droits de structure : chaque règle du document une seule fois, ancien ré
   const cell = rowCells(m, matrixRows(m, [])[0], g.groups[0], g.role)[0];
   assert.equal(cellText(cell), 'Non');
   assert.equal(cell.steps[0].rule.id, 40);
+});
+
+test('même colonne de la personne côté ligne et côté profil : un seul libellé (« SRH », pas « SRH + SRH »)', () => {
+  const m = prepareMatrixModel({
+    resources: [{ id: 1, tableId: 'Carto', colIds: 'v_Structure' }],
+    rules: [
+      { id: 9, resource: 0, aclFormula: '', permissionsText: '', rulePos: 0, memo: '', userAttributes: JSON.stringify({ name: 'Droits', tableId: 'Droits_equipe', charId: 'Email', lookupColId: 'Email' }) },
+      { id: 19, resource: 1, aclFormula: 'user.Access in [OWNER]', permissionsText: '+RU', rulePos: 1, memo: '', userAttributes: '' },
+      { id: 20, resource: 1, aclFormula: 'user.Droits.Profil == "GPEC"', permissionsText: '+RU', rulePos: 2, memo: '', userAttributes: '' },
+      { id: 21, resource: 1, aclFormula: 'user.Droits.Profil == "SRH" and user.Droits.SRH and rec.v_Structure == user.Droits.SRH', permissionsText: '+R-U', rulePos: 3, memo: '', userAttributes: '' },
+      { id: 22, resource: 1, aclFormula: 'user.Droits.Profil in ["ACEP", "MSE"]', permissionsText: '+R-U', rulePos: 4, memo: '', userAttributes: '' },
+      { id: 23, resource: 1, aclFormula: '', permissionsText: '-RU', rulePos: 5, memo: '', userAttributes: '' },
+    ],
+  });
+  const { role, groups } = matrixGroups(m);
+  assert.deepEqual([role.attr, role.col], ['Droits', 'Profil']);
+  const srh = groups.findIndex((g) => g.name === 'SRH');
+  const row = matrixRows(m, ['Carto']).find((r) => r.kind === 'column');
+  const [read] = rowCells(m, row, groups[srh], role);
+  assert.equal(cellText(read), 'SRH');
+  assert.equal(cellSentence(read, { attrTable: 'Droits_equipe' }), 'Oui, seulement sur les lignes de son SRH.');
+  assert.equal(cellSteps(read, 'R')[0].title, 'Règle 19 · autorise lire et modifier');
+  assert.equal(cellSteps(read, 'R')[2].badge, 'Selon la ligne (SRH)');
 });

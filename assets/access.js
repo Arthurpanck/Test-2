@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.3.0';
-import { columnarToRows } from './converter.js?v=3.3.0';
+import { effectivePermission } from './audit-engine.js?v=3.4.0';
+import { columnarToRows } from './converter.js?v=3.4.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -46,12 +46,13 @@ export const SPECIAL = {
     allowed: 'Réglage spécial « SchemaEdit » défini.',
     byDefault: '',
   },
-  SeedRules: {
-    label: 'Modèle pour les nouvelles tables',
-    allowed: 'Règles proposées par défaut à chaque nouvelle table (Grist ne les applique pas d\'elles-mêmes).',
+  SeedRule: {
+    label: 'Règles ajoutées d\'office',
+    allowed: 'Case « Ajouter automatiquement une règle pour les propriétaires » des règles d\'accès : quand on crée des règles pour une table ou une colonne, Grist les fait précéder de celles-ci.',
     byDefault: '',
   },
 };
+SPECIAL.SeedRules = SPECIAL.SeedRule; // orthographe des anciens documents
 
 /** Propriétés de `user` fournies par Grist. */
 const USER_BUILTINS = new Set(['Access', 'Email', 'UserID', 'UserRef', 'Name', 'LinkKey', 'Origin', 'SessionID', 'IsLoggedIn', 'ShareRef', 'Type']);

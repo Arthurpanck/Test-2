@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.3.0';
-import { readTheme } from './report.js?v=3.3.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.3.0';
+} from './erd-geometry.js?v=3.4.0';
+import { readTheme } from './report.js?v=3.4.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.4.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -128,9 +128,17 @@ export class ErdViewer {
         </div>
         <p class="erd__status" aria-live="polite"></p>
         <div class="erd__legend" aria-hidden="true">
-          <span><svg viewBox="0 0 28 14"><path d="M2 7h18M20 7 6 1M20 7 6 13M20 7H6"/></svg>plusieurs</span>
-          <span><svg viewBox="0 0 28 14"><path d="M2 7h24M14 1v12"/></svg>un</span>
-          <span><i>ƒ</i> formule</span>
+          <p class="erd__legend-title">Légende</p>
+          <div class="erd__legend-group">
+            <span class="erd__legend-item">${icon(ICON_KEY, 'erd__legend-icon erd__legend-icon--pk')}clé</span>
+            <span class="erd__legend-item">${icon(ICON_LINK, 'erd__legend-icon erd__legend-icon--fk')}référence</span>
+            <span class="erd__legend-item"><span class="erd__legend-fx">ƒ</span>formule</span>
+          </div>
+          <div class="erd__legend-group">
+            <span class="erd__legend-item"><svg class="erd__legend-edge" viewBox="0 0 32 14"><path d="M1 7h30M21 7 31 1.5M21 7 31 12.5"/><path class="erd__legend-side" d="M31.5 0v14"/></svg>plusieurs lignes</span>
+            <span class="erd__legend-item"><svg class="erd__legend-edge" viewBox="0 0 32 14"><path d="M1 7h30M23 1.5v11"/><path class="erd__legend-side" d="M31.5 0v14"/></svg>une ligne</span>
+            <span class="erd__legend-item"><span class="erd__legend-swatch"></span>synthèse</span>
+          </div>
         </div>
         <svg class="erd__minimap" role="img" aria-label="Mini-carte : cliquer pour centrer la vue"></svg>
       </div>`;

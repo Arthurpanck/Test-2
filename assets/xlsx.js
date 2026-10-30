@@ -9,8 +9,10 @@
  * Feuille : { name, cols: [largeurs], rows: [{ cells: [Cellule], height }], merges: ['A1:C1'],
  *             freeze: { rows, cols }, autoFilter: 'A7:O40', table: { name, ref, style },
  *             printTitles: '$5:$7', landscape, showGrid, tabColor }
- * Cellule : null, une valeur, ou { v: texte | nombre, s: nom de style }
- * Style : { font: { bold, italic, size, color, name }, fill, border: true, align: { h, v, wrap, indent } }
+ * Cellule : null, une valeur, ou { v: texte | nombre | [morceaux], s: nom de style }
+ *           (morceaux de texte enrichi : [{ t, bold, size, color }], par exemple un titre et un sous-titre)
+ * Style : { font: { bold, italic, size, color, name }, fill, border: true | couleur | { left, right, top, bottom, all, style },
+ *           align: { h (dont centerContinuous : centré sur les cellules vides voisines), v, wrap, indent } }
  */
 
 const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -50,9 +52,10 @@ function buildStyles(named) {
     const f = st.font || {};
     const font = `<font>${f.bold ? '<b/>' : ''}${f.italic ? '<i/>' : ''}<sz val="${f.size || 11}"/>${f.color ? `<color rgb="${argb(f.color)}"/>` : '<color theme="1"/>'}<name val="${xml(f.name || 'Calibri')}"/><family val="2"/>${f.name ? '' : '<scheme val="minor"/>'}</font>`;
     const fill = st.fill ? `<fill><patternFill patternType="solid"><fgColor rgb="${argb(st.fill)}"/><bgColor indexed="64"/></patternFill></fill>` : null;
-    const b = st.border ? (typeof st.border === 'string' ? st.border : 'DDDDDD') : null;
-    const side = (tag) => `<${tag} style="thin"><color rgb="${argb(b)}"/></${tag}>`;
-    const border = b ? `<border>${side('left')}${side('right')}${side('top')}${side('bottom')}<diagonal/></border>` : null;
+    // Bordure : true (fine, grise), une couleur, ou { couleur par côté : left, right, top, bottom, style }
+    const bd = st.border === true ? { all: 'DDDDDD' } : typeof st.border === 'string' ? { all: st.border } : st.border || null;
+    const side = (tag) => { const c = bd[tag] || bd.all; return c ? `<${tag} style="${bd.style || 'thin'}"><color rgb="${argb(c)}"/></${tag}>` : `<${tag}/>`; };
+    const border = bd ? `<border>${side('left')}${side('right')}${side('top')}${side('bottom')}<diagonal/></border>` : null;
     const a = st.align || {};
     const align = (a.h || a.v || a.wrap || a.indent) ? `<alignment${a.h ? ` horizontal="${a.h}"` : ''}${a.v ? ` vertical="${a.v}"` : ''}${a.wrap ? ' wrapText="1"' : ''}${a.indent ? ` indent="${a.indent}"` : ''}/>` : '';
     const fontId = add(fonts, font), fillId = fill ? add(fills, fill) : 0, borderId = border ? add(borders, border) : 0;
@@ -69,7 +72,7 @@ function buildStyles(named) {
 // ---------------------------------------------------------------------------
 
 function sheetXml(sheet, styleIndex, strings, tableRelId) {
-  const sst = (s) => { if (!strings.map.has(s)) { strings.map.set(s, strings.list.length); strings.list.push(s); } return strings.map.get(s); };
+  const sst = (s) => { const k = typeof s === 'string' ? s : JSON.stringify(s); if (!strings.map.has(k)) { strings.map.set(k, strings.list.length); strings.list.push(s); } return strings.map.get(k); };
   let maxCol = 0;
   const rows = sheet.rows.map((row, r) => {
     const cells = (row?.cells || []).map((raw, c) => {
@@ -81,7 +84,7 @@ function sheetXml(sheet, styleIndex, strings, tableRelId) {
       maxCol = Math.max(maxCol, c);
       if (cell.v === null || cell.v === undefined || cell.v === '') return `<c ${attrs}/>`;
       if (typeof cell.v === 'number' && Number.isFinite(cell.v)) return `<c ${attrs}><v>${cell.v}</v></c>`;
-      return `<c ${attrs} t="s"><v>${sst(String(cell.v))}</v></c>`;
+      return `<c ${attrs} t="s"><v>${sst(Array.isArray(cell.v) ? cell.v : String(cell.v))}</v></c>`;
     }).join('');
     const ht = row?.height ? ` ht="${row.height}" customHeight="1"` : '';
     return `<row r="${r + 1}"${ht}>${cells}</row>`;
@@ -141,7 +144,8 @@ export function writeXlsx(book) {
     if (s.printTitles) defined.push(`<definedName name="_xlnm.Print_Titles" localSheetId="${s.index}">${xml(`${quoted}!${s.printTitles}`)}</definedName>`);
   }
   const sst = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="${NS}" count="${strings.list.length}" uniqueCount="${strings.list.length}">${strings.list.map((s) => `<si><t xml:space="preserve">${xml(s)}</t></si>`).join('')}</sst>`;
+<sst xmlns="${NS}" count="${strings.list.length}" uniqueCount="${strings.list.length}">${strings.list.map((s) => `<si>${typeof s === 'string' ? `<t xml:space="preserve">${xml(s)}</t>`
+    : s.map((r) => `<r><rPr>${r.bold ? '<b/>' : ''}<sz val="${r.size || 11}"/>${r.color ? `<color rgb="${argb(r.color)}"/>` : '<color theme="1"/>'}<rFont val="Calibri"/><family val="2"/></rPr><t xml:space="preserve">${xml(r.t)}</t></r>`).join('')}</si>`).join('')}</sst>`;
   const now = (book.date || new Date()).toISOString().replace(/\.\d+Z$/, 'Z');
   files.push(
     ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

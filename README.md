@@ -211,3 +211,15 @@ N41 est rétabli : au moins trois colonnes de saisie d’une même famille porta
 
 
 La revue finale est livrée en 3.3.0 pour conserver simultanément les modifications de constats et les ajouts parallèles de matrice, exports Word/Excel et préparation des échantillons en mémoire.
+
+## Retouches — 3.4.0
+
+- **Schéma :** « Relations » est la vue par défaut et le premier bouton, avant « Colonnes » puis « Tables ». Le choix fait à la main reste mémorisé. La légende est complète : clé, référence, formule, « plusieurs lignes », « une ligne » et table de synthèse.
+- **Tables :** l'index des tables défile avec la page, sans barre de défilement propre. Les noms longs vont à la ligne.
+- **Accès :**
+  - le bouton « Exporter en Excel » a le même gabarit que la bascule ;
+  - la feuille matrice du classeur reprend la vue « Par table et par colonne » ;
+  - « SRH + SRH » devient « SRH » (même colonne de la personne côté ligne et côté profil) ;
+  - les effets de règle sont formulés « autorise lire et modifier » ;
+  - les réglages « Modifier la structure » et « Règles ajoutées d'office » (`*SPECIAL:SeedRule`) sont expliqués.
+- **Analyse :** « Périmètre des contrôles » devient « Ce qui a été examiné ». Chaque vérification y figure en clair, rangée selon son résultat. Le rapport reprend ce tableau.

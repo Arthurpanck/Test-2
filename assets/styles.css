@@ -350,19 +350,14 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
    Tables
    =================================================================== */
 .tables-layout { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; }
+/* L'index défile avec les tables (pas de barre de défilement propre) ; les noms longs vont à la ligne. */
 .tables-index {
-  position: sticky;
-  top: 0;
-  flex: 1 1 13rem;
-  max-width: 15.5rem;
-  max-height: calc(100vh - 9rem);
-  overflow-y: auto;
+  flex: 1 1 14rem;
+  max-width: 17rem;
   border: 1px solid var(--border-default-grey);
   background: var(--background-default-grey);
 }
 .tables-index__head {
-  position: sticky;
-  top: 0;
   margin: 0;
   padding: .625rem .75rem;
   background: var(--background-alt-grey);
@@ -391,9 +386,12 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
   font-size: .8125rem;
   line-height: 1.25rem;
   text-align: left;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
-.tables-index button span { flex: none; font-size: .75rem; color: var(--text-mention-grey); }
+.tables-index__name { flex: 1 1 auto; min-width: 0; }
+.tables-index button > span:last-child { flex: none; font-size: .75rem; color: var(--text-mention-grey); }
+.tables-index .is-current > span:last-child { color: inherit; }
 .tables-index button:hover { background: var(--background-default-grey-hover); }
 .tables-index .is-summary { color: var(--text-label-purple-glycine); }
 .tables-index .is-current { background: var(--background-action-low-blue-france); border-left-color: var(--border-active-blue-france); color: var(--text-action-high-blue-france); font-weight: 700; }
@@ -583,7 +581,7 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .insight__method p { margin: .5rem 0 0; overflow-wrap: anywhere; }
 @media (max-width: 52em) { .insight__body { padding-left: 1rem; } }
 
-/* Couverture des contrôles */
+/* Vérifications principales (à côté des constats) */
 .coverage { flex: 1 1 17rem; max-width: 21rem; position: sticky; top: 0; border: 1px solid var(--border-default-grey); background: var(--background-default-grey); }
 .coverage__head { display: flex; align-items: center; gap: .5rem; padding: .75rem 1rem; cursor: pointer; list-style: none; }
 .coverage__head::-webkit-details-marker { display: none; }
@@ -621,7 +619,14 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .audit-panel p { margin: 0 0 .75rem; }
 .audit-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
 .audit-panel textarea { font-family: monospace; margin-bottom: .75rem; }
-.audit-panel ul { max-height: 18rem; overflow: auto; font-size: .8125rem; }
+.audit-panel__groups { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); align-items: start; }
+.audit-panel__group { padding: .75rem; border: 1px solid var(--border-default-grey); background: var(--background-default-grey); }
+.audit-panel__label { display: flex; align-items: center; gap: .5rem; margin: 0 0 .25rem !important; font-weight: 700; }
+.audit-panel__hint { margin: 0 0 .5rem !important; font-size: .75rem; color: var(--text-mention-grey); }
+.audit-panel ul { margin: 0; padding-left: 1rem; font-size: .8125rem; }
+.audit-panel li { margin: 0 0 .375rem; }
+.audit-panel__id { font-size: .6875rem; color: var(--text-mention-grey); }
+.audit-panel__reason { font-size: .75rem; color: var(--text-mention-grey); }
 
 /* ===================================================================
    Rapport
@@ -782,19 +787,39 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
   bottom: .75rem;
   display: flex;
   flex-wrap: wrap;
-  gap: .25rem .75rem;
-  padding: .25rem .625rem;
+  align-items: center;
+  gap: .375rem .875rem;
+  max-width: calc(100% - 13rem);
+  padding: .375rem .75rem;
   border: 1px solid var(--border-default-grey);
-  border-radius: .25rem;
+  border-radius: .5rem;
   background: var(--background-default-grey);
+  box-shadow: 0 2px 6px rgba(0, 0, 18, .12);
   font-size: .75rem;
   line-height: 1.25rem;
-  color: var(--text-mention-grey);
+  color: var(--text-default-grey);
   pointer-events: none;
 }
-.erd__legend span { display: inline-flex; align-items: center; gap: .25rem; }
-.erd__legend svg { width: 1.75rem; height: .875rem; fill: none; stroke: var(--text-mention-grey); stroke-width: 1.5; }
-.erd__legend i { font-family: Georgia, serif; color: var(--text-label-purple-glycine); }
+.erd__legend-title {
+  margin: 0;
+  padding-right: .875rem;
+  border-right: 1px solid var(--border-default-grey);
+  font-size: .6875rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-mention-grey);
+}
+.erd__legend-group { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .75rem; }
+.erd__legend-group + .erd__legend-group { padding-left: .875rem; border-left: 1px solid var(--border-default-grey); }
+.erd__legend-item { display: inline-flex; align-items: center; gap: .375rem; white-space: nowrap; }
+.erd__legend-icon { width: .9375rem; height: .9375rem; fill: currentColor; }
+.erd__legend-icon--pk { color: var(--text-label-orange-terre-battue); }
+.erd__legend-icon--fk { color: var(--text-label-blue-france); }
+.erd__legend-fx { width: .9375rem; text-align: center; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: .9375rem; color: var(--text-label-purple-glycine); }
+.erd__legend-edge { width: 2rem; height: .875rem; fill: none; stroke: var(--text-mention-grey); stroke-width: 1.5; stroke-linecap: round; }
+.erd__legend-edge .erd__legend-side { stroke: var(--border-plain-grey); stroke-width: 2; }
+.erd__legend-swatch { width: .875rem; height: .625rem; border-radius: 2px; background: var(--background-flat-purple-glycine); }
 .erd__status {
   position: absolute;
   left: 50%;
@@ -934,7 +959,20 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
  * Accès · Qui peut faire quoi ? (matrice des droits par rôle métier)
  * ---------------------------------------------------------------------- */
 .mx__bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .5rem 1rem; border-bottom: 1px solid var(--border-default-grey); }
-.mx__export { margin: 0 0 0 auto !important; }
+/* Même gabarit que la bascule « Par table / Par table et par colonne » : 40 px, cadre gris, coins de 4 px. */
+.mx__export.fr-btn {
+  margin: 0 0 0 auto;
+  min-height: 2.5rem;
+  height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--border-default-grey);
+  background: var(--background-default-grey);
+  font-size: .9375rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.mx__export.fr-btn:hover { background-color: var(--background-default-grey-hover); box-shadow: inset 0 0 0 1px var(--border-active-blue-france); }
 .mx__bar-label { font-size: .75rem; font-weight: 700; color: var(--text-mention-grey); }
 .seg-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: var(--background-default-grey); border: 1px solid var(--border-default-grey); border-radius: 4px; }
 .seg-toggle button { height: 2rem; padding: 0 1rem; border: 0; border-radius: 3px; background: transparent; font-size: .9375rem; line-height: 1; color: var(--text-title-grey); cursor: pointer; }
