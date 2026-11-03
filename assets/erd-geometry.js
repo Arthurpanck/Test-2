@@ -118,6 +118,17 @@ export function lookupGeometry(srcRect, srcY, tgtRect, tgtY, { shift = 0 } = {})
   return { sides, points, path: roundedPath(points), arrow: arrowHead(tx, tgtY, sides.target) };
 }
 
+/**
+ * Tracé d'un lien entre deux colonnes d'une même table (colonne dérivée d'une autre colonne) :
+ * une boucle sur le côté droit, de la colonne dérivée vers la colonne reprise, terminée par une flèche.
+ */
+export function loopGeometry(rect, srcY, tgtY, { shift = 0 } = {}) {
+  const x = rect.x + rect.w;
+  const o = 16 + shift;
+  const points = [[x, srcY], [x + o, srcY], [x + o, tgtY], [x, tgtY]];
+  return { sides: { source: 'right', target: 'right' }, points, path: roundedPath(points), arrow: arrowHead(x, tgtY, 'right') };
+}
+
 /** Rectangle englobant d'un ensemble de rectangles. */
 export function boundsOf(rects) {
   if (!rects.length) return { x: 0, y: 0, w: 0, h: 0 };

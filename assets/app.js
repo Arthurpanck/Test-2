@@ -1,22 +1,23 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.7.0';
-import { ErdViewer } from './erd.js?v=3.7.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.7.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.7.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.7.0';
-import { profileTables } from './datacheck.js?v=3.7.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.7.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.7.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.7.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.7.0';
-import { findLookups } from './lookups.js?v=3.7.0';
-import { tablesXlsx } from './tables-export.js?v=3.7.0';
-import { matrixXlsx } from './rights-export.js?v=3.7.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.8.0';
+import { ErdViewer } from './erd.js?v=3.8.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.8.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.8.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.8.0';
+import { profileTables } from './datacheck.js?v=3.8.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.8.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.8.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.8.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.8.0';
+import { findLookups } from './lookups.js?v=3.8.0';
+import { findDerivations } from './derivations.js?v=3.8.0';
+import { tablesXlsx } from './tables-export.js?v=3.8.0';
+import { matrixXlsx } from './rights-export.js?v=3.8.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.7.0';
+} from './rights-matrix.js?v=3.8.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.7.0';
+} from './report.js?v=3.8.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -28,7 +29,7 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-png', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-refs-sub', 'show-lookups-sub', 'schema-body',
+  'find-table', 'find-table-list', 'btn-png', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-derived', 'show-refs-sub', 'show-lookups-sub', 'show-derived-sub', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
@@ -73,7 +74,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null, lookups: true, refs: true }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, derived: false }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -266,6 +267,7 @@ function applyOptions(options) {
     state.diagram = {
       lookups: d.lookups !== false,
       refs: d.refs !== false,
+      derived: d.derived === true,
       detail: chosen ? d.detail : 'keys',
       ...(chosen ? { detailChosen: true } : {}),
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
@@ -1065,7 +1067,7 @@ function renderReportSections() {
 async function schemaSnapshot() {
   const out = state.out;
   const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
-  const key = JSON.stringify([state.diagramKey || out.dbml, positions, state.diagram.lookups !== false, state.diagram.refs !== false]);
+  const key = JSON.stringify([state.diagramKey || out.dbml, positions, state.diagram.lookups !== false, state.diagram.refs !== false, state.diagram.derived === true]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -1076,6 +1078,7 @@ async function schemaSnapshot() {
     await v.setData(out.tables, { positions, detail: 'all', aclTables: aclTableNames() });
     v.setRefs(state.diagram.refs !== false);
     if (state.diagram.lookups !== false) v.setLookups(documentLookups(), true);
+    if (state.diagram.derived === true) v.setDerived(documentDerivations(), true);
     const blob = await v.toPng(2);
     const b = v.bounds();
     const png = new Uint8Array(await blob.arrayBuffer());
@@ -1098,6 +1101,7 @@ function reportContext(schema) {
     access: state.access,
     matrix: matrixData(),
     schemaLookups: state.diagram.lookups !== false && documentLookups().length > 0,
+    schemaDerived: state.diagram.derived === true && documentDerivations().length > 0,
     profiles: state.profiles,
     pages: state.pages,
     dbml: state.out.dbml,
@@ -1158,7 +1162,7 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-links', 'show-refs', 'show-lookups', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-links', 'show-refs', 'show-lookups', 'show-derived', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
@@ -1184,6 +1188,7 @@ function renderDiagram() {
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
   els['show-lookups'].checked = state.diagram.lookups !== false;
   els['show-refs'].checked = state.diagram.refs !== false;
+  els['show-derived'].checked = state.diagram.derived === true;
   updateLinksMenu();
   body.classList.add('no-minimap');
   if (!out || !out.tables.length) {
@@ -1195,7 +1200,8 @@ function renderDiagram() {
     return Promise.resolve();
   }
   const lookups = documentLookups();
-  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups]);
+  const derived = documentDerivations();
+  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups, derived]);
   if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
   const v = ensureViewer();
@@ -1203,6 +1209,7 @@ function renderDiagram() {
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail, aclTables: aclTableNames() })
     .then(() => { v.setRefs(state.diagram.refs !== false); return v.setLookups(lookups, state.diagram.lookups !== false); })
+    .then(() => v.setDerived(derived, state.diagram.derived === true))
     .catch((err) => {
       console.error(err);
       toast(`Le schéma n'a pas pu être dessiné : ${err.message || err}`, 'error');
@@ -1219,10 +1226,12 @@ function aclTableNames() {
 function updateLinksMenu() {
   const refs = state.out ? computeStats(state.out.tables).relations : 0;
   const lookups = state.out ? new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size : 0;
-  const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false);
-  els['links-count'].textContent = `${shown}/2`;
+  const derived = state.out ? new Set(documentDerivations().map((l) => `${l.source}\u0000${l.column}`)).size : 0;
+  const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false) + Number(state.diagram.derived === true);
+  els['links-count'].textContent = `${shown}/3`;
   els['show-refs-sub'].textContent = `Colonnes de type Référence · ${refs}`;
   els['show-lookups-sub'].textContent = `lookupOne (orange) et lookupRecords (vert) · ${lookups}`;
+  els['show-derived-sub'].textContent = `Rôle « Dérivée » de Tables · ${derived}`;
 }
 
 function setLinksMenu(open) {
@@ -1236,6 +1245,14 @@ function documentLookups() {
   if (!state.out) return [];
   if (lookupsCache?.out !== state.out) lookupsCache = { out: state.out, list: findLookups(state.out.tables, state.schema) };
   return lookupsCache.list;
+}
+
+let derivationsCache = null;
+/** Liens des colonnes dérivées (même règle que la colonne « Rôle » de l'onglet Tables). */
+function documentDerivations() {
+  if (!state.out) return [];
+  if (derivationsCache?.out !== state.out) derivationsCache = { out: state.out, list: findDerivations(state.out.tables, state.schema, documentLookups()) };
+  return derivationsCache.list;
 }
 
 async function showOnDiagram(name) {
@@ -1392,6 +1409,12 @@ function bindEvents() {
   els['show-lookups'].addEventListener('change', () => {
     state.diagram = { ...state.diagram, lookups: els['show-lookups'].checked };
     viewer?.setLookups(documentLookups(), state.diagram.lookups);
+    updateLinksMenu();
+    saveDiagramSoon();
+  });
+  els['show-derived'].addEventListener('change', () => {
+    state.diagram = { ...state.diagram, derived: els['show-derived'].checked };
+    viewer?.setDerived(documentDerivations(), state.diagram.derived);
     updateLinksMenu();
     saveDiagramSoon();
   });

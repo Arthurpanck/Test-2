@@ -147,6 +147,7 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
 .links__line { flex: none; width: 1.375rem; height: 0; }
 .links__line--ref { border-top: 2px solid #929292; }
 .links__line--lookup { border-top: 2px dashed var(--lookup-one, #d64d00); }
+.links__line--derived { height: 2px; background: repeating-linear-gradient(90deg, var(--derived, #a558a0) 0 6px, transparent 6px 8px, var(--derived, #a558a0) 8px 9.5px, transparent 9.5px 11.5px); }
 .links__text { flex: 1; min-width: 0; font-size: .875rem; line-height: 1.25rem; color: var(--text-title-grey); }
 .links__text strong { display: block; font-weight: 500; }
 .links__text span { display: block; font-size: .75rem; line-height: 1rem; color: var(--text-mention-grey); }
@@ -747,7 +748,8 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
   --doc-fill-uk: #eeeeee;
   --doc-lookup-one: #d64d00;
   --doc-lookup-records: #009081;
-  --doc-acl: #845d48;
+  --doc-acl: #c9191e;
+  --doc-derived: #a558a0;
 }
 
 /* ===================================================================
@@ -867,6 +869,16 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .erd-lookup__hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .erd-lookup.is-active .erd-lookup__line { stroke-width: 3; }
 .erd.has-focus .erd-lookup:not(.is-active) { opacity: .15; }
+/* Colonnes dérivées (menu « Liens ») : violet des formules, trait mixte */
+.erd { --derived: #a558a0; }
+:root[data-fr-theme="dark"] .erd { --derived: #e29bdc; }
+.erd-derived { display: none; }
+.erd--derived .erd-derived { display: inline; }
+.erd-derived__line { fill: none; stroke: var(--derived); stroke-width: 1.75; stroke-dasharray: 9 3 2 3; stroke-linecap: round; transition: opacity .15s ease; }
+.erd-derived__arrow { fill: var(--derived); }
+.erd-derived__hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+.erd-derived.is-active .erd-derived__line { stroke-width: 3; }
+.erd.has-focus .erd-derived:not(.is-active) { opacity: .15; }
 .erd-edge__hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
 .erd-edge.is-active .erd-edge__line, .erd-edge.is-active .erd-edge__mark { stroke: var(--border-active-blue-france); stroke-width: 2.5; }
 
@@ -917,6 +929,10 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .erd__legend-swatch--acl { background: var(--doc-acl) !important; }
 .erd__legend-lookups { display: none !important; }
 .erd--lookups .erd__legend-lookups { display: flex !important; }
+.erd__legend-derived { display: none !important; }
+.erd--derived .erd__legend-derived { display: flex !important; }
+.erd__legend-edge--derived path:first-child { stroke: var(--derived); stroke-dasharray: 6 2 1.5 2; }
+.erd__legend-edge--derived .erd__legend-arrow { fill: var(--derived); stroke: none; }
 .erd__legend-edge--one path:first-child { stroke: var(--lookup-one); stroke-dasharray: 5 3; }
 .erd__legend-edge--records path:first-child { stroke: var(--lookup-records); stroke-dasharray: 2 2.5; }
 .erd__legend-edge--one .erd__legend-arrow { fill: var(--lookup-one); stroke: none; }

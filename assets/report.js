@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.7.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.7.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.7.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.7.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.7.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.7.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.7.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.8.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.8.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.8.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.8.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.8.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.8.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.8.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -33,7 +33,7 @@ export const THEME_KEYS = {
   type: '#18753c', formula: '#a558a0', key: '#b34000',
   blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
   neutral: '#3a3a3a', fillOk: '#dffee6', fillKo: '#ffe9e9', fillUk: '#eeeeee',
-  lookupOne: '#d64d00', lookupRecords: '#009081', acl: '#845d48',
+  lookupOne: '#d64d00', lookupRecords: '#009081', acl: '#c9191e', derived: '#a558a0',
 };
 /** Cases colorées (matrice des droits) : fond et texte. */
 const FILLS = { ok: ['fillOk', 'ready'], ko: ['fillKo', 'blocking'], uk: ['fillUk', 'neutral'], surface: ['surface', 'text'] };
@@ -195,7 +195,7 @@ export const REPORT_SECTIONS = [
       if (!ctx.schema) return [{ type: 'paragraph', text: 'Le schéma n\'a pas pu être dessiné.', color: 'muted' }];
       return [
         { type: 'image', png: ctx.schema.png, width: ctx.schema.width, height: ctx.schema.height, alt: 'Schéma des tables et de leurs relations' },
-        { type: 'paragraph', color: 'muted', size: 'small', text: `Lecture : chaque carte est une table (en-tête bleu ; violet pour une table de synthèse ; brun pour une table de droits, utilisée par les règles d'accès pour reconnaître la personne), la première ligne est sa clé « id ». Un trait relie une colonne de référence à la table visée ; la patte d'oie marque le côté « plusieurs lignes », la barre le côté « une ligne ». Les colonnes de formule sont précédées de « ƒ ».${ctx.schemaLookups ? ' Lookups des formules : orange tireté pour lookupOne, vert pointillé pour lookupRecords, flèche vers la table cherchée.' : ''}` },
+        { type: 'paragraph', color: 'muted', size: 'small', text: `Lecture : chaque carte est une table (en-tête bleu ; violet pour une table de synthèse ; rouge pour une table de droits, utilisée par les règles d'accès pour reconnaître la personne), la première ligne est sa clé « id ». Un trait relie une colonne de référence à la table visée ; la patte d'oie marque le côté « plusieurs lignes », la barre le côté « une ligne ». Les colonnes de formule sont précédées de « ƒ ».${ctx.schemaLookups ? ' Lookups des formules : orange tireté pour lookupOne, vert pointillé pour lookupRecords, flèche vers la table cherchée.' : ''}${ctx.schemaDerived ? ' Colonnes dérivées : trait mixte violet, de la colonne dérivée vers la colonne qu\'elle reprend (boucle quand elle est dans la même table).' : ''}` },
       ];
     },
   },

@@ -151,7 +151,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await page.waitForTimeout(300);
   await shot(page, '10-complexe-schema.png');
   // Liens : un menu, Références et Lookups affichés par défaut, décochables
-  check(await frame.locator('#links-menu').isHidden() && (await frame.locator('#links-count').textContent()) === '2/2' && await frame.locator('.erd--lookups').count() === 1, 'schéma : références et lookups affichés par défaut');
+  check(await frame.locator('#links-menu').isHidden() && (await frame.locator('#links-count').textContent()) === '2/3' && await frame.locator('.erd--lookups').count() === 1 && await frame.locator('.erd--derived').count() === 0 && !(await frame.locator('#show-derived').isChecked()), 'schéma : références et lookups affichés par défaut, dérivées masquées');
   await frame.locator('#btn-links').click();
   check(await frame.locator('#links-menu').isVisible() && (await frame.locator('#btn-links').getAttribute('aria-expanded')) === 'true' && (await frame.locator('#show-lookups-sub').textContent()).endsWith('· 6'), 'schéma : menu « Liens » ouvert, 6 lookups');
   await page.waitForTimeout(800);
@@ -163,10 +163,25 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   }));
   check(lk.one === 2 && lk.records === 6 && lk.drawn && lk.colors === 2 && lk.legend === 'flex', `schéma : lookups affichés (${JSON.stringify(lk)})`);
   await shot(page, '10b-complexe-lookups.png');
+  // Colonnes dérivées : désactivées par défaut, activables
+  await frame.locator('label[for="show-derived"]').click();
+  await page.waitForTimeout(900);
+  const dv = await frame.evaluate(() => ({
+    on: document.querySelectorAll('.erd--derived').length,
+    n: document.querySelectorAll('.erd-derived').length,
+    drawn: [...document.querySelectorAll('.erd-derived__line')].filter((p) => (p.getAttribute('d') || '').startsWith('M')).length,
+    legend: getComputedStyle(document.querySelector('.erd__legend-derived')).display,
+    rows: ['Prenom', 'Nom', 'Nom_complet'].every((c) => document.querySelector(`.erd-node[data-id="Agents"] .erd-row[data-col="${c}"]`)),
+    count: document.querySelector('#links-count').textContent,
+  }));
+  check(dv.on === 1 && dv.n === 2 && dv.drawn === 2 && dv.legend === 'flex' && dv.rows && dv.count === '3/3', `schéma : colonnes dérivées affichées (${JSON.stringify(dv)})`);
+  await shot(page, '10c-complexe-derivees.png');
+  await frame.locator('label[for="show-derived"]').click();
+  await page.waitForTimeout(600);
   await frame.locator('label[for="show-lookups"]').click();
   await frame.locator('label[for="show-refs"]').click();
   await page.waitForTimeout(600);
-  check(await frame.locator('.erd--lookups').count() === 0 && await frame.locator('.erd--no-refs').count() === 1 && (await frame.locator('#links-count').textContent()) === '0/2', 'schéma : les deux liens se décochent');
+  check(await frame.locator('.erd--lookups').count() === 0 && await frame.locator('.erd--no-refs').count() === 1 && (await frame.locator('#links-count').textContent()) === '0/3', 'schéma : les liens se décochent');
   await page.waitForTimeout(1000);
   check(await frame.evaluate(() => window.__options.diagram?.lookups) === false, 'schéma : choix des liens mémorisé');
   await page.keyboard.press('Escape');

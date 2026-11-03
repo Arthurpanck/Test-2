@@ -4,7 +4,7 @@
  * Utilisée par l'onglet Tables, le rapport Word et l'export Excel des tables.
  * Module pur.
  */
-import { GRIST_TYPE_LABELS } from './types.js?v=3.7.0';
+import { GRIST_TYPE_LABELS } from './types.js?v=3.8.0';
 
 export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?'];
 
@@ -124,7 +124,7 @@ export function columnNature(c) {
   if (!c.isFormula) return reads && !COMPUTE_FN.test(body) ? 'Dérivée' : 'Donnée'; // formule d'initialisation
   const plusIsText = hasString || /\bCONCATENATE\b|\bf\s*$/.test(body) || /\bf[ ]*$/.test(code);
   const ops = body.replace(/\+/g, plusIsText ? ' ' : '-'); // « + » entre textes : une combinaison, pas un calcul
-  if (COMPUTE_FN.test(ops) || COMPUTE_KW.test(ops) || COMPUTE_OP.test(ops.replace(/\.\s*[A-Za-z_]\w*/g, ' ').replace(/->|=(?!=)/g, ' '))) return 'Calculée';
+  if (COMPUTE_FN.test(ops) || COMPUTE_KW.test(ops) || COMPUTE_OP.test(ops.replace(/\.\s*[A-Za-z_]\w*/g, ' ').replace(/->|(?<![=!<>])=(?!=)/g, ' '))) return 'Calculée';
   if (DERIVE.test(body)) return 'Dérivée';
   return 'Calculée';
 }

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sqliteType, declaredType, columnRole, tableRows, rowValues, TABLE_COLUMNS } from '../assets/table-format.js';
 import { findLookups } from '../assets/lookups.js';
+import { findDerivations } from '../assets/derivations.js';
 import { gristTypeFromColType, schemaFromMetadata, convertAll } from '../assets/converter.js';
 import { lookupGeometry } from '../assets/erd-geometry.js';
 import { readFileSync } from 'node:fs';
@@ -35,7 +36,7 @@ test('type déclaré en français, rôle, calcul et documentation, colonnes dans
   // Définitions : donnée (sans formule propre), calculée (formule qui calcule), dérivée (recopie, extraction, combinaison, transformation)
   const nature = (f) => columnRole(col(f));
   assert.deepEqual(['Clients.lookupOne(Nom=$Client).Ville', 'f"{$Prenom} {$Nom.upper()}"', 'CONCATENATE($nom," ",$prenom)', 'UPPER($Nom)', 'return elu_organisme_lien.organe'].map(nature), Array(5).fill('Dérivée'));
-  assert.deepEqual(['$Budget - $Depense', 'SUM(Depenses.lookupRecords(Projet=$id).Montant)', '"Absent" if $Conge else "Présent"', 'DATEDIF($Debut, TODAY(), "Y")', 'len($group)', '"Paris"'].map(nature), Array(6).fill('Calculée'));
+  assert.deepEqual(['$Budget - $Depense', 'SUM(Depenses.lookupRecords(Projet=$id).Montant)', '"Absent" if $Conge else "Présent"', 'DATEDIF($Debut, TODAY(), "Y")', 'len($group)', '"Paris"', '$Statut == "Faite"', '$A != $B', '$Note >= 10'].map(nature), Array(9).fill('Calculée'));
   const t = { name: 'Elus', columns: [
     { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
     { name: 'nom_complet', label: '💻 Nom complet', gristType: T('Text'), isFormula: true, details: { formula: "CONCATENATE(nom,' ',prenom)" } },
@@ -101,4 +102,39 @@ test('lookups : colonne lue directement, par une variable de boucle ou une affec
   assert.deepEqual(run('c = Clients.lookupOne(Nom=$x)\nreturn c.Ville if c else None'), ['Ville:read']);
   assert.deepEqual(run('len(Clients.lookupRecords(Actif=True, order_by="Nom"))'), ['Actif:key']);
   assert.deepEqual(run('len(Clients.lookupRecords())'), ['null:null']);
+});
+
+test('colonnes dérivées : liens vers la colonne reprise (même table, référence, lookup)', () => {
+  const col = (name, formula = '', extra = {}) => ({ name, isFormula: Boolean(formula), details: { formula }, ...extra });
+  const tables = [
+    { name: 'Agents', columns: [
+      col('Prenom'), col('Nom'), col('Service', '', { ref: { table: 'Services', kind: '>' } }),
+      col('Nom_complet', 'f"{$Prenom} {$Nom.upper()}"'),
+      col('v_service_nom', '# Nom du service\n$Service.Nom'),
+      col('Direction_nom', '$Service.Direction.Nom'),
+      col('Ville', 'Sites.lookupOne(Code=$Code).Ville'),
+      col('Code'),
+      col('Terminee', '$Statut == "Faite"'),
+      col('Libelle', "'$Nom' + UPPER(rec.Prenom)"),
+    ] },
+    { name: 'Services', columns: [col('Nom'), col('Direction', '', { ref: { table: 'Directions', kind: '>' } })] },
+    { name: 'Directions', columns: [col('Nom')] },
+    { name: 'Sites', columns: [col('Code'), col('Ville')] },
+  ];
+  const keys = findDerivations(tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn} (${l.via})`);
+  assert.deepEqual(keys, [
+    'Agents.Nom_complet ← Agents.Prenom (same)',
+    'Agents.Nom_complet ← Agents.Nom (same)',
+    'Agents.v_service_nom ← Services.Nom (ref)',
+    'Agents.Direction_nom ← Directions.Nom (ref)',
+    'Agents.Ville ← Sites.Ville (lookup)',
+    'Agents.Libelle ← Agents.Prenom (same)',
+  ], 'commentaires et chaînes ignorés, comparaison = calculée, chaînes de références suivies');
+});
+
+test('colonnes dérivées sur les métadonnées réelles du document complexe', () => {
+  const meta = loadMeta('essai-reel.metadata.json');
+  const schema = schemaFromMetadata(meta.tables, meta.columns, { sections: meta.sections });
+  const keys = findDerivations(convertAll({ schema }).corrected.tables, schema).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn}`);
+  assert.deepEqual(keys, ['Agents.Nom_complet ← Agents.Prenom', 'Agents.Nom_complet ← Agents.Nom']);
 });

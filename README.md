@@ -258,9 +258,20 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
 
 - **Schéma :**
   - un bouton « Liens » remplace les deux cases : il ouvre un petit menu avec deux interrupteurs, « Références » et « Lookups », tous deux activés par défaut et désactivables ; le compteur (2/2, 1/2…) rappelle ce qui est affiché, et le choix est mémorisé avec le schéma ;
-  - les tables qui servent aux règles d'accès avancées (attributs d'utilisateur) sont en brun, avec un cadenas ; la légende, l'export PNG et le rapport Word reprennent cette couleur « table de droits ».
+  - les tables qui servent aux règles d'accès avancées (attributs d'utilisateur) sont signalées par une couleur propre (rouge depuis la 3.8.0) et un cadenas ; la légende, l'export PNG et le rapport Word reprennent cette couleur « table de droits ».
 - **Tables — colonne « Rôle » :** Clé primaire, puis la nature de la valeur :
   - **Donnée** : sans formule propre (saisie, import, automatisation) ; une formule d'initialisation qui ne reprend aucune information du document (`NOW()`, `user.Email`) reste une donnée ;
   - **Calculée** : produite par une formule qui calcule (agrégat, compte, date, arithmétique, condition) ;
   - **Dérivée** : obtenue d'informations existantes par recopie, extraction, combinaison ou transformation (`$Service.Nom`, `Clients.lookupOne(…).Ville`, `f"{$Prenom} {$Nom}"`, `UPPER($Nom)`).
 - **Interface :** les champs de recherche s'étendent sur la largeur disponible (sauf sur le schéma) ; les contrôles segmentés et les boutons ont un vrai cadre, entier au clic à tous les zooms.
+
+## Colonnes dérivées sur le schéma, table de droits en rouge — 3.8.0
+
+- **Schéma :**
+  - le menu « Liens » a une troisième bascule, « Colonnes dérivées », désactivée par défaut : elle relie chaque colonne dont le rôle est « Dérivée » (même règle que l'onglet Tables) à la colonne qu'elle reprend, en trait mixte violet terminé par une flèche ;
+    - dans la même table (`f"{$Prenom} {$Nom}"`), le lien est une petite boucle sur le côté droit de la table ;
+    - par une référence (`$Service.Nom`, chaînes suivies : `$Service.Direction.Nom`), il va vers la colonne de la table visée ;
+    - par un lookup dont on lit une colonne (`Sites.lookupOne(Code=$Code).Ville`), il va vers cette colonne ; les critères du lookup ne comptent pas ;
+  - en vue « Relations », les colonnes reliées s'affichent quand la bascule est active ; la légende, l'export PNG et le rapport Word reprennent ces liens ;
+  - les tables de droits passent en rouge (#c9191e) pour trancher avec le bleu des tables et le violet des tables de synthèse.
+- **Tables :** une comparaison (`$Statut == "Faite"`, `!=`, `>=`) est bien « Calculée » (elle sortait « Dérivée » en 3.7.0).

@@ -9,10 +9,10 @@
  * - Export SVG (et PNG pour le rapport Word).
  */
 import {
-  edgeGeometry, lookupGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.7.0';
-import { readTheme } from './report.js?v=3.7.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.7.0';
+  edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph,
+} from './erd-geometry.js?v=3.8.0';
+import { readTheme } from './report.js?v=3.8.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.8.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -106,6 +106,8 @@ export class ErdViewer {
     this.edges = [];
     this.lookups = []; // { source, column, target, kind: 'one' | 'records' } : dessinés seulement si showLookups
     this.showLookups = false;
+    this.derived = []; // { source, column, target, targetColumn, via } : colonnes dérivées, dessinées seulement si showDerived
+    this.showDerived = false;
     this.showRefs = true; // relations (colonnes de référence), décochables
     this.positions = new Map(); // positions connues (mémorisées ou calculées)
     this.manual = false; // l'utilisateur a déplacé des tables
@@ -150,6 +152,9 @@ export class ErdViewer {
           <div class="erd__legend-group erd__legend-lookups">
             <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--one" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>lookupOne</span>
             <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--records" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>lookupRecords</span>
+          </div>
+          <div class="erd__legend-group erd__legend-derived">
+            <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--derived" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>dérivée de</span>
           </div>
         </div>
         <svg class="erd__minimap" role="img" aria-label="Mini-carte : cliquer pour centrer la vue"></svg>
@@ -235,16 +240,16 @@ export class ErdViewer {
     if (this.detail === 'tables') return [];
     if (this.detail === 'keys') {
       // « Relations » : colonnes de référence, plus celles reliées par un lookup quand ils sont affichés.
-      const linked = this.showLookups ? this.lookupColumns() : new Set();
+      const linked = this.linkedColumns();
       return node.columns.filter((c) => c.ref || linked.has(`${node.id}\u0000${c.name}`));
     }
     return node.columns;
   }
 
-  /** Colonnes aux deux bouts des lookups (« Table\u0000colonne »). */
-  lookupColumns() {
+  /** Colonnes aux deux bouts des liens de formule affichés (lookups, dérivées), en « Table\u0000colonne ». */
+  linkedColumns() {
     const out = new Set();
-    for (const l of this.lookups) {
+    for (const l of [...(this.showLookups ? this.lookups : []), ...(this.showDerived ? this.derived : [])]) {
       out.add(`${l.source}\u0000${l.column}`);
       if (l.targetColumn && l.targetColumn !== 'id') out.add(`${l.target}\u0000${l.targetColumn}`);
     }
@@ -304,6 +309,7 @@ export class ErdViewer {
       </g>`).join('');
     this.edges.forEach((e, i) => { e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`); });
     this.renderLookups();
+    this.renderDerived();
   }
 
   /**
@@ -311,11 +317,11 @@ export class ErdViewer {
    * table cherchée. Ils ne comptent pas dans la disposition : les afficher ne déplace aucune table.
    */
   setLookups(lookups, show = this.showLookups) {
-    const before = this.detail === 'keys' ? JSON.stringify([...this.lookupColumns()].filter(() => this.showLookups)) : '';
+    const before = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
     this.lookups = (lookups || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
     this.showLookups = Boolean(show);
     this.root.classList.toggle('erd--lookups', this.showLookups);
-    const after = this.detail === 'keys' ? JSON.stringify([...this.lookupColumns()].filter(() => this.showLookups)) : '';
+    const after = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
     if (before !== after) {
       // En vue « Relations », les colonnes reliées apparaissent ou disparaissent : les tables changent de taille.
       this.renderNodes();
@@ -325,6 +331,53 @@ export class ErdViewer {
     this.drawEdges();
     this.applyHighlight();
     return Promise.resolve();
+  }
+
+  /**
+   * Colonnes dérivées : de la colonne dérivée vers la colonne qu'elle reprend (même table : boucle
+   * sur le côté). Comme les lookups, elles ne comptent pas dans la disposition.
+   */
+  setDerived(derived, show = this.showDerived) {
+    const before = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
+    this.derived = (derived || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
+    this.showDerived = Boolean(show);
+    this.root.classList.toggle('erd--derived', this.showDerived);
+    const after = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
+    if (before !== after) {
+      this.renderNodes();
+      return this.layout({ relayout: !this.manual });
+    }
+    this.renderDerived();
+    this.drawEdges();
+    this.applyHighlight();
+    return Promise.resolve();
+  }
+
+  renderDerived() {
+    for (const g of this.edgeLayer.querySelectorAll('.erd-derived')) g.remove();
+    if (!this.derived.length) return;
+    // Boucles d'une même table : les plus courtes à l'intérieur ; liens entre deux tables : décalés.
+    const groups = new Map();
+    for (const l of this.derived) {
+      const key = `${l.source}\u0000${l.target}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(l);
+    }
+    for (const group of groups.values()) {
+      if (group[0].source === group[0].target) {
+        const span = (l) => Math.abs((this.nodes.get(l.source)?.rowY.get(l.column) ?? 0) - (this.nodes.get(l.source)?.rowY.get(l.targetColumn) ?? 0));
+        [...group].sort((a, b) => span(a) - span(b)).forEach((l, i) => { l.shift = i * 7; });
+      } else group.forEach((l, i) => { l.shift = 30 + i * 8; });
+    }
+    const how = { same: 'même table', ref: 'par une référence', lookup: 'par un lookup' };
+    const what = (l) => `${l.source}.${l.column} dérivée de ${l.target}.${l.targetColumn} (${how[l.via] || ''}${l.trigger ? ', formule d\'initialisation' : ''})`;
+    this.edgeLayer.insertAdjacentHTML('beforeend', this.derived.map((l, i) => `
+      <g class="erd-derived" data-derived="${i}">
+        <path class="erd-derived__hit"><title>${esc(what(l))}</title></path>
+        <path class="erd-derived__line"/>
+        <path class="erd-derived__arrow"/>
+      </g>`).join(''));
+    this.derived.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-derived="${i}"]`); });
   }
 
   renderLookups() {
@@ -495,6 +548,26 @@ export class ErdViewer {
         arrow.setAttribute('d', g.arrow);
       }
     }
+    if (this.showDerived) {
+      for (const l of this.derived) {
+        if (onlyFor && l.source !== onlyFor && l.target !== onlyFor) continue;
+        const s = this.nodes.get(l.source);
+        const t = this.nodes.get(l.target);
+        if (!s || !t || !l.el) continue;
+        const sy = this.anchorY(s, l.column);
+        const ty = this.anchorY(t, l.targetColumn);
+        const rect = (n) => ({ x: n.x, y: n.y, w: n.w, h: n.h });
+        // Vue « Tables » : pas de lignes, une boucle sur la même table n'aurait pas de hauteur.
+        const g = s === t
+          ? (Math.abs(sy - ty) < 1 ? null : loopGeometry(rect(s), sy, ty, { shift: l.shift }))
+          : lookupGeometry(rect(s), sy, rect(t), ty, { shift: l.shift });
+        l.geometry = g;
+        const [hit, line, arrow] = l.el.querySelectorAll('path');
+        hit.setAttribute('d', g?.path || '');
+        line.setAttribute('d', g?.path || '');
+        arrow.setAttribute('d', g?.arrow || '');
+      }
+    }
     this.sizeEdgeLayer();
   }
 
@@ -609,6 +682,19 @@ export class ErdViewer {
         active.push(l);
       }
     }
+    for (const l of this.showDerived ? this.derived : []) {
+      let on = false;
+      if (focus?.derived !== undefined) on = this.derived[focus.derived] === l;
+      else if (focus?.column) on = (l.source === focus.table && l.column === focus.column) || (l.target === focus.table && l.targetColumn === focus.column);
+      else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
+      l.el?.classList.toggle('is-active', on);
+      if (on) {
+        related.add(l.source); related.add(l.target);
+        linkedRows.add(`${l.source}\u0000${l.column}`);
+        linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
+        active.push(l);
+      }
+    }
     if (focus?.table) related.add(focus.table);
     for (const n of this.nodes.values()) {
       n.el.classList.toggle('is-related', related.has(n.id));
@@ -700,10 +786,12 @@ export class ErdViewer {
       if (drag?.moved) return;
       const edgeEl = ev.target.closest('.erd-edge');
       const lookupEl = ev.target.closest('.erd-lookup');
+      const derivedEl = ev.target.closest('.erd-derived');
       const nodeEl = ev.target.closest('.erd-node');
       let next = null;
       if (edgeEl) next = { edge: Number(edgeEl.dataset.edge) };
       else if (lookupEl) next = { lookup: Number(lookupEl.dataset.lookup) };
+      else if (derivedEl) next = { derived: Number(derivedEl.dataset.derived) };
       else if (nodeEl) {
         const row = ev.target.closest('.erd-row--fk, .erd-row--formula');
         next = row ? { table: nodeEl.dataset.id, column: row.dataset.col } : { table: nodeEl.dataset.id };
@@ -775,7 +863,7 @@ export class ErdViewer {
     const c = {
       bg: '#ffffff', border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
       ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
-      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords, acl: t.acl,
+      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords, acl: t.acl, derived: t.derived,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const parts = [];
@@ -790,6 +878,11 @@ export class ErdViewer {
       const col = l.kind === 'one' ? c.lookupOne : c.lookupRecords;
       parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${col}" stroke-width="1.75" stroke-dasharray="${l.kind === 'one' ? '7 4' : '2 3'}" stroke-linecap="round"/>`);
       parts.push(`<path d="${l.geometry.arrow}" fill="${col}"/>`);
+    }
+    for (const l of this.showDerived ? this.derived : []) {
+      if (!l.geometry) continue;
+      parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${c.derived}" stroke-width="1.75" stroke-dasharray="9 3 2 3" stroke-linecap="round"/>`);
+      parts.push(`<path d="${l.geometry.arrow}" fill="${c.derived}"/>`);
     }
     for (const n of this.nodes.values()) {
       const headH = n.el.firstElementChild.offsetHeight;
