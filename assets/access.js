@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.6.2';
-import { columnarToRows } from './converter.js?v=3.6.2';
+import { effectivePermission } from './audit-engine.js?v=3.6.3';
+import { columnarToRows } from './converter.js?v=3.6.3';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [

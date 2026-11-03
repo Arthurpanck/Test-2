@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.6.2';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.2';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.2';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.2';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.6.2';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.2';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.6.2';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.6.3';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.3';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.3';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.3';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.6.3';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.3';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.6.3';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 

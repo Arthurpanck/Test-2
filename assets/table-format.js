@@ -4,7 +4,7 @@
  * Utilisée par l'onglet Tables, le rapport Word et l'export Excel des tables.
  * Module pur.
  */
-import { GRIST_TYPE_LABELS } from './types.js?v=3.6.2';
+import { GRIST_TYPE_LABELS } from './types.js?v=3.6.3';
 
 export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?'];
 

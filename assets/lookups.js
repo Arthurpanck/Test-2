@@ -10,8 +10,8 @@
  *  - sinon (aucun critère, aucune lecture), la table elle-même.
  * Module pur.
  */
-import { maskPython } from './audit-engine.js?v=3.6.2';
-import { decodeSummaryTableName } from './converter.js?v=3.6.2';
+import { maskPython } from './audit-engine.js?v=3.6.3';
+import { decodeSummaryTableName } from './converter.js?v=3.6.3';
 
 const LOOKUP = /(?<![\w.$])([A-Za-z_]\w*)\s*\.\s*(lookupOne|lookupRecords)\s*\(/g;
 const NOT_COLUMNS = new Set(['order_by', 'sort_by']);
