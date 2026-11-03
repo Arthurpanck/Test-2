@@ -229,6 +229,12 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
   #tabpanel-schema .toolbar__sep, #tabpanel-schema .toolbar__zoom { display: none; }
   #tabpanel-schema .toolbar__search { width: 8.5rem; }
 }
+/* Widget d'environ 1000 px : la barre du schéma tient sur une ligne (zoom à la molette ou avec + et -). */
+@media (max-width: 66em) {
+  #btn-zoom-in, #btn-zoom-out { display: none !important; }
+  #tabpanel-schema .toolbar .fr-segmented__element label { padding: .3125rem .5rem; }
+  #tabpanel-schema .toolbar__search { width: 7.5rem; }
+}
 @media (max-width: 60em) {
   .toolbar__sep, #tabpanel-schema .toolbar__zoom { display: none; }
   .toolbar__search, .toolbar__search--wide { width: 11rem; }

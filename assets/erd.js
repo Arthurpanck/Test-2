@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, lookupGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.6.0';
-import { readTheme } from './report.js?v=3.6.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.6.0';
+} from './erd-geometry.js?v=3.6.1';
+import { readTheme } from './report.js?v=3.6.1';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.6.1';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -286,7 +286,10 @@ export class ErdViewer {
     this.nodes.clear();
     for (const el of this.nodeLayer.children) {
       const n = this.model.find((m) => m.id === el.dataset.id);
-      this.nodes.set(n.id, { ...n, el, x: 0, y: 0 });
+      // Les tables restent à leur place pendant un nouveau calcul de disposition (pas d'empilement en 0,0).
+      const p = this.positions.get(n.id) || { x: 0, y: 0 };
+      el.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      this.nodes.set(n.id, { ...n, el, x: p.x, y: p.y });
     }
     this.measure();
     this.edgeLayer.innerHTML = this.edges.map((e, i) => `
@@ -381,11 +384,12 @@ export class ErdViewer {
   async layout({ relayout = false } = {}) {
     const seq = ++this.layoutSeq;
     const list = [...this.nodes.values()];
-    if (relayout) { this.positions.clear(); this.manual = false; }
+    if (relayout) this.manual = false;
     if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
     if (seq !== this.layoutSeq) return;
     this.measure();
-    const missing = list.filter((n) => !this.positions.has(n.id));
+    // Recalcul complet : les anciennes positions restent affichées jusqu'au résultat.
+    const missing = relayout ? list : list.filter((n) => !this.positions.has(n.id));
     const refit = relayout || missing.length > 0 || !this.fitted;
     if (missing.length) {
       let computed;
@@ -416,6 +420,7 @@ export class ErdViewer {
         this.status(`Disposition automatique indisponible (${err.message || err}) : tables rangées en grille.`);
       }
       if (seq !== this.layoutSeq) return;
+      if (relayout) this.positions.clear();
       const placed = list.filter((n) => this.positions.has(n.id));
       if (placed.length) {
         // Nouvelles tables : sous les tables déjà placées, en gardant leur arrangement relatif.

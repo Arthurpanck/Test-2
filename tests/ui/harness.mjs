@@ -82,7 +82,12 @@ export async function start(outDir) {
         onOptions(cb) { handlers.options.push(cb); },
         onRecord(cb) { handlers.record.push(cb); },
         onRecords(cb) { handlers.records.push(cb); },
-        setOption(k, v) { window.__options[k] = JSON.parse(JSON.stringify(v)); return Promise.resolve(); },
+        // Comme Grist : une option enregistrée revient au widget par onOptions.
+        setOption(k, v) {
+          window.__options[k] = JSON.parse(JSON.stringify(v));
+          setTimeout(() => handlers.options.forEach((cb) => cb(JSON.parse(JSON.stringify({ ...(cfg.options || {}), ...window.__options })), {})), 30);
+          return Promise.resolve();
+        },
         docApi: {
           getDocName: async () => cfg.docName ?? 'swd2QJbkiCiN8Wjx6DS9yx',
           fetchTable: async (t) => {

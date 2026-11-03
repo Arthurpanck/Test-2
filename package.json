@@ -1,6 +1,6 @@
 {
   "name": "grist-widget-dbml",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "description": "Widget Grist (DSFR) : structure du document en DBML",
   "type": "module",
   "private": true,
