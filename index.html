@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.6.3">
-  <link rel="stylesheet" href="assets/styles.css?v=3.6.3">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.7.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.7.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.6.3"></script>
+  <script type="module" src="assets/app.js?v=3.7.0"></script>
 </head>
 <body>
   <div class="app">
@@ -67,12 +67,24 @@
           <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
           <datalist id="find-table-list"></datalist>
         </div>
-        <label class="toolbar__check" for="show-refs" title="Affiche les relations des colonnes de référence">
-          <input type="checkbox" id="show-refs" checked><span class="toolbar__check-box" aria-hidden="true"></span>Références
-        </label>
-        <label class="toolbar__check" for="show-lookups" title="Affiche les lookupOne (orange) et lookupRecords (vert) écrits dans les formules">
-          <input type="checkbox" id="show-lookups"><span class="toolbar__check-box" aria-hidden="true"></span>Lookups<span class="toolbar__check-count" id="show-lookups-count"></span>
-        </label>
+        <div class="links">
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-links-line links__btn" id="btn-links" type="button" aria-expanded="false" aria-controls="links-menu">Liens<span class="links__count" id="links-count">2/2</span><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="links__menu" id="links-menu" role="group" aria-label="Liens affichés sur le schéma" hidden>
+            <p class="links__title">Liens affichés sur le schéma</p>
+            <label class="links__opt" for="show-refs">
+              <span class="links__line links__line--ref" aria-hidden="true"></span>
+              <span class="links__text"><strong>Références</strong><span id="show-refs-sub">Colonnes de type Référence</span></span>
+              <input class="links__input" type="checkbox" id="show-refs" checked>
+              <span class="links__switch" aria-hidden="true"></span>
+            </label>
+            <label class="links__opt" for="show-lookups">
+              <span class="links__line links__line--lookup" aria-hidden="true"></span>
+              <span class="links__text"><strong>Lookups</strong><span id="show-lookups-sub">lookupOne (orange) et lookupRecords (vert)</span></span>
+              <input class="links__input" type="checkbox" id="show-lookups" checked>
+              <span class="links__switch" aria-hidden="true"></span>
+            </label>
+          </div>
+        </div>
         <div class="toolbar__group toolbar__end">
           <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en image PNG">Télécharger en PNG</button>
         </div>

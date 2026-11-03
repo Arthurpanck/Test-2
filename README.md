@@ -253,3 +253,14 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
   - la description de la colonne s'affiche sous le nom affiché quand elle est renseignée.
 
   Le rapport Word et l'export Excel reprennent ces colonnes.
+
+## Menu « Liens », table de droits, nature des colonnes — 3.7.0
+
+- **Schéma :**
+  - un bouton « Liens » remplace les deux cases : il ouvre un petit menu avec deux interrupteurs, « Références » et « Lookups », tous deux activés par défaut et désactivables ; le compteur (2/2, 1/2…) rappelle ce qui est affiché, et le choix est mémorisé avec le schéma ;
+  - les tables qui servent aux règles d'accès avancées (attributs d'utilisateur) sont en brun, avec un cadenas ; la légende, l'export PNG et le rapport Word reprennent cette couleur « table de droits ».
+- **Tables — colonne « Rôle » :** Clé primaire, puis la nature de la valeur :
+  - **Donnée** : sans formule propre (saisie, import, automatisation) ; une formule d'initialisation qui ne reprend aucune information du document (`NOW()`, `user.Email`) reste une donnée ;
+  - **Calculée** : produite par une formule qui calcule (agrégat, compte, date, arithmétique, condition) ;
+  - **Dérivée** : obtenue d'informations existantes par recopie, extraction, combinaison ou transformation (`$Service.Nom`, `Clients.lookupOne(…).Ville`, `f"{$Prenom} {$Nom}"`, `UPPER($Nom)`).
+- **Interface :** les champs de recherche s'étendent sur la largeur disponible (sauf sur le schéma) ; les contrôles segmentés et les boutons ont un vrai cadre, entier au clic à tous les zooms.

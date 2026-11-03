@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, lookupGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.6.3';
-import { readTheme } from './report.js?v=3.6.3';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.6.3';
+} from './erd-geometry.js?v=3.7.0';
+import { readTheme } from './report.js?v=3.7.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.7.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -25,6 +25,7 @@ const MAX_ZOOM = 2.5;
 
 // Icônes (24 × 24). Le maillon est l'icône « links-line » du DSFR (Remix Icon, Apache-2.0).
 const ICON_KEY = 'M7 7a5 5 0 1 1 0 10a5 5 0 1 1 0-10ZM7 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5ZM11 11h10v2h-1.5v3h-2v-3h-1v2h-2v-2H11Z';
+const ICON_LOCK = 'M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h8V8a4 4 0 1 0-8 0v2Z';
 const ICON_LINK = 'm12.89 7.939 1.414 1.415a7 7 0 0 1 0 9.9l-.354.353a7 7 0 0 1-9.9-9.9l1.415 1.415a5 5 0 1 0 7.071 7.07l.354-.353a5 5 0 0 0 0-7.07l-1.415-1.415L12.89 7.94v-.001Zm6.717 6.01-1.414-1.413a5 5 0 1 0-7.07-7.071l-.355.354a5 5 0 0 0 0 7.07l1.415 1.415-1.415 1.414-1.414-1.414a7 7 0 0 1 0-9.9l.354-.353a7 7 0 1 1 9.9 9.9v-.001Z';
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -144,6 +145,7 @@ export class ErdViewer {
           <div class="erd__legend-group">
             <span class="erd__legend-item"><span class="erd__legend-swatch erd__legend-swatch--table"></span>table</span>
             <span class="erd__legend-item"><span class="erd__legend-swatch"></span>table de synthèse</span>
+            <span class="erd__legend-item"><span class="erd__legend-swatch erd__legend-swatch--acl"></span>table de droits</span>
           </div>
           <div class="erd__legend-group erd__legend-lookups">
             <span class="erd__legend-item"><svg class="erd__legend-edge erd__legend-edge--one" viewBox="0 0 32 14"><path d="M1 7h23"/><path class="erd__legend-arrow" d="M23 3 31 7 23 11Z"/></svg>lookupOne</span>
@@ -178,7 +180,8 @@ export class ErdViewer {
    * @param {Array} tables  tables de sortie du convertisseur ({ name, kind, columns: [{ name, base, isFormula, ref }] })
    * @param {object} options  { positions: { Table: [x, y] }, detail: 'all' | 'keys' | 'tables' }
    */
-  async setData(tables, { positions = null, detail } = {}) {
+  async setData(tables, { positions = null, detail, aclTables = [] } = {}) {
+    const acl = new Set(aclTables);
     if (detail) this.detail = detail;
     if (positions && !this.positions.size) {
       for (const [id, p] of Object.entries(positions)) {
@@ -189,7 +192,7 @@ export class ErdViewer {
     const known = new Set(tables.map((t) => t.name));
     const model = tables.map((t) => ({
       id: t.name,
-      kind: t.kind === 'summary' ? 'summary' : 'table',
+      kind: t.kind === 'summary' ? 'summary' : acl.has(t.name) ? 'acl' : 'table',
       ghost: false,
       columns: t.columns.map((c) => ({ name: c.name, base: c.base, type: columnTypeLabel(c), isFormula: c.isFormula, ref: c.ref, label: c.label })),
     }));
@@ -272,11 +275,12 @@ export class ErdViewer {
         }),
         hidden && this.detail === 'keys' ? `<li class="erd-row erd-row--more">${esc(plural(hidden, 'autre colonne', 'autres colonnes'))}</li>` : '',
       ].join('');
-      const badge = n.ghost ? '<span class="erd-node__badge">absente</span>' : n.kind === 'summary' ? '<span class="erd-node__badge">synthèse</span>' : '';
+      const badge = n.ghost ? '<span class="erd-node__badge">absente</span>' : n.kind === 'summary' ? '<span class="erd-node__badge">synthèse</span>'
+        : n.kind === 'acl' ? `<span class="erd-node__lock" title="Table de droits : utilisée par les règles d'accès pour reconnaître la personne">${icon(ICON_LOCK, 'erd-node__lock-icon')}</span>` : '';
       const label = n.ghost
         ? `Table ${n.id}, absente du schéma`
-        : `Table ${n.id}${n.kind === 'summary' ? ' (synthèse)' : ''}, ${plural(n.columns.length + 1, 'colonne', 'colonnes')}`;
-      return `<div class="erd-node${n.kind === 'summary' ? ' erd-node--summary' : ''}${n.ghost ? ' erd-node--ghost' : ''}" data-id="${esc(n.id)}"
+        : `Table ${n.id}${n.kind === 'summary' ? ' (synthèse)' : n.kind === 'acl' ? ' (table de droits)' : ''}, ${plural(n.columns.length + 1, 'colonne', 'colonnes')}`;
+      return `<div class="erd-node${n.kind === 'summary' ? ' erd-node--summary' : n.kind === 'acl' ? ' erd-node--acl' : ''}${n.ghost ? ' erd-node--ghost' : ''}" data-id="${esc(n.id)}"
           tabindex="0" role="group" aria-label="${esc(label)}">
         <div class="erd-node__head"><span class="erd-node__name">${esc(n.id)}</span>${badge}</div>
         ${rows ? `<ul class="erd-node__rows">${rows}</ul>` : ''}
@@ -771,7 +775,7 @@ export class ErdViewer {
     const c = {
       bg: '#ffffff', border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
       ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
-      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords,
+      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords, acl: t.acl,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const parts = [];
@@ -789,7 +793,7 @@ export class ErdViewer {
     }
     for (const n of this.nodes.values()) {
       const headH = n.el.firstElementChild.offsetHeight;
-      const headFill = n.ghost ? c.ghost : n.kind === 'summary' ? c.summary : c.head;
+      const headFill = n.ghost ? c.ghost : n.kind === 'summary' ? c.summary : n.kind === 'acl' ? c.acl : c.head;
       const headColor = n.ghost ? c.mention : c.headText;
       parts.push(`<g transform="translate(${n.x},${n.y})">`);
       parts.push(`<rect width="${n.w}" height="${n.h}" rx="4" fill="${c.bg}" stroke="${c.border}"${n.ghost ? ' stroke-dasharray="4 3"' : ''}/>`);

@@ -40,12 +40,12 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const barBox = await frame.locator('#tabpanel-schema .toolbar').boundingBox();
   check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, 'barre d\'outils collée sous les onglets');
   check(barBox.height < 72, `barre d'outils du schéma sur une seule ligne (${Math.round(barBox.height)} px)`);
-  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, input:not([type=radio]):not([type=checkbox]), .fr-segmented__elements, .toolbar__check)')]
-    .filter((e) => e.offsetParent).map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { id: e.id || e.className, top: Math.round(r.top), h: Math.round(r.height), shadow: cs.boxShadow }; }));
+  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, input:not([type=radio]):not([type=checkbox]), .fr-segmented__elements)')]
+    .filter((e) => e.offsetParent).map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { id: e.id || e.className, top: Math.round(r.top), h: Math.round(r.height), shadow: cs.boxShadow, border: parseFloat(cs.borderTopWidth) > 0 }; }));
   const tops = new Set(ctrl.map((c) => c.top));
   const heights = new Set(ctrl.map((c) => c.h));
   check(tops.size === 1 && heights.size === 1, `contrôles alignés et de même hauteur (${[...heights].join('/')} px, ${tops.size} ligne)`);
-  check(ctrl.every((c) => c.shadow && c.shadow !== 'none'), 'tous les contrôles sont encadrés');
+  check(ctrl.every((c) => (c.shadow && c.shadow !== 'none') || c.border), 'tous les contrôles sont encadrés');
   check(await frame.locator('#detail-keys').isChecked() && (await frame.locator('#tabpanel-schema .fr-segmented__element label').allTextContents()).join('|') === 'Relations|Colonnes|Tables', 'schéma : « Relations » en premier et par défaut');
   check((await frame.locator('.erd__legend').textContent()).includes('plusieurs lignes') && await frame.locator('.erd__legend-icon').count() === 2, 'schéma : légende complète');
   await frame.locator('label[for="detail-all"]').click();
@@ -150,10 +150,11 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#btn-zoom-fit').click();
   await page.waitForTimeout(300);
   await shot(page, '10-complexe-schema.png');
-  // Lookups : décochés par défaut, puis lookupOne et lookupRecords en deux couleurs
-  check(!(await frame.locator('#show-lookups').isChecked()) && await frame.locator('.erd--lookups').count() === 0 && (await frame.locator('#show-lookups-count').textContent()) === '6', 'schéma : lookups masqués par défaut (6 trouvés)');
-  await frame.locator('label[for="show-lookups"]').click();
-  await page.waitForTimeout(300);
+  // Liens : un menu, Références et Lookups affichés par défaut, décochables
+  check(await frame.locator('#links-menu').isHidden() && (await frame.locator('#links-count').textContent()) === '2/2' && await frame.locator('.erd--lookups').count() === 1, 'schéma : références et lookups affichés par défaut');
+  await frame.locator('#btn-links').click();
+  check(await frame.locator('#links-menu').isVisible() && (await frame.locator('#btn-links').getAttribute('aria-expanded')) === 'true' && (await frame.locator('#show-lookups-sub').textContent()).endsWith('· 6'), 'schéma : menu « Liens » ouvert, 6 lookups');
+  await page.waitForTimeout(800);
   const lk = await frame.evaluate(() => ({
     one: document.querySelectorAll('.erd-lookup--one').length, records: document.querySelectorAll('.erd-lookup--records').length,
     drawn: [...document.querySelectorAll('.erd-lookup__line')].every((p) => (p.getAttribute('d') || '').startsWith('M')),
@@ -161,9 +162,22 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     legend: getComputedStyle(document.querySelector('.erd__legend-lookups')).display,
   }));
   check(lk.one === 2 && lk.records === 6 && lk.drawn && lk.colors === 2 && lk.legend === 'flex', `schéma : lookups affichés (${JSON.stringify(lk)})`);
-  await page.waitForTimeout(1000);
-  check(await frame.evaluate(() => window.__options.diagram?.lookups) === true, 'schéma : choix des lookups mémorisé');
   await shot(page, '10b-complexe-lookups.png');
+  await frame.locator('label[for="show-lookups"]').click();
+  await frame.locator('label[for="show-refs"]').click();
+  await page.waitForTimeout(600);
+  check(await frame.locator('.erd--lookups').count() === 0 && await frame.locator('.erd--no-refs').count() === 1 && (await frame.locator('#links-count').textContent()) === '0/2', 'schéma : les deux liens se décochent');
+  await page.waitForTimeout(1000);
+  check(await frame.evaluate(() => window.__options.diagram?.lookups) === false, 'schéma : choix des liens mémorisé');
+  await page.keyboard.press('Escape');
+  await frame.locator('#tab-schema').click();
+  await frame.locator('.erd__viewport').click({ position: { x: 20, y: 20 } });
+  check(await frame.locator('#links-menu').isHidden(), 'schéma : le menu se referme au clic ailleurs');
+  await frame.locator('#btn-links').click();
+  await frame.locator('label[for="show-lookups"]').click();
+  await frame.locator('label[for="show-refs"]').click();
+  await frame.locator('#btn-links').click();
+
 
   // Tables : détails
   await frame.locator('#tab-tables').click();

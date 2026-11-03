@@ -29,7 +29,13 @@ test('type déclaré en français, rôle, calcul et documentation, colonnes dans
   assert.equal(declaredType({ gristType: T('DateTime:Europe/Paris') }).text, 'Date et Heure (Europe/Paris)');
   assert.equal(declaredType({ gristType: T('Text') }).text, 'Texte');
   assert.equal(declaredType({ gristType: T('Any'), isFormula: true }).text, '', 'formule sans type : vide, comme le modèle');
-  assert.deepEqual(['id', 'v_nb_conflits', 'nom'].map(columnRole), ['Clé primaire', 'Dérivé (v_*)', 'Donnée']);
+  const col = (formula, isFormula = true, trigger = null) => ({ name: 'x', isFormula, details: { formula, trigger } });
+  assert.deepEqual([{ name: 'id' }, col('', false), col('$Service.Nom'), col('len(Conges.lookupRecords(Agent=$id))'), col('NOW()', false, { when: 'new' }), col('$Service.Nom', false, { when: 'new' })].map(columnRole),
+    ['Clé primaire', 'Donnée', 'Dérivée', 'Calculée', 'Donnée', 'Dérivée']);
+  // Définitions : donnée (sans formule propre), calculée (formule qui calcule), dérivée (recopie, extraction, combinaison, transformation)
+  const nature = (f) => columnRole(col(f));
+  assert.deepEqual(['Clients.lookupOne(Nom=$Client).Ville', 'f"{$Prenom} {$Nom.upper()}"', 'CONCATENATE($nom," ",$prenom)', 'UPPER($Nom)', 'return elu_organisme_lien.organe'].map(nature), Array(5).fill('Dérivée'));
+  assert.deepEqual(['$Budget - $Depense', 'SUM(Depenses.lookupRecords(Projet=$id).Montant)', '"Absent" if $Conge else "Présent"', 'DATEDIF($Debut, TODAY(), "Y")', 'len($group)', '"Paris"'].map(nature), Array(6).fill('Calculée'));
   const t = { name: 'Elus', columns: [
     { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
     { name: 'nom_complet', label: '💻 Nom complet', gristType: T('Text'), isFormula: true, details: { formula: "CONCATENATE(nom,' ',prenom)" } },
@@ -39,8 +45,8 @@ test('type déclaré en français, rôle, calcul et documentation, colonnes dans
   assert.deepEqual(tableRows(t).map(rowValues), [
     ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', 'Non concerné'],
     ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', 'Non concerné'],
-    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Donnée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
-    ['v_nb', '', 'INTEGER', 'Entier', 'Dérivé (v_*)', 'Calculé', '# Nombre de conflits\nlen(X.lookupRecords(a=$id))', 'Documentée'],
+    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Dérivée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
+    ['v_nb', '', 'INTEGER', 'Entier', 'Calculée', 'Calculé', '# Nombre de conflits\nlen(X.lookupRecords(a=$id))', 'Documentée'],
     ['date_creation', '', 'BLOB', 'Date et Heure (Europe/Paris)', 'Donnée', 'Initialisé', 'NOW()', 'Pas de documentation'],
   ]);
 });
