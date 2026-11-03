@@ -71,13 +71,12 @@ test('les formulations et solutions arbitrées restent présentes dans le catalo
  assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,16);
 });
 
-test('les informations de colonne restent disponibles sans description et échappent les textes',()=>{
+test('la description de colonne est affichée seulement quand elle est renseignée, et échappée',()=>{
  const app=readFileSync(new URL('../assets/app.js',import.meta.url),'utf8');
- const source=app.slice(app.indexOf('function columnDetailsHtml('),app.indexOf('const SEVERITY_ICON'));
+ const source=app.slice(app.indexOf('function columnDescriptionHtml('),app.indexOf('const SEVERITY_ICON'));
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const context={esc,detailLines,columnTypeLabel};vm.createContext(context);vm.runInContext(source,context);
- const column={name:'Code',base:'varchar',isFormula:false,gristType:{name:'Text'},details:{description:'<script>indésirable</script>',choices:[]}};
- const html=context.columnDetailsHtml(column);assert.match(html,/<summary>Informations<\/summary>/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
- assert.match(context.columnDetailsHtml({...column,details:{choices:[]}}),/Aucune description renseignée/);
+ const context={esc};vm.createContext(context);vm.runInContext(source,context);
+ const html=context.columnDescriptionHtml('<script>indésirable</script>');assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
+ assert.equal(context.columnDescriptionHtml(''),'');
  assert.doesNotMatch(app,/audit-key-add|audit-config-save|fetchTable\('_grist_Attachments'\)/);
 });

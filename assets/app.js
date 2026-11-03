@@ -1,22 +1,22 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.5.0';
-import { ErdViewer } from './erd.js?v=3.5.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.5.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.5.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.5.0';
-import { profileTables } from './datacheck.js?v=3.5.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.5.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.5.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.5.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.5.0';
-import { findLookups } from './lookups.js?v=3.5.0';
-import { tablesXlsx } from './tables-export.js?v=3.5.0';
-import { matrixXlsx } from './rights-export.js?v=3.5.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.6.0';
+import { ErdViewer } from './erd.js?v=3.6.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.6.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.6.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.0';
+import { profileTables } from './datacheck.js?v=3.6.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.6.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.0';
+import { findLookups } from './lookups.js?v=3.6.0';
+import { tablesXlsx } from './tables-export.js?v=3.6.0';
+import { matrixXlsx } from './rights-export.js?v=3.6.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.5.0';
+} from './rights-matrix.js?v=3.6.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.5.0';
+} from './report.js?v=3.6.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -28,7 +28,7 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-png', 'show-lookups', 'show-lookups-count', 'schema-body',
+  'find-table', 'find-table-list', 'btn-png', 'show-refs', 'show-lookups', 'show-lookups-count', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
@@ -73,7 +73,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null, lookups: false }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: false, refs: true }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -265,6 +265,7 @@ function applyOptions(options) {
     const chosen = d.detailChosen && ['all', 'keys', 'tables'].includes(d.detail);
     state.diagram = {
       lookups: d.lookups === true,
+      refs: d.refs !== false,
       detail: chosen ? d.detail : 'keys',
       ...(chosen ? { detailChosen: true } : {}),
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
@@ -421,13 +422,14 @@ function renderTables() {
         declared = `${esc(r.declared.label)} → ${chip}${r.declared.reverse ? `<span class="col-label">inverse de ${esc(r.declared.reverse)}</span>` : ''}`;
       }
       return `<tr${cls ? ` class="${cls}"` : ''}>
-        <td><span class="col-name">${esc(r.name)}</span>${c ? columnDetailsHtml(c) : ''}</td>
-        <td>${r.label ? `<span class="col-display">${esc(r.label)}</span>` : ''}</td>
+        <td><span class="col-name">${esc(r.name)}</span></td>
+        <td>${r.label ? `<span class="col-display">${esc(r.label)}</span>` : ''}${columnDescriptionHtml(r.description)}</td>
         <td><code class="col-sql">${esc(r.sqlite)}</code></td>
         <td><span class="col-type">${declared}</span></td>
         <td>${r.isKey ? `<strong>${esc(r.role)}</strong>` : esc(r.role)}</td>
-        <td>${r.computed ? `<span class="col-flag">${esc(r.computed)}</span>` : ''}</td>
-        <td>${r.formula ? `<code class="col-formula">${esc(r.formula)}</code>` : ''}</td></tr>`;
+        <td>${r.computed === 'Non calculé' ? `<span class="col-muted">${esc(r.computed)}</span>` : `<span class="col-flag">${esc(r.computed)}</span>${r.when ? `<span class="col-desc">${esc(r.when)}</span>` : ''}`}</td>
+        <td>${r.formula ? `<code class="col-formula">${esc(r.formula)}</code>` : ''}</td>
+        <td>${r.documented === 'Non concerné' ? `<span class="col-muted">${esc(r.documented)}</span>` : r.documented === 'Documentée' ? `<span class="col-doc col-doc--ok">${esc(r.documented)}</span>` : `<span class="col-doc col-doc--ko">${esc(r.documented)}</span>`}</td></tr>`;
     }).join('');
     const pk = '';
     const refs = incoming.get(t.name) || [];
@@ -472,17 +474,9 @@ function updateTablesIndex() {
 }
 
 /** Formules, choix, condition de liste et description d'une colonne. */
-/** Informations complémentaires d'une colonne (choix, liste filtrée, déclenchement, description). */
-function columnDetailsHtml(c) {
-  const lines = detailLines(c, { includeLabel: false }).filter((l) => !['Formule', 'Formule d\'initialisation'].includes(l.label));
-  const d = c.details || {};
-  if (!lines.length && !d) return '';
-  return `<details class="column-information"><summary>Informations</summary><dl class="col-details">${lines.map((l) => {
-    let value = esc(l.text);
-    if (l.mono) value = `<code>${value}</code>`;
-    else if (l.label === 'Choix') value = `<ul class="chips">${d.choices.map((x) => `<li><span class="chip chip--plain">${esc(x)}</span></li>`).join('')}</ul>`;
-    return `<dt>${esc(l.label)}</dt><dd>${value}</dd>`;
-  }).join('')}</dl>${d.description ? '' : '<p class="fr-hint-text">Aucune description renseignée.</p>'}</details>`;
+/** Description de la colonne, quand elle est renseignée (sinon rien). */
+function columnDescriptionHtml(description) {
+  return description ? `<span class="col-desc">${esc(description)}</span>` : '';
 }
 
 const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', improve: 'fr-icon-warning-line', choice: 'fr-icon-question-line', info: 'fr-icon-information-line', accepted: 'fr-icon-check-line' };
@@ -1071,7 +1065,7 @@ function renderReportSections() {
 async function schemaSnapshot() {
   const out = state.out;
   const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
-  const key = JSON.stringify([state.diagramKey || out.dbml, positions, Boolean(state.diagram.lookups)]);
+  const key = JSON.stringify([state.diagramKey || out.dbml, positions, Boolean(state.diagram.lookups), state.diagram.refs !== false]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -1080,6 +1074,7 @@ async function schemaSnapshot() {
   const v = new ErdViewer(host);
   try {
     await v.setData(out.tables, { positions, detail: 'all' });
+    v.setRefs(state.diagram.refs !== false);
     if (state.diagram.lookups) v.setLookups(documentLookups(), true);
     const blob = await v.toPng(2);
     const b = v.bounds();
@@ -1163,7 +1158,7 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'show-lookups', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'show-refs', 'show-lookups', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
@@ -1188,7 +1183,8 @@ function renderDiagram() {
   const body = els['schema-body'];
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
   els['show-lookups'].checked = Boolean(state.diagram.lookups);
-  els['show-lookups-count'].textContent = state.out ? String(documentLookups().length) : '';
+  els['show-refs'].checked = state.diagram.refs !== false;
+  els['show-lookups-count'].textContent = state.out ? String(new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size) : '';
   body.classList.add('no-minimap');
   if (!out || !out.tables.length) {
     viewer?.destroy();
@@ -1206,7 +1202,7 @@ function renderDiagram() {
   updateDiagramControls(true);
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail })
-    .then(() => v.setLookups(lookups, state.diagram.lookups))
+    .then(() => { v.setRefs(state.diagram.refs !== false); return v.setLookups(lookups, state.diagram.lookups); })
     .catch((err) => {
       console.error(err);
       toast(`Le schéma n'a pas pu être dessiné : ${err.message || err}`, 'error');
@@ -1363,6 +1359,11 @@ function bindEvents() {
       console.error(err);
       toast(`L'image n'a pas pu être produite : ${err.message || err}`, 'error');
     }
+  });
+  els['show-refs'].addEventListener('change', () => {
+    state.diagram = { ...state.diagram, refs: els['show-refs'].checked };
+    viewer?.setRefs(state.diagram.refs);
+    saveDiagramSoon();
   });
   els['show-lookups'].addEventListener('change', () => {
     state.diagram = { ...state.diagram, lookups: els['show-lookups'].checked };

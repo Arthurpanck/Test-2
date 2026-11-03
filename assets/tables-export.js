@@ -4,8 +4,8 @@
  *  - « Toutes les colonnes » : les mêmes lignes en tableau Excel filtrable, précédées du nom de la table.
  * Module pur.
  */
-import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.5.0';
-import { writeXlsx, cellRef } from './xlsx.js?v=3.5.0';
+import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.6.0';
+import { writeXlsx, cellRef } from './xlsx.js?v=3.6.0';
 
 const GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD';
 const STYLES = {
@@ -22,9 +22,13 @@ const STYLES = {
   type: { font: { size: 10, color: '18753C' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
   computed: { font: { bold: true, size: 10, color: 'A558A0' }, border: { bottom: LINE }, align: { v: 'top' } },
   formula: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  muted: { font: { size: 10, color: '929292' }, border: { bottom: LINE }, align: { v: 'top' } },
+  doc: { font: { bold: true, size: 10, color: '18753C' }, border: { bottom: LINE }, align: { v: 'top' } },
+  noDoc: { font: { bold: true, size: 10, color: 'B34000' }, border: { bottom: LINE }, align: { v: 'top' } },
 };
-const STYLE_OF = ['name', 'text', 'sql', 'type', 'text', 'computed', 'formula'];
-const cells = (r) => rowValues(r).map((v, i) => ({ v, s: r.isKey && i === 0 ? 'key' : STYLE_OF[i] }));
+const STYLE_OF = ['name', 'text', 'sql', 'type', 'text', 'computed', 'formula', 'doc'];
+const styleOf = (r, v, i) => (r.isKey && i === 0 ? 'key' : v === 'Non calculé' || v === 'Non concerné' ? 'muted' : v === 'Pas de documentation' ? 'noDoc' : STYLE_OF[i]);
+const cells = (r) => rowValues(r).map((v, i) => ({ v, s: styleOf(r, v, i) }));
 const fmtDate = (d) => `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 
 /** @param {Array} tables  tables de sortie du convertisseur */
@@ -44,7 +48,7 @@ export function tablesWorkbook(tables, { docName = '', date = new Date() } = {})
       flat.push({ cells: [{ v: t.name, s: 'name' }, ...cells(r)] });
     }
   }
-  const widths = [30, 30, 12, 32, 14, 11, 70];
+  const widths = [30, 30, 12, 32, 14, 13, 70, 20];
   return {
     title: `Tables et colonnes · ${docName || 'Document Grist'}`, creator: 'Widget Grist « Audit de structure »', date, styles: STYLES,
     sheets: [

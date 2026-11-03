@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, lookupGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.5.0';
-import { readTheme } from './report.js?v=3.5.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.5.0';
+} from './erd-geometry.js?v=3.6.0';
+import { readTheme } from './report.js?v=3.6.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.6.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -105,6 +105,7 @@ export class ErdViewer {
     this.edges = [];
     this.lookups = []; // { source, column, target, kind: 'one' | 'records' } : dessinés seulement si showLookups
     this.showLookups = false;
+    this.showRefs = true; // relations (colonnes de référence), décochables
     this.positions = new Map(); // positions connues (mémorisées ou calculées)
     this.manual = false; // l'utilisateur a déplacé des tables
     this.detail = 'all';
@@ -229,8 +230,29 @@ export class ErdViewer {
 
   visibleColumns(node) {
     if (this.detail === 'tables') return [];
-    if (this.detail === 'keys') return node.columns.filter((c) => c.ref);
+    if (this.detail === 'keys') {
+      // « Relations » : colonnes de référence, plus celles reliées par un lookup quand ils sont affichés.
+      const linked = this.showLookups ? this.lookupColumns() : new Set();
+      return node.columns.filter((c) => c.ref || linked.has(`${node.id}\u0000${c.name}`));
+    }
     return node.columns;
+  }
+
+  /** Colonnes aux deux bouts des lookups (« Table\u0000colonne »). */
+  lookupColumns() {
+    const out = new Set();
+    for (const l of this.lookups) {
+      out.add(`${l.source}\u0000${l.column}`);
+      if (l.targetColumn && l.targetColumn !== 'id') out.add(`${l.target}\u0000${l.targetColumn}`);
+    }
+    return out;
+  }
+
+  /** Affiche ou masque les relations (traits des colonnes de référence). */
+  setRefs(show) {
+    this.showRefs = Boolean(show);
+    this.root.classList.toggle('erd--no-refs', !this.showRefs);
+    this.applyHighlight();
   }
 
   renderNodes() {
@@ -282,12 +304,20 @@ export class ErdViewer {
    * table cherchée. Ils ne comptent pas dans la disposition : les afficher ne déplace aucune table.
    */
   setLookups(lookups, show = this.showLookups) {
+    const before = this.detail === 'keys' ? JSON.stringify([...this.lookupColumns()].filter(() => this.showLookups)) : '';
     this.lookups = (lookups || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
     this.showLookups = Boolean(show);
     this.root.classList.toggle('erd--lookups', this.showLookups);
+    const after = this.detail === 'keys' ? JSON.stringify([...this.lookupColumns()].filter(() => this.showLookups)) : '';
+    if (before !== after) {
+      // En vue « Relations », les colonnes reliées apparaissent ou disparaissent : les tables changent de taille.
+      this.renderNodes();
+      return this.layout({ relayout: !this.manual });
+    }
     this.renderLookups();
     this.drawEdges();
     this.applyHighlight();
+    return Promise.resolve();
   }
 
   renderLookups() {
@@ -301,9 +331,10 @@ export class ErdViewer {
       pairs.get(key).push(l);
     }
     for (const group of pairs.values()) group.forEach((l, i) => { l.shift = 14 + i * 8; });
+    const what = (l) => `${l.source}.${l.column} ← ${l.target}${l.targetColumn ? `.${l.targetColumn}` : ''} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'}${l.via === 'key' ? ', critère' : l.via === 'read' ? ', donnée lue' : ''})`;
     this.edgeLayer.insertAdjacentHTML('beforeend', this.lookups.map((l, i) => `
       <g class="erd-lookup erd-lookup--${l.kind}" data-lookup="${i}">
-        <path class="erd-lookup__hit"><title>${esc(`${l.source}.${l.column} → ${l.target} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'})`)}</title></path>
+        <path class="erd-lookup__hit"><title>${esc(what(l))}</title></path>
         <path class="erd-lookup__line"/>
         <path class="erd-lookup__arrow"/>
       </g>`).join(''));
@@ -445,7 +476,7 @@ export class ErdViewer {
         if (!s || !t || !l.el) continue;
         const g = lookupGeometry(
           { x: s.x, y: s.y, w: s.w, h: s.h }, this.anchorY(s, l.column),
-          { x: t.x, y: t.y, w: t.w, h: t.h }, t.y + t.headY,
+          { x: t.x, y: t.y, w: t.w, h: t.h }, this.anchorY(t, l.targetColumn || '\u0000'),
           { shift: l.shift },
         );
         l.geometry = g;
@@ -543,7 +574,7 @@ export class ErdViewer {
     const related = new Set();
     const linkedRows = new Set();
     const active = [];
-    for (const e of this.edges) {
+    for (const e of this.showRefs ? this.edges : []) {
       let on = false;
       if (focus?.edge !== undefined) on = this.edges[focus.edge] === e;
       else if (focus?.column) on = e.source === focus.table && e.column === focus.column;
@@ -565,6 +596,7 @@ export class ErdViewer {
       if (on) {
         related.add(l.source); related.add(l.target);
         linkedRows.add(`${l.source}\u0000${l.column}`);
+        if (l.targetColumn) linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
         active.push(l);
       }
     }
@@ -739,7 +771,7 @@ export class ErdViewer {
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const parts = [];
     parts.push(`<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + 2 * pad}" height="${b.h + 2 * pad}" fill="${t.surface}"/>`);
-    for (const e of this.edges) {
+    for (const e of this.showRefs ? this.edges : []) {
       if (!e.geometry) continue;
       parts.push(`<path d="${e.geometry.path}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
       parts.push(`<path d="${e.geometry.sourceMarker} ${e.geometry.targetMarker}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);

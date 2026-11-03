@@ -4,9 +4,36 @@
  * Utilisée par l'onglet Tables, le rapport Word et l'export Excel des tables.
  * Module pur.
  */
-import { GRIST_TYPE_LABELS } from './types.js?v=3.5.0';
+import { GRIST_TYPE_LABELS } from './types.js?v=3.6.0';
 
-export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule'];
+export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?'];
+
+/**
+ * Une formule est documentée si elle contient un commentaire Python (« # … », hors chaînes de
+ * caractères) ou commence par une chaîne de documentation (triples guillemets).
+ */
+export function hasDocumentation(code) {
+  const src = String(code || '');
+  if (/^\s*("""|''')/.test(src)) return true;
+  let quote = '';
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quote) {
+      if (ch === '\\') { i++; continue; }
+      if (src.startsWith(quote, i)) { i += quote.length - 1; quote = ''; }
+      continue;
+    }
+    if (ch === '#') return true;
+    if (ch === '"' || ch === "'") {
+      quote = src.startsWith(ch.repeat(3), i) ? ch.repeat(3) : ch;
+      i += quote.length - 1;
+    }
+  }
+  return false;
+}
+
+/** « Documentée ? » : Non concerné (pas de formule), Documentée ou Pas de documentation. */
+export const documentationLabel = (formula) => (!formula ? 'Non concerné' : hasDocumentation(formula) ? 'Documentée' : 'Pas de documentation');
 
 /**
  * Type de stockage SQLite, comme DocStorage._getSqlType() de grist-core : il dépend de la chaîne
@@ -40,12 +67,18 @@ export function declaredType(c) {
   return { text: t.arg ? `${label} (${t.arg})` : label, label };
 }
 
+/** Quand s'applique une formule d'initialisation. */
+export function triggerWhen(trigger) {
+  if (trigger.when === 'deps') return `aux nouvelles lignes et quand ${trigger.deps.length > 1 ? 'ces colonnes changent' : 'cette colonne change'} : ${trigger.deps.join(', ')}`;
+  return { new: 'aux nouvelles lignes seulement', any: 'aux nouvelles lignes et à chaque modification', never: 'jamais automatiquement' }[trigger.when] || '';
+}
+
 /** Rôle de la colonne : clé primaire, dérivée (convention de nommage v_*), ou donnée. */
 export const columnRole = (name) => (name === 'id' ? 'Clé primaire' : /^v_/.test(name) ? 'Dérivé (v_*)' : 'Donnée');
 
 /** Lignes d'une table (clé « id » comprise), dans l'ordre des colonnes. */
 export function tableRows(t, keep = () => true) {
-  const rows = [{ name: 'id', label: '', sqlite: 'INTEGER', declared: { text: '' }, role: 'Clé primaire', computed: '', formula: '', isKey: true }];
+  const rows = [{ name: 'id', label: '', sqlite: 'INTEGER', declared: { text: '' }, role: 'Clé primaire', computed: 'Non calculé', formula: '', documented: 'Non concerné', description: '', isKey: true }];
   for (const c of t.columns) {
     if (!keep(c)) continue;
     const d = c.details || {};
@@ -55,8 +88,11 @@ export function tableRows(t, keep = () => true) {
       sqlite: sqliteType(c.gristType),
       declared: declaredType(c),
       role: columnRole(c.name),
-      computed: c.isFormula ? 'Calculé' : d.trigger ? 'Initialisé' : '',
+      computed: c.isFormula ? 'Calculé' : d.trigger ? 'Initialisé' : 'Non calculé',
       formula: c.isFormula || d.trigger ? d.formula || '' : '',
+      documented: documentationLabel(c.isFormula || d.trigger ? d.formula : ''),
+      description: d.description || '',
+      when: d.trigger ? triggerWhen(d.trigger) : '',
       column: c,
     });
   }
@@ -64,4 +100,4 @@ export function tableRows(t, keep = () => true) {
 }
 
 /** Valeurs des sept colonnes, en texte (export, rapport). */
-export const rowValues = (r) => [r.name, r.label, r.sqlite, r.declared.text, r.role, r.computed, r.formula];
+export const rowValues = (r) => [r.name, r.label, r.sqlite, r.declared.text, r.role, r.computed, r.formula, r.documented];

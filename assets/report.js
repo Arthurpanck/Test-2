@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.5.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.5.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.5.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.5.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.5.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.5.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.5.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.6.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.6.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.6.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -214,23 +214,18 @@ export const REPORT_SECTIONS = [
         if (t.description) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: t.description });
         const rows = tableRows(t);
         blocks.push({ type: 'table', size: 'small', header: t.kind === 'summary' ? 'summary' : 'primary',
-          columns: TABLE_COLUMNS.map((label, i) => ({ label, width: [15, 14, 8, 15, 9, 7, 32][i] })),
+          columns: TABLE_COLUMNS.map((label, i) => ({ label, width: [14, 14, 8, 14, 9, 8, 24, 9][i] })),
           rows: rows.map((r) => [
             { text: r.name, bold: r.isKey },
-            r.label,
+            r.description ? { lines: [{ text: r.label }, { text: r.description, color: 'muted' }] } : r.label,
             { text: r.sqlite, mono: true },
             { text: r.declared.text, color: r.column?.isFormula ? 'formula' : 'type' },
             r.role,
-            { text: r.computed, color: 'formula', bold: Boolean(r.computed) },
+            r.computed === 'Non calculé' ? { text: r.computed, color: 'muted' }
+              : r.when ? { lines: [{ text: r.computed, color: 'formula', bold: true }, { text: r.when, color: 'muted' }] } : { text: r.computed, color: 'formula', bold: true },
             r.formula ? { text: r.formula, mono: true } : '',
+            { text: r.documented, color: r.documented === 'Documentée' ? 'ready' : r.documented === 'Pas de documentation' ? 'improve' : 'muted', bold: r.documented !== 'Non concerné' },
           ]) });
-        // Ce que le modèle n'a pas de colonne pour : choix, liste filtrée, déclenchement, description.
-        const extras = [];
-        for (const c of t.columns) {
-          const lines = detailLines(c, { includeLabel: false }).filter((l) => !['Formule', 'Formule d\'initialisation'].includes(l.label));
-          if (lines.length) extras.push(`${c.name} — ${lines.map((l) => `${l.label.toLowerCase()} : ${l.text}`).join(' ; ')}`);
-        }
-        if (extras.length) blocks.push({ type: 'list', items: extras });
         if (refs.length) blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: `Référencée par : ${refs.join(', ')}.` });
       }
       blocks.push({ type: 'orientation', landscape: false });

@@ -239,3 +239,17 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
   - La colonne « Calculé ? » vaut Calculé, ou Initialisé pour une formule d'initialisation.
   - L'export de l'onglet devient un classeur Excel dans ce format.
 - **Rapport :** la section « Tables et colonnes » reprend ce format, en pages paysage. La lecture du schéma mentionne les lookups quand ils sont affichés.
+
+## Lookups de colonne à colonne, documentation des formules — 3.6.0
+
+- **Schéma :**
+  - deux cases encadrées : « Références », cochée par défaut, puis « Lookups », décochée ;
+  - chaque lookup relie la colonne de formule à la colonne de la table cherchée qui donne la donnée : la colonne lue sur le résultat (`.Ville`, `d.Montant for d in …`, `c = …lookupOne(…)` puis `c.Nom`), sinon les colonnes de critère, sinon la table ;
+  - en vue « Relations », les colonnes reliées par un lookup s'affichent quand les lookups sont cochés ;
+  - le bouton d'export s'appelle « Télécharger en PNG ».
+- **Tables :**
+  - « Calculé ? » vaut Calculé, Initialisé (avec le moment où la formule s'applique) ou Non calculé ;
+  - nouvelle colonne « Documentée ? » : Non concerné sans formule, Documentée si la formule contient un commentaire `#` ou une chaîne de documentation, sinon Pas de documentation ;
+  - la description de la colonne s'affiche sous le nom affiché quand elle est renseignée.
+
+  Le rapport Word et l'export Excel reprennent ces colonnes.

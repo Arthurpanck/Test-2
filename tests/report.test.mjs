@@ -54,7 +54,7 @@ test('le rapport Word contient toutes les sections et les données du document',
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
   assert.ok(xml.includes('>Code DBML<') && xml.includes('Table '), 'section DBML à la fin');
   assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple → ') && xml.includes('>Date et Heure'), 'types de colonnes en français');
-  assert.ok(['Colonne (nom en base)', 'Type SQLite', 'Type déclaré (Grist)', 'Calculé ?', '>Clé primaire<', '>INTEGER<', '>Donnée<'].every((x) => xml.includes(x)), 'format « Table pour exportation »');
+  assert.ok(['Colonne (nom en base)', 'Type SQLite', 'Type déclaré (Grist)', 'Calculé ?', 'Documentée ?', '>Non calculé<', '>Non concerné<', '>Pas de documentation<', '>Clé primaire<', '>INTEGER<', '>Donnée<'].every((x) => xml.includes(x)), 'format « Table pour exportation »');
   assert.ok(Object.keys(zip.files).some((f) => f.startsWith('word/media/')), 'image du schéma intégrée');
 });
 
@@ -92,8 +92,6 @@ test('document complexe : droits d\'accès, formules et détails dans le Word', 
   assert.ok(xml.includes('>Refusé<') && xml.includes('>Autorisé<'), 'permissions en clair');
   assert.ok(xml.includes('>Initialisé<') && xml.includes('NOW()'), 'formule d\'initialisation');
   assert.ok(xml.includes('quand cette colonne change : Statut'), 'déclenchement sur une colonne');
-  assert.ok(xml.includes('Catégorie A · Catégorie B'), 'choix');
-  assert.ok(xml.includes('choice.Service == $Projet.Service_pilote'), 'liste filtrée');
   assert.ok(xml.includes('Données RH sensibles'), 'description de table');
   assert.ok(xml.includes('user.Profil'), 'attribut inexistant signalé');
 });

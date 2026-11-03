@@ -22,8 +22,8 @@ test('type SQLite : comme DocStorage._getSqlType() de grist-core', () => {
   for (const [type, sql] of Object.entries(cases)) assert.equal(sqliteType(T(type)), sql, type);
 });
 
-test('type déclaré en français, rôle, sept colonnes dans l\'ordre du modèle', () => {
-  assert.deepEqual(TABLE_COLUMNS, ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule']);
+test('type déclaré en français, rôle, calcul et documentation, colonnes dans l\'ordre du modèle', () => {
+  assert.deepEqual(TABLE_COLUMNS, ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?']);
   assert.equal(declaredType({ gristType: T('Ref:Projets_deliberations') }).text, 'Référence → Projets_deliberations');
   assert.equal(declaredType({ gristType: T('RefList:Thematiques', 'elu_rattache') }).text, 'Référence multiple → Thematiques (inverse de elu_rattache)');
   assert.equal(declaredType({ gristType: T('DateTime:Europe/Paris') }).text, 'Date et Heure (Europe/Paris)');
@@ -33,13 +33,15 @@ test('type déclaré en français, rôle, sept colonnes dans l\'ordre du modèle
   const t = { name: 'Elus', columns: [
     { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
     { name: 'nom_complet', label: '💻 Nom complet', gristType: T('Text'), isFormula: true, details: { formula: "CONCATENATE(nom,' ',prenom)" } },
+    { name: 'v_nb', label: '', gristType: T('Int'), isFormula: true, details: { formula: '# Nombre de conflits\nlen(X.lookupRecords(a=$id))' } },
     { name: 'date_creation', label: '', gristType: T('DateTime:Europe/Paris'), isFormula: false, details: { formula: 'NOW()', trigger: { when: 'new' } } },
   ] };
   assert.deepEqual(tableRows(t).map(rowValues), [
-    ['id', '', 'INTEGER', '', 'Clé primaire', '', ''],
-    ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', '', ''],
-    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Donnée', 'Calculé', "CONCATENATE(nom,' ',prenom)"],
-    ['date_creation', '', 'BLOB', 'Date et Heure (Europe/Paris)', 'Donnée', 'Initialisé', 'NOW()'],
+    ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', 'Non concerné'],
+    ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', 'Non concerné'],
+    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Donnée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
+    ['v_nb', '', 'INTEGER', 'Entier', 'Dérivé (v_*)', 'Calculé', '# Nombre de conflits\nlen(X.lookupRecords(a=$id))', 'Documentée'],
+    ['date_creation', '', 'BLOB', 'Date et Heure (Europe/Paris)', 'Donnée', 'Initialisé', 'NOW()', 'Pas de documentation'],
   ]);
 });
 
@@ -66,12 +68,31 @@ test('géométrie d\'un lookup : tracé orthogonal terminé par une flèche cont
   assert.match(g.arrow, /^M292,112 L300,116 L292,120 Z$/);
 });
 
-test('lookups sur les métadonnées réelles du document complexe, avec deux colonnes d\'essai (synthèse, formule d\'initialisation)', () => {
+test('lookups de colonne à colonne sur les métadonnées réelles du document complexe (deux colonnes d\'essai : synthèse, initialisation)', () => {
   const meta = loadMeta('essai-reel.metadata.json');
   const schema = schemaFromMetadata(meta.tables, meta.columns, { sections: meta.sections });
-  const keys = findLookups(convertAll({ schema }).corrected.tables, schema).map((l) => `${l.source}.${l.column} → ${l.target} (${l.kind}${l.trigger ? ', initialisation' : ''})`);
-  assert.equal(keys.length, 9);
-  assert.ok(keys.includes('Directions.Essai_lookup_synthese → Agents_Summary (records)'), 'table de synthèse « Agents_summary_Service » rattachée à « Agents_Summary »');
-  assert.ok(keys.includes('Sites.Essai_lookup_init → Directions (one, initialisation)'), 'formule d\'initialisation');
-  assert.ok(!keys.some((k) => /Sites.*→ (Projets|Taches)/.test(k)), 'commentaire et chaîne ignorés');
+  const keys = findLookups(convertAll({ schema }).corrected.tables, schema).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn ?? '(table)'} (${l.kind}, ${l.via}${l.trigger ? ', initialisation' : ''})`);
+  assert.deepEqual(keys, [
+    'Agents.Nb_projets ← Projets.Chef_de_projet (records, key)',
+    'Agents.Statut_calcule ← Conges.Agent (one, key)',
+    'Agents.Statut_calcule ← Conges.Valide (one, key)',
+    'Budgets.Montant_engage ← Depenses.Montant (records, read)',
+    'Budgets.Montant_engage ← Depenses.Projet (records, read)',
+    'Directions.Essai_lookup_synthese ← Agents_Summary.(table) (records, null)',
+    'Directions.Essai_lookup_synthese ← Agents.Service (records, key)',
+    'Indicateurs.Resultat ← Taches.En_retard (records, key)',
+    'Projets.Depense ← Depenses.Montant (records, read)',
+    'Services.Effectif ← Agents.Service (records, key)',
+    'Sites.Essai_lookup_init ← Directions.id (one, key, initialisation)',
+  ]);
+});
+
+test('lookups : colonne lue directement, par une variable de boucle ou une affectation', () => {
+  const t = (name, cols, formula) => ({ name, columns: cols.map((c) => ({ name: c, isFormula: !!formula && c === cols[0], details: { formula: c === cols[0] ? formula : '' } })) });
+  const run = (formula) => findLookups([t('A', ['f'], formula), t('Clients', ['Nom', 'Ville', 'Actif'])]).map((l) => `${l.targetColumn}:${l.via}`);
+  assert.deepEqual(run('Clients.lookupOne(Nom=$Client).Ville'), ['Ville:read']);
+  assert.deepEqual(run('[c.Ville for c in Clients.lookupRecords(Actif=True)]'), ['Ville:read']);
+  assert.deepEqual(run('c = Clients.lookupOne(Nom=$x)\nreturn c.Ville if c else None'), ['Ville:read']);
+  assert.deepEqual(run('len(Clients.lookupRecords(Actif=True, order_by="Nom"))'), ['Actif:key']);
+  assert.deepEqual(run('len(Clients.lookupRecords())'), ['null:null']);
 });
