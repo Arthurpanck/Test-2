@@ -4,8 +4,8 @@
  *  - « Toutes les colonnes » : les mêmes lignes en tableau Excel filtrable, précédées du nom de la table.
  * Module pur.
  */
-import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.6.1';
-import { writeXlsx, cellRef } from './xlsx.js?v=3.6.1';
+import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.6.2';
+import { writeXlsx, cellRef } from './xlsx.js?v=3.6.2';
 
 const GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD';
 const STYLES = {

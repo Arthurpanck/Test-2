@@ -1,22 +1,22 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.6.1';
-import { ErdViewer } from './erd.js?v=3.6.1';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.6.1';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.6.1';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.1';
-import { profileTables } from './datacheck.js?v=3.6.1';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.1';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.6.1';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.1';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.1';
-import { findLookups } from './lookups.js?v=3.6.1';
-import { tablesXlsx } from './tables-export.js?v=3.6.1';
-import { matrixXlsx } from './rights-export.js?v=3.6.1';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.6.2';
+import { ErdViewer } from './erd.js?v=3.6.2';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.6.2';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.6.2';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.6.2';
+import { profileTables } from './datacheck.js?v=3.6.2';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.6.2';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.6.2';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.6.2';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.6.2';
+import { findLookups } from './lookups.js?v=3.6.2';
+import { tablesXlsx } from './tables-export.js?v=3.6.2';
+import { matrixXlsx } from './rights-export.js?v=3.6.2';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.6.1';
+} from './rights-matrix.js?v=3.6.2';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.6.1';
+} from './report.js?v=3.6.2';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).

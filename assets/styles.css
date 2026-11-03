@@ -455,12 +455,12 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 /* Format « Table pour exportation » : sept colonnes ; la formule prend la place restante et va à la ligne. */
 .cols-table { table-layout: auto; }
 .cols-table th { white-space: normal; vertical-align: bottom; }
-.cols-table td:nth-child(1) { min-width: 9rem; }
+.cols-table td:nth-child(1) { min-width: 8rem; }
 .cols-table td:nth-child(3), .cols-table td:nth-child(5) { white-space: nowrap; }
-.cols-table td:nth-child(6) { min-width: 6.5rem; }
-.cols-table td:nth-child(8) { min-width: 6.5rem; }
-.cols-table td:nth-child(7) { min-width: 13rem; width: 30%; }
-.cols-table td { overflow-wrap: anywhere; }
+.cols-table td:nth-child(6), .cols-table td:nth-child(8) { min-width: 6.5rem; overflow-wrap: normal; }
+.cols-table td:nth-child(7) { min-width: 11rem; width: 28%; }
+.cols-table td { overflow-wrap: break-word; }
+.cols-table td:nth-child(1), .cols-table td:nth-child(7) { overflow-wrap: anywhere; }
 .cols-table th, .cols-table td { padding-left: .625rem; padding-right: .625rem; }
 .cols-table .col-sql { padding: 0; background: none; font-size: .75rem; color: var(--text-default-grey); }
 .cols-table .col-formula { display: block; padding: 0; background: none; font-size: .75rem; line-height: 1.125rem; white-space: pre-wrap; color: var(--text-default-grey); }
