@@ -275,3 +275,9 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
   - en vue « Relations », les colonnes reliées s'affichent quand la bascule est active ; la légende, l'export PNG et le rapport Word reprennent ces liens ;
   - les tables de droits passent en rouge (#c9191e) pour trancher avec le bleu des tables et le violet des tables de synthèse.
 - **Tables :** une comparaison (`$Statut == "Faite"`, `!=`, `>=`) est bien « Calculée » (elle sortait « Dérivée » en 3.7.0).
+
+## Menu « Tables » du schéma, schéma du rapport, contenu du rapport — 3.9.0
+
+- **Schéma :** un bouton « Tables », à côté de « Liens », ouvre un menu de trois bascules, toutes activées par défaut : Tables, Tables de synthèse, Tables de droits (avec le nombre de tables de chaque type). Une table masquée disparaît avec tous ses liens (références, lookups, colonnes dérivées) ; les autres tables restent à leur place. Le choix est mémorisé avec le schéma. Un seul menu est ouvert à la fois. La barre tient sur une ligne jusqu'à environ 1000 px de large (les deux menus perdent leur icône sous 1600 px).
+- **Rapport — schéma :** l'image ne dépend plus des réglages de l'écran : vue « Relations » (clé et colonnes de référence, les autres colonnes comptées), références seules, sans les tables de synthèse, avec une disposition recalculée aux proportions d'une page A4 en portrait.
+- **Rapport — contenu :** le panneau reprend le modèle de la liste des tables de l'onglet Tables : une ligne par section, avec une case pour l'inclure, son numéro dans le rapport (— si elle est exclue) et le compte en tête (7/7). Un clic sur le nom place l'aperçu sur la section (et l'ajoute si elle était exclue) ; la section lue est mise en avant pendant le défilement. La description de chaque section s'affiche au survol.

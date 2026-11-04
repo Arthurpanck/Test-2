@@ -113,7 +113,12 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(!preview.includes('swd2QJ') && preview.includes('Document Grist'), 'rapport : identifiant interne masqué');
   check(['Résumé', 'Schéma', 'Tables et colonnes', 'Widgets', 'Analyse', 'Droits d\'accès', 'Code DBML'].every((t) => preview.includes(t)) && preview.lastIndexOf('Code DBML') > preview.lastIndexOf('Droits d\'accès'), 'rapport : sections, code DBML à la fin');
   await shot(page, '05-rapport.png');
+  check(await frame.locator('[data-report-goto]').count() === 7 && (await frame.locator('#report-count').textContent()) === '7/7', 'rapport : contenu présenté comme la liste des tables (7/7)');
+  await frame.locator('[data-report-goto="tables"]').click();
+  await page.waitForTimeout(400);
+  check(await frame.locator('[data-report-item="tables"].is-current').count() === 1, 'rapport : clic sur une section → aperçu placé dessus');
   await frame.locator('[data-section="access"]').click();
+  check((await frame.locator('#report-count').textContent()) === '6/7' && (await frame.locator('[data-report-item="access"].is-off button > span:last-child').textContent()) === '—', 'rapport : section décochée grisée');
   check(!(await frame.locator('.doc').textContent()).includes('aucune règle d\'accès avancée : chaque'), 'rapport : section retirée de l\'aperçu');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
   await dl.saveAs(path.join(outDir, 'rapport.docx'));
@@ -193,6 +198,31 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('label[for="show-refs"]').click();
   await frame.locator('#btn-links').click();
 
+  // Types de tables : un menu, les trois cochés par défaut
+  check((await frame.locator('#kinds-count').textContent()) === '3/3' && await frame.locator('.erd-node.is-filtered').count() === 0, 'schéma : tous les types de tables affichés par défaut');
+  await frame.locator('#btn-kinds').click();
+  const nSummary = await frame.locator('.erd-node--summary').count();
+  const nAcl = await frame.locator('.erd-node--acl').count();
+  check(await frame.locator('#kinds-menu').isVisible() && nSummary === 3 && nAcl === 2 && (await frame.locator('#show-kind-summary-sub').textContent()).endsWith('· 3') && (await frame.locator('#show-kind-acl-sub').textContent()).endsWith('· 2'), `schéma : menu « Tables » (${nSummary} synthèses, ${nAcl} tables de droits)`);
+  await shot(page, '10d-complexe-types.png');
+  await frame.locator('label[for="show-kind-summary"]').click();
+  await page.waitForTimeout(300);
+  const kd = await frame.evaluate(() => ({
+    hidden: [...document.querySelectorAll('.erd-node--summary')].every((n) => getComputedStyle(n).display === 'none'),
+    others: [...document.querySelectorAll('.erd-node:not(.erd-node--summary)')].every((n) => getComputedStyle(n).display !== 'none'),
+    edges: document.querySelectorAll('.erd-edge.is-filtered').length,
+    count: document.querySelector('#kinds-count').textContent,
+  }));
+  check(kd.hidden && kd.others && kd.edges > 0 && kd.count === '2/3', `schéma : tables de synthèse masquées avec leurs liens (${JSON.stringify(kd)})`);
+  await frame.locator('#btn-links').click();
+  check(await frame.locator('#kinds-menu').isHidden() && await frame.locator('#links-menu').isVisible(), 'schéma : un seul menu ouvert à la fois');
+  await frame.locator('#btn-links').click();
+  await page.waitForTimeout(1000);
+  check(await frame.evaluate(() => window.__options.diagram?.kinds?.summary) === false, 'schéma : types de tables mémorisés');
+  await frame.locator('#btn-kinds').click();
+  await frame.locator('label[for="show-kind-summary"]').click();
+  await frame.locator('#btn-kinds').click();
+
 
   // Tables : détails
   await frame.locator('#tab-tables').click();
@@ -246,6 +276,10 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 60000 });
   check((await frame.locator('.doc').textContent()).includes('Structure et droits d\'accès'), 'rapport : titre adapté');
+  check((await frame.locator('.doc').textContent()).includes('Les tables de synthèse ne figurent pas sur ce schéma'), 'rapport : schéma sans tables de synthèse');
+  await frame.locator('[data-report-goto="schema"]').click();
+  await page.waitForTimeout(400);
+  await shot(page, '21-rapport-schema.png');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
   await dl.saveAs(path.join(outDir, 'rapport-complexe.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport-complexe.docx')));

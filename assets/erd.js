@@ -10,9 +10,9 @@
  */
 import {
   edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.8.0';
-import { readTheme } from './report.js?v=3.8.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.8.0';
+} from './erd-geometry.js?v=3.9.0';
+import { readTheme } from './report.js?v=3.9.0';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.9.0';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
@@ -108,6 +108,8 @@ export class ErdViewer {
     this.showLookups = false;
     this.derived = []; // { source, column, target, targetColumn, via } : colonnes dérivées, dessinées seulement si showDerived
     this.showDerived = false;
+    this.visibleKinds = new Set(['table', 'summary', 'acl']); // types de tables affichés (menu « Tables »)
+    this.aspectRatio = null; // proportions voulues pour la disposition (sinon celles de la vue)
     this.showRefs = true; // relations (colonnes de référence), décochables
     this.positions = new Map(); // positions connues (mémorisées ou calculées)
     this.manual = false; // l'utilisateur a déplacé des tables
@@ -185,8 +187,9 @@ export class ErdViewer {
    * @param {Array} tables  tables de sortie du convertisseur ({ name, kind, columns: [{ name, base, isFormula, ref }] })
    * @param {object} options  { positions: { Table: [x, y] }, detail: 'all' | 'keys' | 'tables' }
    */
-  async setData(tables, { positions = null, detail, aclTables = [] } = {}) {
+  async setData(tables, { positions = null, detail, aclTables = [], ghosts = true, aspectRatio = null } = {}) {
     const acl = new Set(aclTables);
+    this.aspectRatio = aspectRatio;
     if (detail) this.detail = detail;
     if (positions && !this.positions.size) {
       for (const [id, p] of Object.entries(positions)) {
@@ -205,6 +208,7 @@ export class ErdViewer {
     for (const t of tables) {
       for (const c of t.columns) {
         if (!c.ref) continue;
+        if (!ghosts && !known.has(c.ref.table)) continue; // table visée écartée (rapport) : pas de table « absente »
         edges.push({ source: t.name, column: c.name, target: c.ref.table, kind: c.ref.kind });
         if (!known.has(c.ref.table)) {
           known.add(c.ref.table);
@@ -355,7 +359,7 @@ export class ErdViewer {
 
   renderDerived() {
     for (const g of this.edgeLayer.querySelectorAll('.erd-derived')) g.remove();
-    if (!this.derived.length) return;
+    if (!this.derived.length) { this.applyKinds(); return; }
     // Boucles d'une même table : les plus courtes à l'intérieur ; liens entre deux tables : décalés.
     const groups = new Map();
     for (const l of this.derived) {
@@ -378,6 +382,31 @@ export class ErdViewer {
         <path class="erd-derived__arrow"/>
       </g>`).join(''));
     this.derived.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-derived="${i}"]`); });
+    this.applyKinds();
+  }
+
+  /** Types de tables affichés : « table », « summary » (synthèse), « acl » (table de droits). */
+  setKinds(kinds) {
+    this.visibleKinds = new Set(kinds);
+    this.applyKinds();
+    this.applyHighlight();
+    this.updateMinimap();
+  }
+
+  /** Masque les tables des types décochés, et tous les liens qui les touchent. */
+  applyKinds() {
+    const off = (id) => { const n = this.nodes.get(id); return Boolean(n) && !this.visibleKinds.has(n.kind); };
+    for (const n of this.nodes.values()) { n.filtered = off(n.id); n.el.classList.toggle('is-filtered', n.filtered); }
+    for (const l of [...this.edges, ...this.lookups, ...this.derived]) {
+      l.filtered = off(l.source) || off(l.target);
+      l.el?.classList.toggle('is-filtered', l.filtered);
+    }
+  }
+
+  /** Tables affichées (toutes si aucune ne l'est). */
+  shownNodes() {
+    const list = [...this.nodes.values()].filter((n) => !n.filtered);
+    return list.length ? list : [...this.nodes.values()];
   }
 
   renderLookups() {
@@ -459,7 +488,7 @@ export class ErdViewer {
         const graph = buildElkGraph(
           list.map((n) => ({ id: n.id, w: n.w, h: n.h, ports: { id: n.rowY.get('id') ?? n.headY, ...Object.fromEntries([...n.rowY].filter(([k]) => k !== 'id')) } })),
           this.edges,
-          { aspectRatio: Math.max(1, Math.min(3, vw / vh)) },
+          { aspectRatio: this.aspectRatio || Math.max(1, Math.min(3, vw / vh)) },
         );
         // Colonnes masquées (mode « Tables ») : les ports se placent au centre de l'en-tête.
         for (const child of graph.children) {
@@ -594,7 +623,7 @@ export class ErdViewer {
   }
 
   bounds() {
-    return boundsOf([...this.nodes.values()].map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h })));
+    return boundsOf(this.shownNodes().map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h })));
   }
 
   fit() {
@@ -633,7 +662,7 @@ export class ErdViewer {
     const { x, y, k } = this.view;
     const vw = this.viewport.clientWidth / k;
     const vh = this.viewport.clientHeight / k;
-    const rects = [...this.nodes.values()].map((n) => `<rect class="${n.kind === 'summary' ? 'is-summary' : ''}${n.ghost ? ' is-ghost' : ''}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="4"/>`).join('');
+    const rects = this.shownNodes().map((n) => `<rect class="${n.kind === 'summary' ? 'is-summary' : ''}${n.ghost ? ' is-ghost' : ''}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="4"/>`).join('');
     this.minimap.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
     this.minimap.innerHTML = `${rects}<rect class="erd__minimap-view" x="${-x / k}" y="${-y / k}" width="${vw}" height="${vh}" vector-effect="non-scaling-stroke"/>`;
     // La mini-carte n'a d'intérêt que si le schéma déborde de la vue.
@@ -869,22 +898,22 @@ export class ErdViewer {
     const parts = [];
     parts.push(`<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + 2 * pad}" height="${b.h + 2 * pad}" fill="${t.surface}"/>`);
     for (const e of this.showRefs ? this.edges : []) {
-      if (!e.geometry) continue;
+      if (!e.geometry || e.filtered) continue;
       parts.push(`<path d="${e.geometry.path}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
       parts.push(`<path d="${e.geometry.sourceMarker} ${e.geometry.targetMarker}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
     }
     for (const l of this.showLookups ? this.lookups : []) {
-      if (!l.geometry) continue;
+      if (!l.geometry || l.filtered) continue;
       const col = l.kind === 'one' ? c.lookupOne : c.lookupRecords;
       parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${col}" stroke-width="1.75" stroke-dasharray="${l.kind === 'one' ? '7 4' : '2 3'}" stroke-linecap="round"/>`);
       parts.push(`<path d="${l.geometry.arrow}" fill="${col}"/>`);
     }
     for (const l of this.showDerived ? this.derived : []) {
-      if (!l.geometry) continue;
+      if (!l.geometry || l.filtered) continue;
       parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${c.derived}" stroke-width="1.75" stroke-dasharray="9 3 2 3" stroke-linecap="round"/>`);
       parts.push(`<path d="${l.geometry.arrow}" fill="${c.derived}"/>`);
     }
-    for (const n of this.nodes.values()) {
+    for (const n of this.shownNodes()) {
       const headH = n.el.firstElementChild.offsetHeight;
       const headFill = n.ghost ? c.ghost : n.kind === 'summary' ? c.summary : n.kind === 'acl' ? c.acl : c.head;
       const headColor = n.ghost ? c.mention : c.headText;

@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.8.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.8.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.8.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.8.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.8.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.8.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.8.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.9.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.9.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.9.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.9.0';
+import { BITS, PERMISSION_LABEL } from './access.js?v=3.9.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.9.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.9.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -161,7 +161,7 @@ export function matrixBlocks(mx) {
 
 /**
  * Sections du rapport, dans l'ordre des pages du widget. Chacune renvoie des blocs.
- * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schema: { png, width, height } | null }
+ * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schemaSummaries, schema: { png, width, height } | null }
  */
 export const REPORT_SECTIONS = [
   {
@@ -190,12 +190,12 @@ export const REPORT_SECTIONS = [
   {
     id: 'schema',
     title: 'Schéma',
-    description: 'Le schéma des tables et de leurs relations, tel qu\'affiché dans le widget',
+    description: 'Les tables et leurs références (vue Relations, sans les tables de synthèse)',
     build(ctx) {
       if (!ctx.schema) return [{ type: 'paragraph', text: 'Le schéma n\'a pas pu être dessiné.', color: 'muted' }];
       return [
         { type: 'image', png: ctx.schema.png, width: ctx.schema.width, height: ctx.schema.height, alt: 'Schéma des tables et de leurs relations' },
-        { type: 'paragraph', color: 'muted', size: 'small', text: `Lecture : chaque carte est une table (en-tête bleu ; violet pour une table de synthèse ; rouge pour une table de droits, utilisée par les règles d'accès pour reconnaître la personne), la première ligne est sa clé « id ». Un trait relie une colonne de référence à la table visée ; la patte d'oie marque le côté « plusieurs lignes », la barre le côté « une ligne ». Les colonnes de formule sont précédées de « ƒ ».${ctx.schemaLookups ? ' Lookups des formules : orange tireté pour lookupOne, vert pointillé pour lookupRecords, flèche vers la table cherchée.' : ''}${ctx.schemaDerived ? ' Colonnes dérivées : trait mixte violet, de la colonne dérivée vers la colonne qu\'elle reprend (boucle quand elle est dans la même table).' : ''}` },
+        { type: 'paragraph', color: 'muted', size: 'small', text: `Lecture : chaque carte est une table (en-tête bleu ; rouge pour une table de droits, utilisée par les règles d'accès pour reconnaître la personne). Elle montre sa clé « id » et ses colonnes de référence ; les autres colonnes sont comptées en bas de la carte. Un trait relie une colonne de référence à la table visée ; la patte d'oie marque le côté « plusieurs lignes », la barre le côté « une ligne ».${ctx.schemaSummaries ? ' Les tables de synthèse ne figurent pas sur ce schéma.' : ''}` },
       ];
     },
   },
@@ -425,7 +425,7 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
   chosen.forEach((s, i) => {
     if (s.landscapeStart?.(ctx)) body.push({ type: 'orientation', landscape: true }); // saut de section : nouvelle page
     else if (i > 0) body.push({ type: 'pagebreak' });
-    body.push({ type: 'heading', level: 1, text: s.title });
+    body.push({ type: 'heading', level: 1, text: s.title, section: s.id });
     body.push(...s.build(ctx));
   });
   // Table des matières cliquable : chaque titre reçoit une ancre (signet dans le Word).
@@ -471,7 +471,7 @@ export function renderHtml(blocks, { imageUrl } = {}) {
     switch (b.type) {
       case 'title': return `<header class="doc__title"><p class="doc__kicker">${esc(b.subtitle)}</p><h1>${esc(b.text)}</h1><p class="doc__meta">${esc(b.meta)}</p></header>`;
       case 'toc': return `<nav class="doc__toc" aria-label="${esc(b.title)}"><p class="doc__toc-title">${esc(b.title)}</p><ol>${b.entries.map((e) => `<li class="doc__toc-l${e.level}"><a href="#doc-${e.anchor}" data-doc-anchor="doc-${e.anchor}"><span class="doc__toc-num">${esc(e.number || '')}</span><span class="doc__toc-text">${esc(e.text)}</span></a></li>`).join('')}</ol></nav>`;
-      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}"${b.anchor ? ` id="doc-${b.anchor}"` : ''}>${b.number ? `<span class="doc__num">${esc(b.number)}</span> ` : ''}${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
+      case 'heading': return `<h${b.level + 1} class="doc__h${b.level}"${b.anchor ? ` id="doc-${b.anchor}"` : ''}${b.section ? ` data-report-section="${esc(b.section)}"` : ''}>${b.number ? `<span class="doc__num">${esc(b.number)}</span> ` : ''}${b.badge ? `<span class="doc__badge doc__badge--${b.badge.level}">${esc(b.badge.text)}</span> ` : ''}${esc(b.text)}</h${b.level + 1}>`;
       case 'paragraph': return `<p class="doc__p${b.color ? ` doc--${b.color}` : ''}${b.size === 'small' ? ' doc__p--small' : ''}">${runsHtml(b)}</p>`;
       case 'stats': return `<div class="doc__stats">${b.items.map((s) => `<div><strong>${esc(s.value)}</strong><span>${esc(s.label)}</span></div>`).join('')}</div>`;
       case 'callout': return `<div class="doc__callout doc__callout--${b.level}"><p><strong>${esc(b.title)}</strong></p><p>${esc(b.text)}</p></div>`;

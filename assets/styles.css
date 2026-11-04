@@ -146,6 +146,10 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
 .links__opt:hover { background: var(--background-default-grey-hover); }
 .links__line { flex: none; width: 1.375rem; height: 0; }
 .links__line--ref { border-top: 2px solid #929292; }
+.links__swatch { flex: none; width: 1.375rem; height: .875rem; border-radius: 2px; }
+.links__swatch--table { background: var(--background-action-high-blue-france); }
+.links__swatch--summary { background: var(--background-flat-purple-glycine); }
+.links__swatch--acl { background: var(--doc-acl); }
 .links__line--lookup { border-top: 2px dashed var(--lookup-one, #d64d00); }
 .links__line--derived { height: 2px; background: repeating-linear-gradient(90deg, var(--derived, #a558a0) 0 6px, transparent 6px 8px, var(--derived, #a558a0) 8px 9.5px, transparent 9.5px 11.5px); }
 .links__text { flex: 1; min-width: 0; font-size: .875rem; line-height: 1.25rem; color: var(--text-title-grey); }
@@ -217,13 +221,15 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
   .toolbar__collapse::before { margin: 0 !important; --icon-size: 1.125rem; }
   .toolbar .fr-segmented__element label { padding: .3125rem .75rem; }
 }
-/* Schéma : sa barre a un contrôle de plus (Lookups) ; ses boutons passent en icônes plus tôt. */
-@media (max-width: 88em) {
+/* Schéma : sa barre a deux menus (Tables, Liens) ; ses boutons passent en icônes plus tôt et les menus perdent leur icône. */
+@media (max-width: 100em) {
   #tabpanel-schema .toolbar__collapse { font-size: 0 !important; padding-left: .625rem !important; padding-right: .625rem !important; }
   #tabpanel-schema .toolbar__collapse::before { margin: 0 !important; --icon-size: 1.125rem; }
   #tabpanel-schema .toolbar__sep { margin: 0 .125rem; }
   #tabpanel-schema .toolbar__search { width: 10rem; }
   #tabpanel-schema .toolbar { column-gap: .375rem; }
+  #tabpanel-schema .links__btn::before { display: none; }
+  #tabpanel-schema .links__btn { padding-left: .75rem !important; padding-right: .625rem !important; gap: .375rem; }
 }
 @media (max-width: 75em) {
   #tabpanel-schema .toolbar__sep, #tabpanel-schema .toolbar__zoom { display: none; }
@@ -707,15 +713,25 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
    =================================================================== */
 .report { padding: 0; }
 .report__layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 1.5rem; padding: 1.5rem; min-height: 100%; box-sizing: border-box; }
-.report__panel { position: sticky; top: 1.5rem; flex: 1 1 15rem; max-width: 18.5rem; border: 1px solid var(--border-default-grey); background: var(--background-default-grey); }
-.report__panel-head { padding: .75rem 1rem; border-bottom: 1px solid var(--border-default-grey); }
-.report__panel-title { margin: 0; font-size: 1rem; line-height: 1.5rem; font-weight: 700; }
-.report__panel-count { margin: 0; font-size: .75rem; color: var(--text-mention-grey); }
-.report__opt { display: flex; align-items: flex-start; gap: .625rem; padding: .625rem 1rem; border-bottom: 1px solid var(--border-default-grey); cursor: pointer; }
-.report__opt:hover { background: var(--background-default-grey-hover); }
-.report__opt input { flex: none; width: 1rem; height: 1rem; margin: .1875rem 0 0; accent-color: var(--background-action-high-blue-france); }
-.report__opt strong { display: block; font-size: .875rem; font-weight: 500; }
-.report__opt span span { display: block; font-size: .75rem; color: var(--text-mention-grey); }
+.report__panel { position: sticky; top: 1.5rem; flex: 1 1 14rem; max-width: 17rem; border: 1px solid var(--border-default-grey); background: var(--background-default-grey); }
+.report-index__head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; line-height: 1.25rem; }
+.report-index__count { font-weight: 700; letter-spacing: 0; color: var(--text-mention-grey); }
+.report-index__list { list-style: none; margin: 0; padding: .25rem 0; }
+.report-index__item { display: flex; align-items: center; margin: 0; padding: 0 0 0 .75rem; border-left: 3px solid transparent; }
+.report-index__item::before { content: none; }
+.report-index__item input { flex: none; width: 1rem; height: 1rem; margin: 0; accent-color: var(--background-action-high-blue-france); cursor: pointer; }
+.report-index__item button {
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+  flex: 1 1 auto; min-width: 0; padding: .375rem .75rem .375rem .5rem;
+  border: 0; background: transparent; color: var(--text-default-grey);
+  font: inherit; font-size: .8125rem; line-height: 1.25rem; text-align: left; cursor: pointer;
+}
+.report-index__item button > span:last-child { flex: none; font-size: .75rem; color: var(--text-mention-grey); }
+.report-index__item:hover { background: var(--background-default-grey-hover); }
+.report-index__item.is-off button { color: var(--text-mention-grey); }
+.report-index__item.is-current { background: var(--background-action-low-blue-france); border-left-color: var(--border-active-blue-france); }
+.report-index__item.is-current button { color: var(--text-action-high-blue-france); font-weight: 700; }
+.report-index__item.is-current button > span:last-child { color: inherit; }
 .report__panel-foot { margin: 0; padding: .75rem 1rem; background: var(--background-alt-grey); font-size: .75rem; line-height: 1.125rem; color: var(--text-mention-grey); }
 .report__stage { flex: 999 1 32rem; min-width: 0; padding: 2rem; background: var(--background-contrast-grey); }
 @media (max-width: 52em) { .report__panel { position: static; max-width: none; } .report__stage { padding: 1rem; } }
@@ -874,6 +890,7 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 :root[data-fr-theme="dark"] .erd { --derived: #e29bdc; }
 .erd-derived { display: none; }
 .erd--derived .erd-derived { display: inline; }
+.erd-node.is-filtered, .erd .is-filtered { display: none !important; }
 .erd-derived__line { fill: none; stroke: var(--derived); stroke-width: 1.75; stroke-dasharray: 9 3 2 3; stroke-linecap: round; transition: opacity .15s ease; }
 .erd-derived__arrow { fill: var(--derived); }
 .erd-derived__hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }

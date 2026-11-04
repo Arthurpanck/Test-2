@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.8.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.8.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.9.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.9.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.8.0"></script>
+  <script type="module" src="assets/app.js?v=3.9.0"></script>
 </head>
 <body>
   <div class="app">
@@ -66,6 +66,30 @@
           <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
           <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
           <datalist id="find-table-list"></datalist>
+        </div>
+        <div class="links">
+          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-table-line links__btn" id="btn-kinds" type="button" aria-expanded="false" aria-controls="kinds-menu">Tables<span class="links__count" id="kinds-count">3/3</span><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="links__menu" id="kinds-menu" role="group" aria-label="Tables affichées sur le schéma" hidden>
+            <p class="links__title">Tables affichées sur le schéma</p>
+            <label class="links__opt" for="show-kind-table">
+              <span class="links__swatch links__swatch--table" aria-hidden="true"></span>
+              <span class="links__text"><strong>Tables</strong><span id="show-kind-table-sub">Tables de données</span></span>
+              <input class="links__input" type="checkbox" id="show-kind-table" checked>
+              <span class="links__switch" aria-hidden="true"></span>
+            </label>
+            <label class="links__opt" for="show-kind-summary">
+              <span class="links__swatch links__swatch--summary" aria-hidden="true"></span>
+              <span class="links__text"><strong>Tables de synthèse</strong><span id="show-kind-summary-sub">Regroupements calculés par Grist</span></span>
+              <input class="links__input" type="checkbox" id="show-kind-summary" checked>
+              <span class="links__switch" aria-hidden="true"></span>
+            </label>
+            <label class="links__opt" for="show-kind-acl">
+              <span class="links__swatch links__swatch--acl" aria-hidden="true"></span>
+              <span class="links__text"><strong>Tables de droits</strong><span id="show-kind-acl-sub">Utilisées par les règles d'accès</span></span>
+              <input class="links__input" type="checkbox" id="show-kind-acl" checked>
+              <span class="links__switch" aria-hidden="true"></span>
+            </label>
+          </div>
         </div>
         <div class="links">
           <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-links-line links__btn" id="btn-links" type="button" aria-expanded="false" aria-controls="links-menu">Liens<span class="links__count" id="links-count">2/3</span><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -200,14 +224,11 @@
       </div>
       <div class="page__body report">
         <div class="report__layout">
-          <aside class="report__panel" aria-labelledby="report-panel-title">
-            <div class="report__panel-head">
-              <h2 class="report__panel-title" id="report-panel-title">Contenu du rapport</h2>
-              <p class="report__panel-count" id="report-count"></p>
-            </div>
-            <div id="report-sections" role="group" aria-labelledby="report-panel-title"></div>
+          <nav class="report__panel report-index" aria-labelledby="report-panel-title">
+            <h2 class="tables-index__head report-index__head"><span id="report-panel-title">Contenu du rapport</span><span class="report-index__count" id="report-count"></span></h2>
+            <ul class="report-index__list" id="report-sections"></ul>
             <p class="report__panel-foot">Police Calibri 11 · titres numérotés. Table des matières cliquable ; Word propose de mettre à jour les numéros de page à l'ouverture.</p>
-          </aside>
+          </nav>
           <div class="report__stage" id="report-body"></div>
         </div>
       </div>

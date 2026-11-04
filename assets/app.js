@@ -1,23 +1,23 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.8.0';
-import { ErdViewer } from './erd.js?v=3.8.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.8.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.8.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.8.0';
-import { profileTables } from './datacheck.js?v=3.8.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.8.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.8.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.8.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.8.0';
-import { findLookups } from './lookups.js?v=3.8.0';
-import { findDerivations } from './derivations.js?v=3.8.0';
-import { tablesXlsx } from './tables-export.js?v=3.8.0';
-import { matrixXlsx } from './rights-export.js?v=3.8.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.9.0';
+import { ErdViewer } from './erd.js?v=3.9.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.9.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.9.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.9.0';
+import { profileTables } from './datacheck.js?v=3.9.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.9.0';
+import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.9.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.9.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.9.0';
+import { findLookups } from './lookups.js?v=3.9.0';
+import { findDerivations } from './derivations.js?v=3.9.0';
+import { tablesXlsx } from './tables-export.js?v=3.9.0';
+import { matrixXlsx } from './rights-export.js?v=3.9.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.8.0';
+} from './rights-matrix.js?v=3.9.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.8.0';
+} from './report.js?v=3.9.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -29,7 +29,7 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-png', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-derived', 'show-refs-sub', 'show-lookups-sub', 'show-derived-sub', 'schema-body',
+  'find-table', 'find-table-list', 'btn-png', 'btn-kinds', 'kinds-menu', 'kinds-count', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'show-kind-table-sub', 'show-kind-summary-sub', 'show-kind-acl-sub', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-derived', 'show-refs-sub', 'show-lookups-sub', 'show-derived-sub', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
@@ -74,7 +74,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, derived: false }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, derived: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -255,6 +255,7 @@ function saveOption(key, value) {
   if (!inGrist) return;
   Promise.resolve(gristApi.setOption(key, value)).catch(() => { /* accès en lecture seule */ });
 }
+const TABLE_KINDS = ['table', 'summary', 'acl'];
 const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
 
 function applyOptions(options) {
@@ -268,6 +269,7 @@ function applyOptions(options) {
       lookups: d.lookups !== false,
       refs: d.refs !== false,
       derived: d.derived === true,
+      kinds: Object.fromEntries(TABLE_KINDS.map((k) => [k, d.kinds?.[k] !== false])),
       detail: chosen ? d.detail : 'keys',
       ...(chosen ? { detailChosen: true } : {}),
       positions: d.positions && typeof d.positions === 'object' ? d.positions : null,
@@ -1056,18 +1058,33 @@ function gotoAccess(table) {
 // Rapport Word
 // ---------------------------------------------------------------------------
 
+/**
+ * « Contenu du rapport », sur le modèle de la liste des tables : une case pour inclure la section,
+ * son nom pour y aller dans l'aperçu, son numéro dans le rapport. La section lue est mise en avant.
+ */
 function renderReportSections() {
-  els['report-sections'].innerHTML = REPORT_SECTIONS.map((r) => `<label class="report__opt"><input type="checkbox" data-section="${r.id}"${state.reportSections.has(r.id) ? ' checked' : ''}>
-    <span><strong>${esc(r.title)}</strong><span>${esc(r.description)}</span></span></label>`).join('');
-  els['report-count'].textContent = `${state.reportSections.size} section${state.reportSections.size > 1 ? 's' : ''} sur ${REPORT_SECTIONS.length}`;
+  let n = 0;
+  els['report-sections'].innerHTML = REPORT_SECTIONS.map((r) => {
+    const on = state.reportSections.has(r.id);
+    const num = on ? `${++n}.` : '—';
+    return `<li class="report-index__item${on ? '' : ' is-off'}" data-report-item="${r.id}">
+      <input type="checkbox" id="report-sec-${r.id}" data-section="${r.id}"${on ? ' checked' : ''} aria-label="Inclure « ${esc(r.title)} » dans le rapport">
+      <button type="button" data-report-goto="${r.id}" title="${esc(r.description)}"><span class="tables-index__name">${esc(r.title)}</span><span>${num}</span></button>
+    </li>`;
+  }).join('');
+  els['report-count'].textContent = `${state.reportSections.size}/${REPORT_SECTIONS.length}`;
+  els['report-count'].setAttribute('aria-label', `${state.reportSections.size} sections sur ${REPORT_SECTIONS.length}`);
   els['btn-docx'].disabled = !state.out || !state.reportSections.size;
 }
 
-/** Image du schéma pour le rapport, dessinée hors écran avec la disposition actuelle. */
+/**
+ * Image du schéma pour le rapport, dessinée hors écran : vue « Relations », références seules,
+ * sans les tables de synthèse, disposition recalculée aux proportions d'une page A4 en portrait.
+ * Elle ne dépend pas des réglages de l'écran (liens, types de tables, positions).
+ */
 async function schemaSnapshot() {
   const out = state.out;
-  const positions = viewer ? viewer.exportPositions() : state.diagram.positions;
-  const key = JSON.stringify([state.diagramKey || out.dbml, positions, state.diagram.lookups !== false, state.diagram.refs !== false, state.diagram.derived === true]);
+  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])])]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -1075,10 +1092,7 @@ async function schemaSnapshot() {
   document.body.append(host);
   const v = new ErdViewer(host);
   try {
-    await v.setData(out.tables, { positions, detail: 'all', aclTables: aclTableNames() });
-    v.setRefs(state.diagram.refs !== false);
-    if (state.diagram.lookups !== false) v.setLookups(documentLookups(), true);
-    if (state.diagram.derived === true) v.setDerived(documentDerivations(), true);
+    await v.setData(out.tables.filter((t) => t.kind !== 'summary'), { detail: 'keys', aclTables: aclTableNames(), ghosts: false, aspectRatio: 0.8 });
     const blob = await v.toPng(2);
     const b = v.bounds();
     const png = new Uint8Array(await blob.arrayBuffer());
@@ -1100,13 +1114,23 @@ function reportContext(schema) {
     insights: state.insights,
     access: state.access,
     matrix: matrixData(),
-    schemaLookups: state.diagram.lookups !== false && documentLookups().length > 0,
-    schemaDerived: state.diagram.derived === true && documentDerivations().length > 0,
+    schemaSummaries: state.out.tables.some((t) => t.kind === 'summary'),
     profiles: state.profiles,
     pages: state.pages,
     dbml: state.out.dbml,
     schema,
   };
+}
+
+let reportIndexFrame = 0;
+/** Met en avant, dans « Contenu du rapport », la section en haut de l'aperçu. */
+function updateReportIndex() {
+  const box = els['report-body'].closest('.page__body');
+  const heads = [...els['report-body'].querySelectorAll('[data-report-section]')];
+  let current = heads[0]?.dataset.reportSection;
+  const top = box.getBoundingClientRect().top + 24;
+  for (const h of heads) { if (h.getBoundingClientRect().top <= top) current = h.dataset.reportSection; else break; }
+  for (const li of els['report-sections'].querySelectorAll('[data-report-item]')) li.classList.toggle('is-current', li.dataset.reportItem === current);
 }
 
 let reportSeq = 0;
@@ -1118,6 +1142,7 @@ async function renderReport() {
   const draw = (schema) => {
     const blocks = buildReport(reportContext(schema), [...state.reportSections]);
     els['report-body'].innerHTML = `<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => schema?.url || '' })}</article>`;
+    updateReportIndex();
   };
   const needsSchema = state.reportSections.has('schema');
   draw(needsSchema ? state.snapshot : null);
@@ -1162,7 +1187,7 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-links', 'show-refs', 'show-lookups', 'show-derived', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-kinds', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'btn-links', 'show-refs', 'show-lookups', 'show-derived', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
@@ -1189,7 +1214,9 @@ function renderDiagram() {
   els['show-lookups'].checked = state.diagram.lookups !== false;
   els['show-refs'].checked = state.diagram.refs !== false;
   els['show-derived'].checked = state.diagram.derived === true;
+  for (const k of TABLE_KINDS) els[`show-kind-${k}`].checked = shownKinds().includes(k);
   updateLinksMenu();
+  updateKindsMenu();
   body.classList.add('no-minimap');
   if (!out || !out.tables.length) {
     viewer?.destroy();
@@ -1210,6 +1237,7 @@ function renderDiagram() {
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail, aclTables: aclTableNames() })
     .then(() => { v.setRefs(state.diagram.refs !== false); return v.setLookups(lookups, state.diagram.lookups !== false); })
     .then(() => v.setDerived(derived, state.diagram.derived === true))
+    .then(() => v.setKinds(shownKinds()))
     .catch((err) => {
       console.error(err);
       toast(`Le schéma n'a pas pu être dessiné : ${err.message || err}`, 'error');
@@ -1234,9 +1262,36 @@ function updateLinksMenu() {
   els['show-derived-sub'].textContent = `Rôle « Dérivée » de Tables · ${derived}`;
 }
 
-function setLinksMenu(open) {
-  els['links-menu'].hidden = !open;
-  els['btn-links'].setAttribute('aria-expanded', String(open));
+/** Types de tables cochés dans le menu « Tables ». */
+function shownKinds() {
+  const k = state.diagram.kinds || {};
+  return TABLE_KINDS.filter((x) => k[x] !== false);
+}
+
+/** Type d'une table sur le schéma : synthèse, table de droits ou table. */
+function tableKind(t, acl = new Set(aclTableNames())) {
+  return t.kind === 'summary' ? 'summary' : acl.has(t.name) ? 'acl' : 'table';
+}
+
+/** Menu « Tables » : nombre de tables de chaque type et types affichés. */
+function updateKindsMenu() {
+  const acl = new Set(aclTableNames());
+  const counts = { table: 0, summary: 0, acl: 0 };
+  for (const t of state.out?.tables || []) counts[tableKind(t, acl)] += 1;
+  els['kinds-count'].textContent = `${shownKinds().length}/3`;
+  els['show-kind-table-sub'].textContent = `Tables de données · ${counts.table}`;
+  els['show-kind-summary-sub'].textContent = `Regroupements calculés par Grist · ${counts.summary}`;
+  els['show-kind-acl-sub'].textContent = `Utilisées par les règles d'accès · ${counts.acl}`;
+}
+
+const MENUS = { links: ['btn-links', 'links-menu'], kinds: ['btn-kinds', 'kinds-menu'] };
+/** Ouvre un menu de la barre du schéma (et ferme l'autre), ou les ferme tous. */
+function setMenu(name, open) {
+  for (const [key, [btn, menu]] of Object.entries(MENUS)) {
+    const on = open && key === name;
+    els[menu].hidden = !on;
+    els[btn].setAttribute('aria-expanded', String(on));
+  }
 }
 
 let lookupsCache = null;
@@ -1359,6 +1414,16 @@ function bindEvents() {
     if (box.checked) state.reportSections.add(box.dataset.section); else state.reportSections.delete(box.dataset.section);
     renderReport();
   });
+  els['report-sections'].addEventListener('click', async (ev) => {
+    const go = ev.target.closest('[data-report-goto]');
+    if (!go) return;
+    const id = go.dataset.reportGoto;
+    // Section non incluse : un clic sur son nom l'ajoute, puis l'aperçu s'y place.
+    if (!state.reportSections.has(id)) { state.reportSections.add(id); await renderReport(); }
+    const el = els['report-body'].querySelector(`[data-report-section="${id}"]`);
+    if (el) { scrollWithin(el); flash(el); }
+  });
+  els['report-body'].closest('.page__body').addEventListener('scroll', () => { if (!reportIndexFrame) reportIndexFrame = requestAnimationFrame(() => { reportIndexFrame = 0; updateReportIndex(); }); }, { passive: true });
   els['btn-docx'].addEventListener('click', downloadReport);
 
   // Schéma
@@ -1397,9 +1462,22 @@ function bindEvents() {
       toast(`L'image n'a pas pu être produite : ${err.message || err}`, 'error');
     }
   });
-  els['btn-links'].addEventListener('click', () => setLinksMenu(els['links-menu'].hidden));
-  document.addEventListener('click', (ev) => { if (!els['links-menu'].hidden && !ev.target.closest('.links')) setLinksMenu(false); });
-  els['links-menu'].addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { setLinksMenu(false); els['btn-links'].focus(); } });
+  for (const [name, [btn, menu]] of Object.entries(MENUS)) {
+    els[btn].addEventListener('click', () => setMenu(name, els[menu].hidden));
+    els[menu].addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { setMenu(name, false); els[btn].focus(); } });
+  }
+  document.addEventListener('click', (ev) => {
+    const inside = ev.target.closest('.links');
+    for (const [name, [, menu]] of Object.entries(MENUS)) if (!els[menu].hidden && !els[menu].parentElement.contains(inside)) setMenu(name, false);
+  });
+  for (const k of TABLE_KINDS) {
+    els[`show-kind-${k}`].addEventListener('change', () => {
+      state.diagram = { ...state.diagram, kinds: { ...(state.diagram.kinds || {}), [k]: els[`show-kind-${k}`].checked } };
+      viewer?.setKinds(shownKinds());
+      updateKindsMenu();
+      saveDiagramSoon();
+    });
+  }
   els['show-refs'].addEventListener('change', () => {
     state.diagram = { ...state.diagram, refs: els['show-refs'].checked };
     viewer?.setRefs(state.diagram.refs);
