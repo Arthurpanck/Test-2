@@ -242,7 +242,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Accès des éditeurs aux données malgré les droits d’accès'), 'complexe : constats sur les droits d\'accès');
+  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès'), 'complexe : constats sur les droits d\'accès');
   check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
   await shot(page, '12-complexe-analyse.png');
   await frame.locator('.coverage__go').first().click();
@@ -409,11 +409,12 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   check((await frame.locator('#tbl-Commandes .card__meta').textContent()).includes('24 lignes'), 'mal structuré : nombre de lignes affiché');
   await frame.locator('#tab-analysis').click();
   const text = await frame.locator('#analysis-body').textContent();
-  for (const t of ['liens écrits à la main', 'saisies en texte', 'listes de choix', 'tables sans aucune ligne']) {
+  // Revue du 4 novembre (3.11.0) : « liens écrits à la main » retiré ; texte → nombres, booléens et dates séparés.
+  for (const t of ['devraient être de type numérique', 'listes de choix', 'tables sans aucune ligne']) {
     check(text.includes(t), `mal structuré : « ${t} »`);
   }
   check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');
-  check(text.includes('au nom par défaut') && !text.includes('Un widget externe avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
+  check(text.includes('dont le nom ne précise pas l’usage') && !text.includes('Un widget externe avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
   await frame.locator('#tab-widgets').click();
   const w = await frame.locator('#widgets-body').textContent();
   check(await frame.locator('.widget-card').count() === 5 && w.includes('Code dans le document') && w.includes('widgets.exemple.fr') && w.indexOf('Widgets non officiels') < w.indexOf('Widgets personnalisés'), 'onglet Widgets : non officiels en premier, avec origine et adresse');
