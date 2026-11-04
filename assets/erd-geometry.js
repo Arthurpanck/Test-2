@@ -119,8 +119,8 @@ export function lookupGeometry(srcRect, srcY, tgtRect, tgtY, { shift = 0 } = {})
 }
 
 /**
- * Tracé d'un lien entre deux colonnes d'une même table (colonne dérivée d'une autre colonne) :
- * une boucle sur le côté droit, de la colonne dérivée vers la colonne reprise, terminée par une flèche.
+ * Tracé d'un lien entre deux colonnes d'une même table (formule qui lit une autre colonne) :
+ * une boucle sur le côté droit, de la colonne calculée vers la colonne lue, terminée par une flèche.
  */
 export function loopGeometry(rect, srcY, tgtY, { shift = 0 } = {}) {
   const x = rect.x + rect.w;

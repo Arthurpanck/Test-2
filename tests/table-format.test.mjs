@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sqliteType, declaredType, columnRole, tableRows, rowValues, TABLE_COLUMNS } from '../assets/table-format.js';
 import { findLookups } from '../assets/lookups.js';
-import { findDerivations } from '../assets/derivations.js';
+import { findFormulaDeps } from '../assets/formula-deps.js';
 import { gristTypeFromColType, schemaFromMetadata, convertAll } from '../assets/converter.js';
 import { lookupGeometry } from '../assets/erd-geometry.js';
 import { readFileSync } from 'node:fs';
@@ -32,11 +32,11 @@ test('type déclaré en français, rôle, calcul et documentation, colonnes dans
   assert.equal(declaredType({ gristType: T('Any'), isFormula: true }).text, '', 'formule sans type : vide, comme le modèle');
   const col = (formula, isFormula = true, trigger = null) => ({ name: 'x', isFormula, details: { formula, trigger } });
   assert.deepEqual([{ name: 'id' }, col('', false), col('$Service.Nom'), col('len(Conges.lookupRecords(Agent=$id))'), col('NOW()', false, { when: 'new' }), col('$Service.Nom', false, { when: 'new' })].map(columnRole),
-    ['Clé primaire', 'Donnée', 'Dérivée', 'Calculée', 'Donnée', 'Dérivée']);
-  // Définitions : donnée (sans formule propre), calculée (formule qui calcule), dérivée (recopie, extraction, combinaison, transformation)
+    ['Clé primaire', 'Donnée', 'Calculée', 'Calculée', 'Donnée', 'Donnée']);
+  // Définitions : donnée (sans formule propre, initialisation comprise), calculée (produite par une formule)
   const nature = (f) => columnRole(col(f));
-  assert.deepEqual(['Clients.lookupOne(Nom=$Client).Ville', 'f"{$Prenom} {$Nom.upper()}"', 'CONCATENATE($nom," ",$prenom)', 'UPPER($Nom)', 'return elu_organisme_lien.organe'].map(nature), Array(5).fill('Dérivée'));
-  assert.deepEqual(['$Budget - $Depense', 'SUM(Depenses.lookupRecords(Projet=$id).Montant)', '"Absent" if $Conge else "Présent"', 'DATEDIF($Debut, TODAY(), "Y")', 'len($group)', '"Paris"', '$Statut == "Faite"', '$A != $B', '$Note >= 10'].map(nature), Array(9).fill('Calculée'));
+  assert.deepEqual(['Clients.lookupOne(Nom=$Client).Ville', 'f"{$Prenom} {$Nom.upper()}"', 'UPPER($Nom)', '$Budget - $Depense', 'len($group)', '"Paris"', '$Statut == "Faite"'].map(nature), Array(7).fill('Calculée'));
+  assert.equal(nature('  '), 'Donnée', 'formule vide : donnée');
   const t = { name: 'Elus', columns: [
     { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
     { name: 'nom_complet', label: '💻 Nom complet', gristType: T('Text'), isFormula: true, details: { formula: "CONCATENATE(nom,' ',prenom)" } },
@@ -46,7 +46,7 @@ test('type déclaré en français, rôle, calcul et documentation, colonnes dans
   assert.deepEqual(tableRows(t).map(rowValues), [
     ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', 'Non concerné'],
     ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', 'Non concerné'],
-    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Dérivée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
+    ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Calculée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
     ['v_nb', '', 'INTEGER', 'Entier', 'Calculée', 'Calculé', '# Nombre de conflits\nlen(X.lookupRecords(a=$id))', 'Documentée'],
     ['date_creation', '', 'BLOB', 'Date et Heure (Europe/Paris)', 'Donnée', 'Initialisé', 'NOW()', 'Pas de documentation'],
   ]);
@@ -104,37 +104,45 @@ test('lookups : colonne lue directement, par une variable de boucle ou une affec
   assert.deepEqual(run('len(Clients.lookupRecords())'), ['null:null']);
 });
 
-test('colonnes dérivées : liens vers la colonne reprise (même table, référence, lookup)', () => {
+test('calculs : colonnes lues par les formules (même table, référence, liste de lignes)', () => {
   const col = (name, formula = '', extra = {}) => ({ name, isFormula: Boolean(formula), details: { formula }, ...extra });
   const tables = [
     { name: 'Agents', columns: [
-      col('Prenom'), col('Nom'), col('Service', '', { ref: { table: 'Services', kind: '>' } }),
+      col('Prenom'), col('Nom'), col('Code'), col('Service', '', { ref: { table: 'Services', kind: '>' } }),
       col('Nom_complet', 'f"{$Prenom} {$Nom.upper()}"'),
       col('v_service_nom', '# Nom du service\n$Service.Nom'),
       col('Direction_nom', '$Service.Direction.Nom'),
       col('Ville', 'Sites.lookupOne(Code=$Code).Ville'),
-      col('Code'),
-      col('Terminee', '$Statut == "Faite"'),
       col('Libelle', "'$Nom' + UPPER(rec.Prenom)"),
+      col('Cree_le', 'NOW()', { isFormula: false, details: { formula: 'NOW()', trigger: { when: 'new' } } }),
+      col('Init', '', { isFormula: false, details: { formula: '$Code', trigger: { when: 'new' } } }),
     ] },
-    { name: 'Services', columns: [col('Nom'), col('Direction', '', { ref: { table: 'Directions', kind: '>' } })] },
+    { name: 'Services', columns: [col('Nom'), col('Direction', '', { ref: { table: 'Directions', kind: '>' } }), col('Agents', '', { ref: { table: 'Agents', kind: '<>' } }),
+      col('Effectif_temps_partiel', 'len([a for a in $Agents if a.Code])'), col('Total', 'SUM($Agents.Code)')] },
     { name: 'Directions', columns: [col('Nom')] },
     { name: 'Sites', columns: [col('Code'), col('Ville')] },
   ];
-  const keys = findDerivations(tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn} (${l.via})`);
+  const keys = findFormulaDeps(tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn} (${l.via}${l.trigger ? ', init' : ''})`);
   assert.deepEqual(keys, [
     'Agents.Nom_complet ← Agents.Prenom (same)',
     'Agents.Nom_complet ← Agents.Nom (same)',
     'Agents.v_service_nom ← Services.Nom (ref)',
     'Agents.Direction_nom ← Directions.Nom (ref)',
-    'Agents.Ville ← Sites.Ville (lookup)',
+    'Agents.Ville ← Agents.Code (same)',
     'Agents.Libelle ← Agents.Prenom (same)',
-  ], 'commentaires et chaînes ignorés, comparaison = calculée, chaînes de références suivies');
+    'Agents.Init ← Agents.Code (same, init)',
+    'Services.Effectif_temps_partiel ← Services.Agents (same)',
+    'Services.Effectif_temps_partiel ← Agents.Code (ref)',
+    'Services.Total ← Agents.Code (ref)',
+  ], 'commentaires et chaînes ignorés, critères de lookup comptés, chaînes de références et boucles suivies');
 });
 
-test('colonnes dérivées sur les métadonnées réelles du document complexe', () => {
+test('calculs sur les métadonnées réelles du document complexe', () => {
   const meta = loadMeta('essai-reel.metadata.json');
   const schema = schemaFromMetadata(meta.tables, meta.columns, { sections: meta.sections });
-  const keys = findDerivations(convertAll({ schema }).corrected.tables, schema).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn}`);
-  assert.deepEqual(keys, ['Agents.Nom_complet ← Agents.Prenom', 'Agents.Nom_complet ← Agents.Nom']);
+  const keys = findFormulaDeps(convertAll({ schema }).corrected.tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn}`);
+  for (const k of ['Agents.Nom_complet ← Agents.Prenom', 'Budgets.Reste ← Budgets.Montant_engage', 'Depenses.Montant_TTC ← Depenses.Taux_TVA', 'Taches.Terminee ← Taches.Statut', 'Agents_Summary.Quotite ← Agents.Quotite', 'Budgets.Montant_engage ← Budgets.Annee']) {
+    assert.ok(keys.includes(k), `${k} (${keys.length} liens)`);
+  }
+  assert.ok(!keys.some((k) => k.endsWith('.id')), 'jamais vers la clé id');
 });

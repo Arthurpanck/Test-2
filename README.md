@@ -303,3 +303,13 @@ Le constat `typed-as-text` est consacré aux nombres. `boolean-as-text` et `date
 Les explications des droits de structure des éditeurs, de l’activation des droits avancés et de la bulle de mémo sont précisées. Un attribut déclaré à source non lisible est distingué d’un nom d’attribut non déclaré.
 
 Validation : 190 tests automatisés. Essai MCP dans `Audit_Types_Choix` : trois recommandations de type et les deux contrôles de choix observés ; correction des deux choix de la ligne 3 puis disparition contrôlée, exemples ensuite rétablis. Aucun droit d’accès réel n’a été modifié pour cet essai.
+
+## Calculs à la place des colonnes dérivées — 3.12.0
+
+- **Tables — colonne « Rôle » :** Clé primaire, Donnée ou Calculée. La notion de « Dérivée » est retirée partout (onglet Tables, rapport Word, export Excel, schéma).
+  - **Donnée** : sans formule propre (saisie, import, automatisation) ; une formule d'initialisation ne propose qu'une première valeur, la colonne reste une donnée (« Calculé ? » indique « Initialisé ») ;
+  - **Calculée** : produite par une formule.
+- **Schéma — lien « Calculs »** (menu « Liens », désactivé par défaut, remplace « Colonnes dérivées ») : de chaque colonne calculée ou initialisée vers les colonnes que sa formule lit pour produire sa valeur :
+  - dans la même table (`$Montant * (1 + $Taux_TVA)`, `f"{$Prenom} {$Nom}"`) : une boucle sur le côté de la table ;
+  - par une référence (`$Service.Nom`, chaînes suivies) ou une liste de lignes (`SUM($group.Montant)`, `[a for a in $group if a.Temps_partiel]`) : vers la colonne de la table visée ;
+  - les critères d'un lookup (`Exercice=$Annee`) comptent ; le lookup lui-même garde son lien orange ou vert.

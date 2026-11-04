@@ -9,7 +9,7 @@ import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.j
 import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.11.0';
 import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.11.0';
 import { findLookups } from './lookups.js?v=3.11.0';
-import { findDerivations } from './derivations.js?v=3.11.0';
+import { findFormulaDeps } from './formula-deps.js?v=3.11.0';
 import { tablesXlsx } from './tables-export.js?v=3.11.0';
 import { matrixXlsx } from './rights-export.js?v=3.11.0';
 import {
@@ -29,7 +29,7 @@ const $ = (id) => document.getElementById(id);
 const els = {};
 for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
   'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-png', 'btn-kinds', 'kinds-menu', 'kinds-count', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'show-kind-table-sub', 'show-kind-summary-sub', 'show-kind-acl-sub', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-derived', 'show-refs-sub', 'show-lookups-sub', 'show-derived-sub', 'schema-body',
+  'find-table', 'find-table-list', 'btn-png', 'btn-kinds', 'kinds-menu', 'kinds-count', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'show-kind-table-sub', 'show-kind-summary-sub', 'show-kind-acl-sub', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-calc', 'show-refs-sub', 'show-lookups-sub', 'show-calc-sub', 'schema-body',
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
@@ -74,7 +74,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id).filter((id) => id !== 'analysis')), // Analyse : à cocher si besoin
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, derived: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, calc: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -268,7 +268,7 @@ function applyOptions(options) {
     state.diagram = {
       lookups: d.lookups !== false,
       refs: d.refs !== false,
-      derived: d.derived === true,
+      calc: d.calc === true,
       kinds: Object.fromEntries(TABLE_KINDS.map((k) => [k, d.kinds?.[k] !== false])),
       detail: chosen ? d.detail : 'keys',
       ...(chosen ? { detailChosen: true } : {}),
@@ -1155,7 +1155,7 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-kinds', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'btn-links', 'show-refs', 'show-lookups', 'show-derived', 'find-table',
+const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-kinds', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'btn-links', 'show-refs', 'show-lookups', 'show-calc', 'find-table',
   'detail-all', 'detail-keys', 'detail-tables'];
 
 function ensureViewer() {
@@ -1181,7 +1181,7 @@ function renderDiagram() {
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
   els['show-lookups'].checked = state.diagram.lookups !== false;
   els['show-refs'].checked = state.diagram.refs !== false;
-  els['show-derived'].checked = state.diagram.derived === true;
+  els['show-calc'].checked = state.diagram.calc === true;
   for (const k of TABLE_KINDS) els[`show-kind-${k}`].checked = shownKinds().includes(k);
   updateLinksMenu();
   updateKindsMenu();
@@ -1195,8 +1195,8 @@ function renderDiagram() {
     return Promise.resolve();
   }
   const lookups = documentLookups();
-  const derived = documentDerivations();
-  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups, derived]);
+  const calc = documentFormulaDeps();
+  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups, calc]);
   if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
   const v = ensureViewer();
@@ -1204,7 +1204,7 @@ function renderDiagram() {
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
   diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail, aclTables: aclTableNames() })
     .then(() => { v.setRefs(state.diagram.refs !== false); return v.setLookups(lookups, state.diagram.lookups !== false); })
-    .then(() => v.setDerived(derived, state.diagram.derived === true))
+    .then(() => v.setCalc(calc, state.diagram.calc === true))
     .then(() => v.setKinds(shownKinds()))
     .catch((err) => {
       console.error(err);
@@ -1222,12 +1222,12 @@ function aclTableNames() {
 function updateLinksMenu() {
   const refs = state.out ? computeStats(state.out.tables).relations : 0;
   const lookups = state.out ? new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size : 0;
-  const derived = state.out ? new Set(documentDerivations().map((l) => `${l.source}\u0000${l.column}`)).size : 0;
-  const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false) + Number(state.diagram.derived === true);
+  const calc = state.out ? new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size : 0;
+  const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false) + Number(state.diagram.calc === true);
   els['links-count'].textContent = `${shown}/3`;
   els['show-refs-sub'].textContent = `Colonnes de type Référence · ${refs}`;
   els['show-lookups-sub'].textContent = `lookupOne (orange) et lookupRecords (vert) · ${lookups}`;
-  els['show-derived-sub'].textContent = `Rôle « Dérivée » de Tables · ${derived}`;
+  els['show-calc-sub'].textContent = `Colonnes lues par les formules · ${calc}`;
 }
 
 /** Types de tables cochés dans le menu « Tables ». */
@@ -1270,12 +1270,12 @@ function documentLookups() {
   return lookupsCache.list;
 }
 
-let derivationsCache = null;
-/** Liens des colonnes dérivées (même règle que la colonne « Rôle » de l'onglet Tables). */
-function documentDerivations() {
+let formulaDepsCache = null;
+/** Liens des calculs : de chaque colonne calculée vers les colonnes que sa formule lit. */
+function documentFormulaDeps() {
   if (!state.out) return [];
-  if (derivationsCache?.out !== state.out) derivationsCache = { out: state.out, list: findDerivations(state.out.tables, state.schema, documentLookups()) };
-  return derivationsCache.list;
+  if (formulaDepsCache?.out !== state.out) formulaDepsCache = { out: state.out, list: findFormulaDeps(state.out.tables) };
+  return formulaDepsCache.list;
 }
 
 async function showOnDiagram(name) {
@@ -1458,9 +1458,9 @@ function bindEvents() {
     updateLinksMenu();
     saveDiagramSoon();
   });
-  els['show-derived'].addEventListener('change', () => {
-    state.diagram = { ...state.diagram, derived: els['show-derived'].checked };
-    viewer?.setDerived(documentDerivations(), state.diagram.derived);
+  els['show-calc'].addEventListener('change', () => {
+    state.diagram = { ...state.diagram, calc: els['show-calc'].checked };
+    viewer?.setCalc(documentFormulaDeps(), state.diagram.calc);
     updateLinksMenu();
     saveDiagramSoon();
   });
