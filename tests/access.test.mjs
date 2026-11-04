@@ -57,11 +57,11 @@ test('document complexe : règles regroupées par table, colonnes, défaut et r�
 test('document complexe : constats sur les droits d\'accès', () => {
   const { access } = complexe();
   const ids = accessInsights(access).map((i) => i.id);
-  for (const id of ['acl-unknown-attribute', 'acl-bypass', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
+  for (const id of ['acl-bypass', 'acl-no-memo', 'acl-uncovered']) assert.ok(ids.includes(id), id);
   assert.ok(!ids.includes('acl-attribute') && !ids.includes('acl-hidden'));
   const unknown = accessInsights(access).find((i) => i.id === 'acl-unknown-attribute');
-  assert.equal(unknown.severity, 'blocking');
-  assert.match(unknown.targets[0].note, /user\.Profil/);
+  assert.equal(unknown,undefined);
+  assert.ok(access.tables.flatMap(t=>[...t.rules,...t.columns.flatMap(c=>c.rules)]).some(r=>r.problems.some(p=>p.kind==='unknown-attribute')),'le modèle des droits conserve le diagnostic technique');
 });
 
 test('table, colonne ou table d\'attribut absentes des métadonnées (supprimées ou masquées pour soi)', () => {
@@ -75,7 +75,8 @@ test('table, colonne ou table d\'attribut absentes des métadonnées (supprimée
   assert.equal(hidden,undefined,'le constat de visibilité est retiré ; les limites restent dans le modèle');
   assert.ok(access.tables.some(t=>t.missing));
   const attr = items.find((i) => i.id === 'acl-attribute');
-  assert.ok(attr.severity === 'blocking' && attr.targets.some((t) => /Habilitation/.test(t.note)));
+  assert.equal(attr,undefined);
+  assert.ok(access.attributes.some(a=>a.name==='Habilitation'&&a.problems.length),'les attributs restent disponibles pour la matrice des droits');
 });
 
 test('document sans règle : un seul constat informatif', () => {
@@ -115,7 +116,7 @@ test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, 
   schema.get('Agents').columns.delete('Derniere_connexion');
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
-  assert.ok(items.some(i=>i.id==='acl-unknown-attribute'&&i.severity==='blocking'));
+  assert.ok(!items.some(i=>i.id==='acl-unknown-attribute'));
   assert.equal(items.find((i) => i.id === 'acl-hidden'),undefined);
 });
 

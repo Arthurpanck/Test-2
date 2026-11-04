@@ -324,3 +324,13 @@ Les choix uniques et multiples sont réunis dans `choice-outside`, À corriger :
 `default-name`, `N41`, `N34` et `acl-bypass` passent À corriger ; `acl-uncovered` passe Bon à savoir. Le seuil `X13` est de trois champs affichés dans une même vue Tableau. Les textes courants parlent de vues. Les références, tables larges et colonnes vides ont des explications révisées ; les limites de lecture sont documentées dans les méthodes techniques.
 
 Validation : 196 tests. MCP : trois filtres déclenchent, deux ne déclenchent pas ; les six initiaux sont rétablis. Une carte unique couvre deux colonnes de types Choice et ChoiceList, disparaît après correction, puis réapparaît après rétablissement des exemples. Aucun droit réel du document n’est modifié par ces essais.
+
+## Dernière revue du 4 novembre — version 3.14.0
+
+Le constat des tables sans référence explique les informations rapportées entre tables et les vues reliées dynamiquement ; le cas volontaire est une table de droit d’équipe. `wide-table` est renommé « Table avec de nombreuses colonnes (plus de 20 colonnes) » et se déclenche strictement à partir de 21 colonnes.
+
+`N41`, `acl-attribute`, `acl-unknown-attribute` et `acl-attr-unused` sont retirés, avec leurs calculs dédiés. Les déclarations d’attributs et le modèle de droits restent disponibles pour la matrice et les autres fonctions. `acl-uncovered` est renommé « Table non concernée par des règles avancées ».
+
+`X13` parle de vues de tables et recommande des pages par usage (RH, finances, managers), avec des liens entre vues pour filtrer dynamiquement les tables. Son seuil de trois filtres est inchangé.
+
+Validation : 202 tests. Métadonnées Grist relues : 31 tables ; constats retirés absents ; Personnel correspond au nouveau seuil ; deux déclarations d’attributs conservées dans le modèle des droits.

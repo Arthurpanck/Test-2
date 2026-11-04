@@ -71,10 +71,10 @@ test('les suppressions sortent des analyses, des validations positives et des ca
  const data=readFileSync(new URL('../assets/datacheck.js',import.meta.url),'utf8');assert.doesNotMatch(data,/countByKey|keyIndex|sameBase|baseName|const dups/);
 });
 
-test('attribut non déclaré et attribut déclaré à source inaccessible restent distingués',()=>{
+test('les diagnostics d’attribut restent dans le modèle sans cartes dédiées',()=>{
  const schema=new Map([['T',{tableId:'T',columns:new Map()}]]);
  const access=buildAccess({schema,resources:[{id:1,tableId:'*',colIds:'*'}],rules:[{id:1,resource:1,userAttributes:JSON.stringify({name:'Habilitation',tableId:'Absente',lookupColId:'Email',charId:'Email'})},{id:2,resource:1,aclFormula:"user.Profil.Role == 'RH'",permissionsText:'-R'}]});
- const items=accessInsights(access);assert.ok(items.some(i=>i.id==='acl-attribute'));assert.ok(items.some(i=>i.id==='acl-unknown-attribute'));assert.ok(!items.some(i=>i.id==='acl-hidden'));
+ const items=accessInsights(access);assert.ok(!items.some(i=>i.id==='acl-attribute'));assert.ok(!items.some(i=>i.id==='acl-unknown-attribute'));assert.ok(!items.some(i=>i.id==='acl-hidden'));
  const known=access.attributes[0];assert.equal(known.name,'Habilitation');assert.ok(known.problems.length);
 });
 

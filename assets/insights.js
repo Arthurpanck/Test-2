@@ -9,11 +9,11 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=3.13.0';
-import { structureSmells } from './datacheck.js?v=3.13.0';
-import { runAudit } from './audit-engine.js?v=3.13.0';
-import { pageInsights } from './pages.js?v=3.13.0';
-import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.13.0';
+import { accessInsights } from './access.js?v=3.14.0';
+import { structureSmells } from './datacheck.js?v=3.14.0';
+import { runAudit } from './audit-engine.js?v=3.14.0';
+import { pageInsights } from './pages.js?v=3.14.0';
+import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.14.0';
 
 
 export const SEVERITIES = {
@@ -69,8 +69,8 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
       id: 'isolated', severity: 'choice',
       title: isolated.length > 1 ? `${isolated.length} tables reliées à aucune autre` : 'Une table reliée à aucune autre',
       summary: 'Aucune colonne de référence ne relie ces tables au reste du document.',
-      why: 'Les références relient de vraies fiches entre elles : par exemple une commande à son client. Elles permettent de rapporter les informations de la fiche liée et d’éviter de les ressaisir. Ne créez pas une table sans informations propres uniquement pour fournir une liste déroulante : les types Choix et Choix multiple sont prévus pour cela.',
-      intended: 'Table de paramètres, de notes ou journal indépendant : rien à faire.',
+      why: 'Les références relient différentes tables entre elles. Elles permettent de rapporter les informations de la table liée et d’éviter de les ressaisir, ainsi que de créer des vues reliées dynamiquement entre elles. Ne créez pas une table sans informations propres uniquement pour fournir une liste déroulante : les types Choix et Choix multiple sont prévus pour cela.',
+      intended: 'Table de droit d’équipe : ne rien faire.',
       steps: [
         'Pour une simple liste déroulante, utilisez le type « Choix » ou « Choix multiple ». Si les options sont de vraies fiches à décrire, gardez une table et reliez-la avec une colonne « Référence ».',
         REFRESH_STEP,
@@ -98,9 +98,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   if (profiles) checks.push({ id: 'typed-as-text', label: 'Les nombres ont un type numérique' }, { id: 'boolean-as-text', label: 'Les oui/non ont un type booléen' }, { id: 'date-as-text', label: 'Les dates ont le type Date' });
   if (profiles) checks.push({ id: 'choice-outside', label: 'Les listes de choix sont respectées' });
   if (access && access.hasRules) {
-    checks.push(
-      { id: 'acl-unknown-attribute', label: 'Les conditions n\'utilisent que des attributs définis' },
-    );
     if (access.restrictsRead) checks.push({ id: 'acl-bypass', label: 'Les données cachées ne sont pas lisibles par formule' });
   }
   if (pages) checks.push({ id: 'widget-unmapped', label: 'Les vues personnalisées ont leurs colonnes' });

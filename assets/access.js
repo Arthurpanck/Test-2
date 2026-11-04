@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.13.0';
-import { columnarToRows } from './converter.js?v=3.13.0';
+import { effectivePermission } from './audit-engine.js?v=3.14.0';
+import { columnarToRows } from './converter.js?v=3.14.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -278,19 +278,6 @@ export function accessInsights(access) {
     return items;
   }
 
-  const brokenAttr = access.attributes.filter((a) => a.problems.length);
-  if (brokenAttr.length) {
-    push({
-      id: 'acl-attribute', severity: 'blocking',
-      title: 'Attribut utilisateur inexistant',
-      summary: 'Cet attribut utilisateur est déclaré, mais sa table source ou sa colonne de recherche est introuvable dans la configuration analysée.',
-      why: 'Les droits d’accès qui utilisent cet attribut ont besoin de sa table et de sa colonne source pour retrouver la fiche de la personne connectée.',
-      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », retrouvez la déclaration de cet attribut : elle existe déjà. Vérifiez la table source et la colonne de recherche, puis corrigez leur sélection si nécessaire. Vérifiez la table et la colonne sélectionnées avant de modifier la configuration.', REFRESH_STEP],
-      targets: brokenAttr.map((a) => ({ table: a.tableId, note: `user.${a.name} : ${a.problems.join(', ')}` })),
-    });
-  }
-
-  const unknown = [];
   const forEachRule = (fn) => {
     for (const r of access.defaults) fn(r, '*');
     for (const t of access.tables) {
@@ -298,19 +285,6 @@ export function accessInsights(access) {
       for (const c of t.columns) for (const r of c.rules) fn(r, t.tableId, c.colIds);
     }
   };
-  forEachRule((r, table) => {
-    for (const p of r.problems) if (p.kind === 'unknown-attribute') unknown.push({ table, note: p.text, rule: r });
-  });
-  if (unknown.length) {
-    push({
-      id: 'acl-unknown-attribute', severity: 'blocking',
-      title: 'Condition de droit d’accès utilisant un attribut inconnu',
-      summary: 'La condition utilise un nom d’attribut utilisateur qui n’est pas déclaré, par exemple user.Profil alors que seul user.Habilitation existe.',
-      why: 'Cet attribut utilisateur n’est pas déclaré dans les éléments lus. La condition des droits d’accès peut ne jamais correspondre ; vérifiez sa définition et son nom.',
-      steps: [OPEN_RULES, 'Corrigez la condition, ou créez l\'attribut manquant dans « Attributs utilisateur ».', REFRESH_STEP],
-      targets: unknown.map((u) => ({ table: u.table === '*' ? 'Droits d’accès par défaut' : u.table, note: `${u.rule.formula}` })),
-    });
-  }
   if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
     push({
       id: 'acl-bypass', severity: 'blocking',
@@ -342,7 +316,7 @@ export function accessInsights(access) {
     push({
       id: 'acl-uncovered', severity: 'info',
       intended: 'Tables sans donnée sensible : rien à faire.',
-      title: 'Table sans aucune règle d’accès avancée',
+      title: 'Table non concernée par des règles avancées',
       summary: 'Aucune règle d’accès avancée n’est définie directement sur ces tables. Elles suivent les droits d’accès par défaut du document et les rôles de partage.',
       why: 'Leurs accès dépendent des droits d’accès généraux et des rôles de partage. Une absence de règle d’accès avancée propre à la table ne signifie pas une absence de protection.',
       steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle d’accès avancée à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],

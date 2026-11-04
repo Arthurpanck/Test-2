@@ -1563,8 +1563,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Adhérents contient Nom, Cotisation_Annee_1, Cotisation_Annee_2 et Cotisation_Annee_3. Une autre présentation utilise une table Cotisations : Adhérent, Année, Montant.",
     "justification": "Réintégré après la suppression du bloc N40–N46 de la première revue. Indice de structure, détectable sans lire les cellules.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées uniquement",
     "area": "structure",
     "ruleVersion": 3,
@@ -1573,10 +1573,10 @@ export const AUDIT_CATALOG = [
       "Repérer les années calendaires ou les numéros accompagnés explicitement de Année / Year.",
       "Regrouper les colonnes d’un même sujet et signaler trois périodes distinctes ou plus."
     ],
-    "implementation": "Automatique sur les familles de colonnes annuelles reconnues",
+    "implementation": "Retiré lors de la dernière revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Tests des familles annuelles, libellés accentués et exclusions. Signal observé dans les métadonnées MCP d’Audit_Colonnes_annuelles, avec deux lignes fictives ajoutées pour l’essai.",
-    "reviewNote": "Réintégré lors de la deuxième revue : la carte était partie avec le bloc N40–N46 demandé précédemment.",
+    "reviewNote": "Supprimé sur demande : le calcul des familles de colonnes annuelles n’est plus exécuté.",
     "verification": {
       "unitaire": true,
       "observeMCP": true,
@@ -2778,20 +2778,20 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "decision": "Retenu",
     "typology": "Ergonomie de navigation",
-    "summary": "Au moins trois champs de filtre sont affichés dans une même vue Tableau. Vérifiez si des vues préparées rendraient les listes habituelles plus faciles à retrouver.",
-    "why": "Des vues préparées pour les usages récurrents peuvent être plus faciles à retrouver et à utiliser. Plusieurs vues peuvent afficher la même table, sans dupliquer les données.",
-    "intended": "Une vue Exploration destinée à combiner librement de nombreux critères peut être adaptée. Gardez ses filtres si cette souplesse est utile et confirmez « C’est voulu ».",
+    "summary": "Au moins trois champs de filtre sont affichés dans une même vue de table. Vérifiez si des pages préparées pour chaque usage faciliteraient le travail.",
+    "why": "Dans Grist, plutôt que de proposer une seule page avec toutes les vues filtrées, il est généralement plus ergonomique de créer une page par usage : une page pour les RH, une page pour les finances, une page pour les managers. Chacun retrouve ainsi les pages utiles à son travail. Vous pouvez aussi relier les vues entre elles pour filtrer leurs tables dynamiquement à partir d’une sélection.",
+    "intended": "Une page d’exploration peut conserver plusieurs filtres visibles si cette souplesse est utile. Gardez-la en complément des pages préparées pour les usages courants.",
     "steps": [
-      "Dans la page concernée, repérez les listes utilisées régulièrement : dossiers à traiter, dossiers terminés, dossiers d’un service.",
-      "Avec « Ajouter une page » ou « Ajouter une vue à la page », choisissez Tableau et la même table existante. Donnez à chaque vue un nom correspondant à son usage ; ne créez pas de copie de la table.",
-      "Dans chaque vue, réglez les filtres voulus depuis les en-têtes des colonnes. Enregistrez les filtres pour que cette liste soit retrouvée ensuite.",
-      "Dans les réglages des tris et filtres de la vue, désépinglez de la barre les filtres fixes. Ils restent appliqués ; gardez visibles les filtres que les personnes doivent souvent modifier.",
-      "Conservez une vue Exploration si les personnes ont besoin de combiner librement tous les critères, puis utilisez « Relire le document » dans l’audit."
+      "Repérez les usages récurrents : suivi RH, finances ou suivi des équipes par les managers.",
+      "Créez une page pour chaque usage et ajoutez-y les vues nécessaires sur les tables existantes, sans copier les tables.",
+      "Préparez les filtres utiles à chaque page. Masquez les filtres fixes de la barre ; ils restent appliqués. Gardez visibles les champs que les personnes doivent ajuster.",
+      "Quand les tables sont reliées par des références, liez leurs vues : sélectionner un service ou une équipe dans une vue peut filtrer dynamiquement la table affichée dans une autre vue.",
+      "Revenez dans cette vue et cliquez sur « Relire le document »."
     ],
     "example": "Une seule vue Dossiers affiche six filtres : Statut, Service, Responsable, Année, Priorité, Commune. Chaque matin, l’équipe doit remettre Statut = Ouvert et Service = Accueil pour retrouver sa liste de travail.",
-    "detection": "Joindre _grist_Filters à _grist_Views_section par viewSectionRef, aux colonnes par colRef et aux tables par tableRef. Garder les vues Tableau (parentKey = record) placées sur une page (parentId > 0), les tables et colonnes nommées lisibles et les colonnes de cette même table. Compter les colRef distincts dont pinned vaut true ou 1 et dont filter est une chaîne différente de chaîne vide et de « null » (ancien filtre vide Grist). Dès trois champs affichés dans une même vue, signaler cette vue et son nombre de champs. Ne pas compter les valeurs sélectionnées, les filtres masqués, les vues brutes hors page ou les autres types de vues. Coût linéaire dans les métadonnées, aucune ligne métier lue pour ce contrôle. Sources absentes : non vérifiable ; propriété pinned absente ou filtre censuré : contrôle limité, aucune valeur devinée. Les réglages temporaires non enregistrés dans Grist ne sont pas visibles.",
+    "detection": "Joindre _grist_Filters à _grist_Views_section par viewSectionRef, aux colonnes par colRef et aux tables par tableRef. Garder les vues de table (parentKey = record) placées sur une page (parentId > 0), les tables et colonnes nommées lisibles et les colonnes de cette même table. Compter les colRef distincts dont pinned vaut true ou 1 et dont filter est une chaîne différente de chaîne vide et de « null » (ancien filtre vide Grist). Dès trois champs affichés dans une même vue, signaler cette vue et son nombre de champs. Ne pas compter les valeurs sélectionnées, les filtres masqués, les vues brutes hors page ou les autres types de vues. Coût linéaire dans les métadonnées, aucune ligne métier lue pour ce contrôle. Sources absentes : non vérifiable ; propriété pinned absente ou filtre censuré : contrôle limité, aucune valeur devinée. Les réglages temporaires non enregistrés dans Grist ne sont pas visibles.",
     "calculationSteps": [
-      "Relier les filtres à leur vue Tableau, à la table et à la colonne lisible correspondantes.",
+      "Relier les filtres à leur vue de table, à la table et à la colonne lisible correspondantes.",
       "Ne conserver que les filtres enregistrés, épinglés (pinned = true ou 1) et actifs (filter différent de chaîne vide et de « null »).",
       "Compter les colonnes distinctes par vue, jamais les valeurs choisies dans un filtre ni les filtres de toute la page.",
       "Déclencher à partir de trois champs dans une vue ; indiquer page, titre de vue, numéro, nombre et champs lisibles.",
@@ -2855,7 +2855,7 @@ export const AUDIT_CATALOG = [
       "counterexample": "Un analyste qui combine souvent les six critères a intérêt à conserver sa vue Exploration. Le constat demande de confirmer le besoin, pas de supprimer automatiquement des filtres."
     },
     "area": "pages",
-    "ruleVersion": 2,
+    "ruleVersion": 3,
     "reviewStage": "",
     "reviewQuestion": ""
   }

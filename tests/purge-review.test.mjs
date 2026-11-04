@@ -68,7 +68,7 @@ test('N53 et N54 fusionnés : une seule carte, cibles de condition et d’habili
 test('les formulations et solutions arbitrées restent présentes dans le catalogue',()=>{
  const by=id=>AUDIT_CATALOG.find(x=>x.id===id);assert.match(by('N34').steps.join(' '),/if \$Quantite != 0:[\s\S]*else:[\s\S]*return 0/);
  assert.match(by('N50').steps.join(' '),/solution de partage/);assert.match(by('N31').title,/lookup.*première valeur/);
- assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,11);
+ assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,10);
 });
 
 test('la description de colonne est affichée seulement quand elle est renseignée, et échappée',()=>{

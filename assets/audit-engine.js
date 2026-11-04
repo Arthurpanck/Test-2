@@ -1,8 +1,7 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.13.0';
-import { columnarToRows } from './converter.js?v=3.13.0';
-import { inspectVisibleFilters } from './filter-audit.js?v=3.13.0';
-import { annualColumnFamilies } from './annual-columns.js?v=3.13.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.14.0';
+import { columnarToRows } from './converter.js?v=3.14.0';
+import { inspectVisibleFilters } from './filter-audit.js?v=3.14.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
 const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -95,7 +94,7 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  const sampled=sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
  const items=[],hits=new Map(),counts=new Map(),signatures=new Map();
  const status=new Map(RETAINED_IDS.map(id=>[id,{id,state:'checked',reason:'Aucun signal dans les éléments examinés.'}]));
- const metadataOnly=new Set(['N41','N47','N53','N69','X13']);
+ const metadataOnly=new Set(['N47','N53','N69','X13']);
  const unavailable=(id,reason)=>status.set(id,{id,state:'unavailable',reason});
  const limited=(id,reason)=>{if(status.get(id)?.state==='checked')status.set(id,{id,state:'limited',reason});};
  if(!access)unavailable('N53','Droits d’accès indisponibles.');
@@ -120,7 +119,6 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  for(const t of schema.values()){
   const name=t.tableId;if(!name||name.startsWith('_grist_'))continue;
   const cs=cols(t),ids=values(name,'id');
-  for(const family of annualColumnFamilies(cs))emit('N41',name,null,[],family.columns.length+' colonnes annuelles : '+family.columns.map(c=>c.column).slice(0,8).join(', '));
   for(const c of cs){
    const col=c.colId,type=String(c.type||'Any').split(':')[0],vs=values(name,col),short=vs.slice(0,200),shortFilled=short.filter(usable);
    const {raw,mask}=formulaCode.get(name+'.'+col)||{raw:'',mask:''};

@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.13.0';
+import { columnarToRows } from './converter.js?v=3.14.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -216,36 +216,17 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
 
   // 7. Tables très larges
-  const wide = real.filter((t) => t.columns.length > 30).map((t) => ({ table: t.name, note: `${t.columns.length} colonnes` }));
+  const wide = real.filter((t) => t.columns.length > 20).map((t) => ({ table: t.name, note: `${t.columns.length} colonnes` }));
   if (wide.length) {
     items.push({
       id: 'wide-table', severity: 'choice',
-      title: wide.length > 1 ? `${wide.length} tables très larges` : 'Une table très large',
-      summary: 'Ces tables ont plus de 30 colonnes.',
+      title: 'Table avec de nombreuses colonnes (plus de 20 colonnes)',
+      summary: 'Ces tables contiennent plus de 20 colonnes.',
       why: 'Grist repose sur un modèle de base de données : chaque table décrit une entité, par exemple des clients, des commandes ou des produits. Une très grande table mélange souvent plusieurs entités ; répartissez-les dans des tables plus petites reliées par des références. Pour plusieurs modalités d’une même information, utilisez une colonne Choix multiple plutôt que Choix_1, Choix_2, Choix_3. Pour plusieurs fiches ou événements ayant leurs propres informations, créez des lignes dans une table liée.',
       intended: 'La table provient d’une requête ou d’un export d’un autre système d’information et doit en conserver la structure : gardez la table source si nécessaire, puis préparez des vues et des tables adaptées aux usages dans Grist.',
       steps: steps('Repérez les entités mélangées dans la table : clients, commandes, produits ou événements.', 'Créez une table par entité et reliez les fiches avec des colonnes Référence.', 'Remplacez les colonnes de modalités numérotées par un Choix multiple. Si chaque élément possède ses propres dates, montants ou autres informations, utilisez une table liée avec une ligne par élément.'),
       targets: wide,
     });
-  }
-  // 8. Attributs utilisateur qui ne trouveront personne, ou que rien n'utilise.
-  if (access && access.attributes.length) {
-    const formulas = [...access.defaults, ...access.tables.flatMap((t) => [...t.rules, ...t.columns.flatMap((c) => c.rules)]), ...access.special.flatMap((sp) => sp.rules)].map((r) => r.formula).join('\n');
-    const unusedAttrs = [];
-    for (const a of access.attributes) {
-      if (a.problems.length) continue;
-      if (!new RegExp(`\\buser\\.${a.name}\\b`).test(formulas)) unusedAttrs.push({ table: a.tableId, note: `user.${a.name}` });
-    }
-    if (unusedAttrs.length) {
-      items.push({
-        id: 'acl-attr-unused', severity: 'blocking', area: 'access',
-        title: unusedAttrs.length > 1 ? `${unusedAttrs.length} attributs utilisateur inutilisés` : 'Un attribut utilisateur inutilisé',
-        summary: 'Aucun droit d’accès ne se sert de ces attributs.',
-        why: 'Ils peuvent être supprimés pour simplifier les règles d\'accès.',
-        steps: steps('Ouvrez « Règles d’accès » puis « Attributs utilisateur ».','Vérifiez si cet attribut doit encore servir. Utilisez-le dans les droits d’accès prévus, ou retirez sa déclaration si elle est devenue inutile.'),
-        targets: unusedAttrs,
-      });
-    }
   }
   return items.map((it) => ({ area: 'structure', ...it }));
 }
