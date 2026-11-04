@@ -11,20 +11,20 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.12.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.12.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.13.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.13.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.12.0"></script>
+  <script type="module" src="assets/app.js?v=3.13.0"></script>
 </head>
 <body>
   <div class="app">
     <h1 class="fr-sr-only">Audit de structure du document</h1>
     <header class="pages">
-      <div class="pages__list" role="tablist" aria-label="Pages du widget">
+      <div class="pages__list" role="tablist" aria-label="Pages de la vue">
         <button class="tab fr-icon-git-merge-line" id="tab-schema" type="button" role="tab" aria-selected="true" aria-controls="tabpanel-schema" tabindex="0">Schéma</button>
         <button class="tab fr-icon-table-line" id="tab-tables" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button>
         <button class="tab fr-icon-lock-line" id="tab-access" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-access" tabindex="-1">Accès</button>
-        <button class="tab fr-icon-layout-grid-line" id="tab-widgets" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-widgets" tabindex="-1">Widgets</button>
+        <button class="tab fr-icon-layout-grid-line" id="tab-widgets" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-widgets" tabindex="-1">Vues</button>
         <button class="tab fr-icon-lightbulb-line" id="tab-analysis" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="tab__alert" id="analysis-count" hidden></span></button>
         <button class="tab fr-icon-file-text-line" id="tab-report" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-report" tabindex="-1">Rapport</button>
       </div>
@@ -164,7 +164,7 @@
 
     <!-- Widgets -->
     <section class="page" id="tabpanel-widgets" role="tabpanel" aria-labelledby="tab-widgets" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils des widgets">
+      <div class="toolbar" role="toolbar" aria-label="Outils des vues">
         <div class="fr-input-wrap fr-icon-search-line toolbar__search">
           <label class="fr-label fr-sr-only" for="widgets-filter">Filtrer par widget, page ou table</label>
           <input class="fr-input" id="widgets-filter" type="search" placeholder="Filtrer par widget, page ou table" autocomplete="off">
@@ -173,7 +173,7 @@
         <div class="toolbar__group">
           <span class="toolbar__label" aria-hidden="true">Afficher</span>
           <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Widgets affichés</legend>
+            <legend class="fr-segmented__legend">Vues affichées</legend>
             <div class="fr-segmented__elements">
               <div class="fr-segmented__element"><input value="all" type="radio" id="wkind-all" name="wkind" checked><label class="fr-label" for="wkind-all">Tous</label></div>
               <div class="fr-segmented__element"><input value="unofficial" type="radio" id="wkind-unofficial" name="wkind"><label class="fr-label" for="wkind-unofficial">Non officiels</label></div>
@@ -203,7 +203,7 @@
               <div class="fr-segmented__element"><input value="structure" type="radio" id="area-structure" name="area"><label class="fr-label" for="area-structure">Structure</label></div>
               <div class="fr-segmented__element"><input value="data" type="radio" id="area-data" name="area"><label class="fr-label" for="area-data">Données</label></div>
               <div class="fr-segmented__element"><input value="access" type="radio" id="area-access" name="area"><label class="fr-label" for="area-access">Droits d'accès</label></div>
-              <div class="fr-segmented__element"><input value="pages" type="radio" id="area-pages" name="area"><label class="fr-label" for="area-pages">Widgets</label></div>
+              <div class="fr-segmented__element"><input value="pages" type="radio" id="area-pages" name="area"><label class="fr-label" for="area-pages">Vues</label></div>
             </div>
           </fieldset>
         </div>
@@ -238,5 +238,6 @@
   <p class="fr-sr-only" id="live" aria-live="polite"></p>
 </body>
 </html>
+
 
 

@@ -313,3 +313,14 @@ Validation : 190 tests automatisés. Essai MCP dans `Audit_Types_Choix` : trois 
   - dans la même table (`$Montant * (1 + $Taux_TVA)`, `f"{$Prenom} {$Nom}"`) : une boucle sur le côté de la table ;
   - par une référence (`$Service.Nom`, chaînes suivies) ou une liste de lignes (`SUM($group.Montant)`, `[a for a in $group if a.Temps_partiel]`) : vers la colonne de la table visée ;
   - les critères d'un lookup (`Exercice=$Annee`) comptent ; le lookup lui-même garde son lien orange ou vert.
+
+
+## Revue courante du 4 novembre — version 3.13.0
+
+Les colonnes de saisie et de formule sans type sont regroupées dans `empty`, classé À corriger. `untyped` est fusionné. `N09` est retiré et ses calculs ne s’exécutent plus.
+
+Les choix uniques et multiples sont réunis dans `choice-outside`, À corriger : chaque élément est comparé exactement aux modalités configurées. `N64` est fusionné et son ancien calcul est retiré du moteur enrichi. Les profils plafonnent les ensembles à 2 000 valeurs distinctes et ignorent les erreurs/censures.
+
+`default-name`, `N41`, `N34` et `acl-bypass` passent À corriger ; `acl-uncovered` passe Bon à savoir. Le seuil `X13` est de trois champs affichés dans une même vue Tableau. Les textes courants parlent de vues. Les références, tables larges et colonnes vides ont des explications révisées ; les limites de lecture sont documentées dans les méthodes techniques.
+
+Validation : 196 tests. MCP : trois filtres déclenchent, deux ne déclenchent pas ; les six initiaux sont rétablis. Une carte unique couvre deux colonnes de types Choice et ChoiceList, disparaît après correction, puis réapparaît après rétablissement des exemples. Aucun droit réel du document n’est modifié par ces essais.

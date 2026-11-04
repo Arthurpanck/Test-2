@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.12.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.12.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.12.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.12.0';
-import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.12.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.12.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.12.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.13.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.13.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.13.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.13.0';
+import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.13.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.13.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.13.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -138,7 +138,7 @@ export function matrixBlocks(mx) {
       }),
     });
   }
-  blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : Oui / Non pour toutes les lignes ; un nom de colonne en vert : seulement sur les lignes où cette colonne correspond à la personne ; en rouge : oui, sauf sur ces lignes ; « ? » : condition que le widget ne sait pas lire ; « — » : sans objet pour une colonne. Ordre appliqué : règles de la colonne, puis de la table, puis du document ; la première qui s\'applique décide, action par action.' });
+  blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Lecture : Oui / Non pour toutes les lignes ; un nom de colonne en vert : seulement sur les lignes où cette colonne correspond à la personne ; en rouge : oui, sauf sur ces lignes ; « ? » : condition que la vue ne sait pas lire ; « — » : sans objet pour une colonne. Ordre appliqué : règles de la colonne, puis de la table, puis du document ; la première qui s\'applique décide, action par action.' });
   const unknown = unknownCases(mx);
   if (unknown.length) {
     blocks.push({ type: 'paragraph', runs: [{ text: 'À vérifier dans Grist', bold: true }] });
@@ -149,7 +149,7 @@ export function matrixBlocks(mx) {
 }
 
 /**
- * Sections du rapport, dans l'ordre des pages du widget. Chacune renvoie des blocs.
+ * Sections du rapport, dans l'ordre des pages de la vue. Chacune renvoie des blocs.
  * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schemaSummaries, schema: { png, width, height } | null }
  */
 export const REPORT_SECTIONS = [
@@ -223,29 +223,29 @@ export const REPORT_SECTIONS = [
   },
   {
     id: 'pages',
-    title: 'Widgets',
-    description: 'Widgets personnalisés (origine, accès, colonnes), fiches, listes, graphiques et formulaires',
+    title: 'Vues',
+    description: 'Vues personnalisées (origine, accès, colonnes), fiches, listes, graphiques et formulaires',
     build(ctx) {
       const m = ctx.pages;
       if (!m) return [{ type: 'paragraph', color: 'muted', text: 'Les pages du document n\'ont pas pu être lues.' }];
       const n = m.custom.length + m.views.length;
       const blocks = [{ type: 'paragraph', text: n
-        ? `${plural(m.pages.length, 'page', 'pages')}, ${plural(n, 'widget', 'widgets')} hors tableaux (${typeCounts(m)}). Les ${plural(m.tableWidgetCount, 'tableau', 'tableaux')} ne sont pas détaillés ici.`
+        ? `${plural(m.pages.length, 'page', 'pages')}, ${plural(n, 'vue', 'vues')} hors tableaux (${typeCounts(m)}). Les ${plural(m.tableWidgetCount, 'tableau', 'tableaux')} ne sont pas détaillés ici.`
         : `${plural(m.pages.length, 'page', 'pages')}, uniquement des tableaux (${m.tableWidgetCount}).` }];
       const where = (w) => ({ lines: [{ text: w.page || '(sans nom)', bold: true }, ...(w.table ? [{ text: `table ${w.table}${w.summary ? ' (synthèse)' : ''}`, color: 'muted' }] : []), ...(w.linkedTo ? [{ text: `suit « ${w.linkedTo} »`, color: 'muted' }] : [])] });
 
       const colLine = (l, muted) => (l.missing ? { text: `• ${l.field} → à associer`, color: 'blocking' } : { text: `• ${l.field} → ${l.column}`, color: muted ? 'muted' : undefined });
       const accessCell = (c) => ({ text: ACCESS_LABELS[c.access] || c.access || '—', color: c.access === 'full' && c.origin === 'external' ? 'improve' : undefined });
 
-      blocks.push({ type: 'heading', level: 2, text: 'Widgets non officiels' });
-      if (!m.unofficial.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget non officiel dans ce document.' });
+      blocks.push({ type: 'heading', level: 2, text: 'Vues non officielles' });
+      if (!m.unofficial.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucune vue non officielle dans ce document.' });
       else {
-        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Widgets ajoutés par leur adresse (site externe) ou créés dans Grist, dont le code est enregistré dans le document. L\'accès complet permet au widget de lire et de modifier tout le document.' });
-        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 24 }, { label: 'Page', width: 18 }, { label: 'Origine', width: 34 }, { label: 'Accès', width: 24 }],
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Vues ajoutées par leur adresse (site externe) ou créés dans Grist, dont le code est enregistré dans le document. L\'accès complet permet à la vue de lire et de modifier tout le document.' });
+        blocks.push({ type: 'table', columns: [{ label: 'Vue', width: 24 }, { label: 'Page', width: 18 }, { label: 'Origine', width: 34 }, { label: 'Accès', width: 24 }],
           rows: m.unofficial.map((w) => {
             const c = w.custom;
             return [
-              { lines: [{ text: w.title || c.name || 'Widget', bold: true }, ...(w.description ? [{ text: w.description, color: 'muted' }] : []), ...columnLines(c).map((l) => colLine(l, true))] },
+              { lines: [{ text: w.title || c.name || 'Vue', bold: true }, ...(w.description ? [{ text: w.description, color: 'muted' }] : []), ...columnLines(c).map((l) => colLine(l, true))] },
               where(w),
               { lines: [{ text: originText(c) }, ...(c.url && c.origin !== 'document' ? [{ text: c.url, mono: true, color: 'muted' }] : [])] },
               accessCell(c),
@@ -253,11 +253,11 @@ export const REPORT_SECTIONS = [
           }) });
       }
 
-      blocks.push({ type: 'heading', level: 2, text: 'Widgets personnalisés' });
-      if (!m.gallery.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucun widget de la galerie Grist dans ce document.' });
+      blocks.push({ type: 'heading', level: 2, text: 'Vues personnalisées' });
+      if (!m.gallery.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucune vue de la galerie Grist dans ce document.' });
       else {
-        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Widgets choisis dans la galerie de Grist, avec l\'accès accordé et la colonne associée à chaque champ attendu.' });
-        blocks.push({ type: 'table', columns: [{ label: 'Widget', width: 26 }, { label: 'Page', width: 20 }, { label: 'Accès', width: 20 }, { label: 'Colonnes', width: 34 }],
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Vues choisies dans la galerie de Grist, avec l\'accès accordé et la colonne associée à chaque champ attendu.' });
+        blocks.push({ type: 'table', columns: [{ label: 'Vue', width: 26 }, { label: 'Page', width: 20 }, { label: 'Accès', width: 20 }, { label: 'Colonnes', width: 34 }],
           rows: m.gallery.map((w) => {
             const c = w.custom;
             const lines = columnLines(c);
@@ -275,7 +275,7 @@ export const REPORT_SECTIONS = [
       blocks.push({ type: 'heading', level: 2, text: 'Fiches, listes, graphiques et formulaires' });
       if (!m.views.length) blocks.push({ type: 'paragraph', color: 'muted', text: 'Aucune autre vue que des tableaux.' });
       else {
-        blocks.push({ type: 'table', columns: [{ label: 'Page', width: 22 }, { label: 'Widget', width: 28 }, { label: 'Type', width: 16 }, { label: 'Table', width: 16 }, { label: 'Suit la sélection de', width: 18 }],
+        blocks.push({ type: 'table', columns: [{ label: 'Page', width: 22 }, { label: 'Vue', width: 28 }, { label: 'Type', width: 16 }, { label: 'Table', width: 16 }, { label: 'Suit la sélection de', width: 18 }],
           rows: m.views.map((w, i) => [
             i === 0 || m.views[i - 1].page !== w.page ? { text: w.page || '(sans nom)', bold: true } : '',
             { lines: [{ text: w.title || w.table || w.typeLabel }, ...(w.description ? [{ text: w.description, color: 'muted' }] : [])] },
@@ -323,7 +323,7 @@ export const REPORT_SECTIONS = [
       }
       if (accepted.length) {
         blocks.push({ type: 'heading', level: 2, text: 'Choix confirmés' });
-        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Points marqués « C\'est voulu » dans le widget.' });
+        blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Points marqués « C\'est voulu » dans la vue.' });
         blocks.push({ type: 'list', items: accepted.map((it) => `${it.title} — ${it.targets.map((t) => targetLabel(t)).join(', ')}`) });
       }
       if (ctx.insights.audit) {
@@ -722,7 +722,7 @@ export function renderDocx(blocks, theme, d) {
   }
 
   return new d.Document({
-    creator: 'Widget Grist « Audit de structure »',
+    creator: 'Vue Grist « Audit de structure »',
     title: blocks.find((b) => b.type === 'title')?.text || 'Structure du document',
     description: 'Rapport de structure d\'un document Grist',
     features: { updateFields: true },
@@ -766,6 +766,7 @@ export function loadDocx(url = DOCX_URL) {
   }
   return docxPromise;
 }
+
 
 
 

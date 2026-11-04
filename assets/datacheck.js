@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.12.0';
+import { columnarToRows } from './converter.js?v=3.13.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -17,11 +17,21 @@ const BOOL = new Set(['oui', 'non', 'vrai', 'faux', 'yes', 'no', 'true', 'false'
 
 /** Profil d'une colonne à partir de ses valeurs. */
 export function profileValues(values) {
-  const p = { total: values.length, filled: 0, text: 0, numeric: 0, date: 0, bool: 0, list: 0, distinct: new Set(), items: new Set() };
+  const p = { total: values.length, filled: 0, text: 0, numeric: 0, date: 0, bool: 0, list: 0, distinct: new Set(), items: new Set(), choiceValues: new Set(), choiceItems: new Set() };
   for (const v of values) {
     if (isEmpty(v)) continue;
     p.filled++;
+    if (Array.isArray(v)) {
+      // fetchTable encodes lists with L; accept decoded string arrays too, but not error/censored objects.
+      const list = v[0] === 'L' ? v.slice(1) : (v.every(x => typeof x === 'string') && !['C','E','U','D','d','R','r','O'].includes(v[0]) ? v : []);
+      if (list.length && typeof list[0] === 'string') for (const item of list) {
+        if (p.choiceItems.size >= MAX_DISTINCT) break;
+        if (typeof item === 'string') p.choiceItems.add(item);
+      }
+      continue;
+    }
     if (typeof v !== 'string') { if (p.distinct.size < MAX_DISTINCT) p.distinct.add(v); continue; }
+    if (p.choiceValues.size < MAX_DISTINCT) p.choiceValues.add(v);
     const s = v.trim();
     p.text++;
     if (p.distinct.size < MAX_DISTINCT) p.distinct.add(s);
@@ -74,7 +84,7 @@ export function structureSmells(tables, profiles = null, access = null) {
   const real = tables.filter((t) => t.kind !== 'summary');
   const prof = (t) => (profiles ? profiles.get(t.name) : null);
   const colProf = (t, c) => prof(t)?.columns.get(c.name) || null;
-  const steps = (...s) => [...s, 'Revenez dans ce widget et cliquez sur « Relire le document ».'];
+  const steps = (...s) => [...s, 'Revenez dans cette vue et cliquez sur « Relire le document ».'];
 
   // 1. Noms par défaut
   const defaults = [];
@@ -83,7 +93,7 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   if (defaults.length) {
     items.push({
-      id: 'default-name', severity: 'improve',
+      id: 'default-name', severity: 'blocking',
       title: defaults.length > 1 ? `${defaults.length} noms de colonnes laissés par défaut` : 'Un nom de colonne laissé par défaut',
       summary: 'Ces colonnes portent encore le nom donné automatiquement par Grist (A, B, Colonne1…).',
       why: 'Un nom parlant évite les erreurs dans les formules et rend le document compréhensible pour les autres.',
@@ -148,19 +158,21 @@ export function structureSmells(tables, profiles = null, access = null) {
   const outside = [];
   for (const t of real) {
     for (const c of t.columns) {
-      if (c.gristType?.name !== 'Choice' || !c.details?.choices.length) continue;
+      if (!['Choice','ChoiceList'].includes(c.gristType?.name) || !c.details?.choices.length) continue;
       const p = colProf(t, c);
       if (!p) continue;
-      const extra = [...p.distinct].filter((v) => typeof v === 'string' && !c.details.choices.includes(v));
+      const allowed = new Set(c.details.choices);
+      const candidates = c.gristType.name === 'ChoiceList' ? p.choiceItems : p.choiceValues;
+      const extra = [...(candidates || [])].filter(v => typeof v === 'string' && !allowed.has(v));
       if (extra.length) outside.push({ table: t.name, column: c.name, note: extra.slice(0, 3).join(', ') });
     }
   }
   if (outside.length) {
     items.push({
-      id: 'choice-outside', severity: 'improve',
-      title: outside.length > 1 ? `${outside.length} listes de choix contournées` : 'Une liste de choix contournée',
-      summary: 'Des cellules contiennent une valeur qui n\'est pas dans la liste de choix de la colonne.',
-      why: 'Ces valeurs personnalisées ne figurent pas parmi les choix proposés. Vérifiez s’il s’agit de nouvelles catégories utiles ou de variantes de saisie.',
+      id: 'choice-outside', severity: 'blocking', area: 'data',
+      title: 'Des modalités manquent dans la liste des choix',
+      summary: 'Certaines valeurs utilisées ne figurent pas dans les modalités proposées par leur colonne de type Choix unique ou Choix multiple.',
+      why: 'La liste proposée ne correspond plus aux valeurs utilisées. Une modalité utile doit être ajoutée ; une faute ou une variante doit être corrigée pour conserver des catégories cohérentes.',
       steps: steps('Ajoutez la valeur à la liste (panneau de droite, « Choix »), ou corrigez les cellules concernées.'),
       targets: outside,
     });
@@ -168,13 +180,12 @@ export function structureSmells(tables, profiles = null, access = null) {
 
   // 6. Tables vides, colonnes sans valeur dans les lignes lues (d'après les données lisibles)
   if (profiles) {
-    const masked = (name) => (access?.tables || []).some((t) => t.tableId === name && [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.perms.R === 'deny'));
-    const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name, note: masked(t.name) ? 'ou lignes masquées pour vous par les droits d’accès' : undefined }));
+    const empty = real.filter((t) => prof(t) && prof(t).rows === 0).map((t) => ({ table: t.name }));
     if (empty.length) {
       items.push({
         id: 'empty-table', severity: 'blocking',
         title: empty.length > 1 ? `${empty.length} tables sans aucune ligne` : 'Une table sans aucune ligne',
-        summary: 'Ces tables ne contiennent aucune ligne que vous puissiez voir : vides, ou entièrement masquées pour vous par les droits d’accès.',
+        summary: 'Ces tables ne contiennent aucune ligne.',
         why: 'Une table abandonnée encombre le document et le schéma.',
         intended: 'Table prête à recevoir des données, ou remplie par un import régulier : rien à faire.',
         steps: steps('Sinon : supprimez-la (« Données brutes » dans le menu de gauche ▸ menu de la table ▸ Supprimer).'),
@@ -194,8 +205,8 @@ export function structureSmells(tables, profiles = null, access = null) {
     if (unused.length) {
       items.push({
         id: 'never-filled', severity: 'blocking',
-        title: unused.length > 1 ? `${unused.length} colonnes sans valeur dans les lignes lues` : 'Une colonne sans valeur dans les lignes lues',
-        summary: 'Ces colonnes sont vides parmi toutes les lignes que le widget a pu lire. Des valeurs peuvent exister sur des lignes masquées.',
+        title: unused.length > 1 ? `${unused.length} colonnes vides` : 'Une colonne vide',
+        summary: 'Ces colonnes ne contiennent aucune valeur.',
         why: 'Elles alourdissent la saisie et les exports sans rien apporter.',
         intended: 'Colonne prévue pour plus tard, ou remplie seulement dans certains cas : rien à faire.',
         steps: steps('Sinon : clic droit sur l\'en-tête de la colonne ▸ « Supprimer la colonne ».'),
@@ -211,9 +222,9 @@ export function structureSmells(tables, profiles = null, access = null) {
       id: 'wide-table', severity: 'choice',
       title: wide.length > 1 ? `${wide.length} tables très larges` : 'Une table très large',
       summary: 'Ces tables ont plus de 30 colonnes.',
-      why: 'Souvent le signe de plusieurs sujets mélangés, ou de colonnes numérotées (Champ_1, Champ_2…) qui devraient être des lignes d\'une autre table.',
-      intended: 'Fiche complète d\'un même objet : rien à faire.',
-      steps: steps('Sinon : déplacez les colonnes d\'un même sujet dans une nouvelle table, reliée par une colonne « Référence ».'),
+      why: 'Grist repose sur un modèle de base de données : chaque table décrit une entité, par exemple des clients, des commandes ou des produits. Une très grande table mélange souvent plusieurs entités ; répartissez-les dans des tables plus petites reliées par des références. Pour plusieurs modalités d’une même information, utilisez une colonne Choix multiple plutôt que Choix_1, Choix_2, Choix_3. Pour plusieurs fiches ou événements ayant leurs propres informations, créez des lignes dans une table liée.',
+      intended: 'La table provient d’une requête ou d’un export d’un autre système d’information et doit en conserver la structure : gardez la table source si nécessaire, puis préparez des vues et des tables adaptées aux usages dans Grist.',
+      steps: steps('Repérez les entités mélangées dans la table : clients, commandes, produits ou événements.', 'Créez une table par entité et reliez les fiches avec des colonnes Référence.', 'Remplacez les colonnes de modalités numérotées par un Choix multiple. Si chaque élément possède ses propres dates, montants ou autres informations, utilisez une table liée avec une ligne par élément.'),
       targets: wide,
     });
   }
@@ -238,6 +249,7 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   return items.map((it) => ({ area: 'structure', ...it }));
 }
+
 
 
 

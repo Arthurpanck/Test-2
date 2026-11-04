@@ -37,8 +37,8 @@ test('N06 : deux cents cellules courtes au maximum, zéro et textes longs exclus
  assert.equal(has(one('Code','Text',[' '+ 'a'.repeat(150)]),'N06'),undefined);
  assert.equal(has(one('Notes','Text',[' A',' B']),'N06'),undefined);
 });
-test('N09 : uniquement colonnes Texte, jamais une vraie liste Choix multiple',()=>{
- assert.ok(has(one('Participants','Text',Array(5).fill('Alice;Bob')),'N09'));
+test('N09 retiré : aucune liste textuelle ne réactive le contrôle',()=>{
+ assert.equal(has(one('Participants','Text',Array(5).fill('Alice;Bob')),'N09'),undefined);
  assert.equal(has(one('Participants','ChoiceList',Array(5).fill(['L','Alice','Bob'])),'N09'),undefined);
  assert.equal(has(one('Participants','RefList:T',Array(5).fill(['L',1,2])),'N09'),undefined);
 });
@@ -68,7 +68,7 @@ test('N53 et N54 fusionnés : une seule carte, cibles de condition et d’habili
 test('les formulations et solutions arbitrées restent présentes dans le catalogue',()=>{
  const by=id=>AUDIT_CATALOG.find(x=>x.id===id);assert.match(by('N34').steps.join(' '),/if \$Quantite != 0:[\s\S]*else:[\s\S]*return 0/);
  assert.match(by('N50').steps.join(' '),/solution de partage/);assert.match(by('N31').title,/lookup.*première valeur/);
- assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,13);
+ assert.equal(by('N67').status,'information');assert.equal(RETAINED_IDS.length,11);
 });
 
 test('la description de colonne est affichée seulement quand elle est renseignée, et échappée',()=>{

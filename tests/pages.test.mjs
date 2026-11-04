@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { buildPages, pageInsights, originText, typeCounts } from '../assets/pages.js';
 import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
 
-const SELF = 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html?v=3.11.0';
+const SELF = 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html?v=3.13.0';
 const model = () => { const m = metadataFromDefinition(definition); return buildPages({ pages: m.pages, views: m.views, sections: m.sections, tables: m.tables, selfUrl: SELF }); };
 
 test('les tableaux sont comptés mais pas détaillés', () => {
@@ -15,7 +15,7 @@ test('les tableaux sont comptés mais pas détaillés', () => {
   assert.equal(m.views[0].linkedTo, 'Clients');
   assert.ok(m.tableOnlyPages.includes('Commandes') && !m.tableOnlyPages.includes('Suivi clients'));
   assert.deepEqual(m.tablesWithoutPage, ['Brouillon', 'Test']);
-  assert.equal(typeCounts(m), '1 fiche, 1 graphique (barres), 2 widgets personnalisés, 3 widgets non officiels');
+  assert.equal(typeCounts(m), '1 fiche, 1 graphique (barres), 2 vues personnalisées, 3 vues non officielles');
   assert.deepEqual([m.unofficial.length, m.gallery.length], [3, 2]);
 });
 

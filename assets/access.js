@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.12.0';
-import { columnarToRows } from './converter.js?v=3.12.0';
+import { effectivePermission } from './audit-engine.js?v=3.13.0';
+import { columnarToRows } from './converter.js?v=3.13.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -258,7 +258,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
   };
 }
 
-const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
+const REFRESH_STEP = 'Revenez dans cette vue et cliquez sur « Relire le document ».';
 const OPEN_RULES = 'Ouvrez la page « Règles d\'accès » du document (menu de gauche, rubrique Outils).';
 
 /** Constats sur les droits d'accès, au même format que ceux de la structure (insights.js). */
@@ -283,9 +283,9 @@ export function accessInsights(access) {
     push({
       id: 'acl-attribute', severity: 'blocking',
       title: 'Attribut utilisateur inexistant',
-      summary: 'La source de cet attribut utilisateur n’apparaît pas dans les éléments lisibles : sa table ou sa colonne peut être absente, ou masquée à l’utilisateur concerné par les droits d’accès. Le widget ne peut pas distinguer ces situations.',
-      why: 'Si la source a été supprimée, les droits d’accès qui utilisent cet attribut ne trouvent plus la fiche prévue. Si elle est masquée, il s’agit d’une limite de l’audit.',
-      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », retrouvez la déclaration de cet attribut : elle existe déjà. Vérifiez la table source et la colonne de recherche, puis corrigez leur sélection si nécessaire. Si elles sont seulement masquées pour vous, faites vérifier par une personne habilitée.', REFRESH_STEP],
+      summary: 'Cet attribut utilisateur est déclaré, mais sa table source ou sa colonne de recherche est introuvable dans la configuration analysée.',
+      why: 'Les droits d’accès qui utilisent cet attribut ont besoin de sa table et de sa colonne source pour retrouver la fiche de la personne connectée.',
+      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », retrouvez la déclaration de cet attribut : elle existe déjà. Vérifiez la table source et la colonne de recherche, puis corrigez leur sélection si nécessaire. Vérifiez la table et la colonne sélectionnées avant de modifier la configuration.', REFRESH_STEP],
       targets: brokenAttr.map((a) => ({ table: a.tableId, note: `user.${a.name} : ${a.problems.join(', ')}` })),
     });
   }
@@ -313,7 +313,7 @@ export function accessInsights(access) {
   }
   if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
     push({
-      id: 'acl-bypass', severity: 'choice',
+      id: 'acl-bypass', severity: 'blocking',
       intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
       title: 'Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès',
       summary: 'Des restrictions de lecture existent via les droits d’accès, mais les éditeurs peuvent modifier la structure et écrire des formules.',
@@ -340,7 +340,7 @@ export function accessInsights(access) {
   }
   if (access.uncovered.length && access.tables.length) {
     push({
-      id: 'acl-uncovered', severity: 'choice',
+      id: 'acl-uncovered', severity: 'info',
       intended: 'Tables sans donnée sensible : rien à faire.',
       title: 'Table sans aucune règle d’accès avancée',
       summary: 'Aucune règle d’accès avancée n’est définie directement sur ces tables. Elles suivent les droits d’accès par défaut du document et les rôles de partage.',
@@ -358,6 +358,7 @@ export function permissionCells(rule, bits) {
 }
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
 export const PERMISSION_LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.bit, p.label]));
+
 
 
 

@@ -1,29 +1,29 @@
 /**
  * Widgets du document : lecture de `_grist_Pages`, `_grist_Views` et `_grist_Views_section`.
  * Les tableaux (widget « Tableau ») sont comptés mais pas détaillés : on décrit les fiches,
- * listes de fiches, graphiques, formulaires et surtout les widgets personnalisés
+ * listes de fiches, graphiques, formulaires et surtout les vues personnalisées
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.12.0';
+import { columnarToRows } from './converter.js?v=3.13.0';
 
-/** Types de widgets, avec les libellés de Grist. */
+/** Types de vues, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
   record: 'Tableau',
   single: 'Fiche',
   detail: 'Liste de fiches',
   chart: 'Graphique',
-  custom: 'Widget personnalisé',
-  creator: 'Widget personnalisé',
+  custom: 'Vue personnalisée',
+  creator: 'Vue personnalisée',
   form: 'Formulaire',
 };
 
 const CHART_TYPES = { bar: 'barres', line: 'courbes', pie: 'secteurs', area: 'aires', scatter: 'nuage de points', kaplan_meier: 'Kaplan-Meier', donut: 'anneau' };
 
-/** Noms français des widgets de la galerie Grist (repli : nom anglais de la galerie). */
+/** Noms français des vues de la galerie Grist (repli : nom anglais de la galerie). */
 const GALLERY_NAMES = {
   'Action button': 'Bouton d\'action', Calendar: 'Calendrier', 'Copy to clipboard': 'Copier dans le presse-papiers',
-  'Custom widget builder': 'Constructeur de widget', 'Drop-down Widget': 'Liste déroulante', 'Dropbox embedder': 'Fichiers Dropbox',
+  'Custom widget builder': 'Constructeur de vue', 'Drop-down Widget': 'Liste déroulante', 'Dropbox embedder': 'Fichiers Dropbox',
   Flashcards: 'Cartes mémoire', 'Inspect record': 'Inspecter la fiche', 'Inspect table': 'Inspecter la table',
   'Inspect options': 'Inspecter les options', 'Inspect API': 'Découvrir l\'API', Invoices: 'Factures', Map: 'Carte',
   Markdown: 'Markdown', Notepad: 'Bloc-notes', 'Pivot table': 'Tableau croisé dynamique', 'Print labels': 'Étiquettes à imprimer',
@@ -33,7 +33,7 @@ const GALLERY_NAMES = {
 };
 
 export const ACCESS_LABELS = { full: 'Accès complet au document', 'read table': 'Lecture de la table sélectionnée', none: 'Aucun accès' };
-/** Colonnes d'un widget de la galerie : « Champ attendu → colonne », puis les champs encore à associer. */
+/** Colonnes d'une vue de la galerie : « Champ attendu → colonne », puis les champs encore à associer. */
 export function columnLines(c) {
   return [
     ...(c?.mapping || []).map((m) => ({ field: m.title || m.name, column: m.column })),
@@ -41,7 +41,7 @@ export function columnLines(c) {
   ];
 }
 
-export const ORIGIN_LABELS = { gallery: 'Galerie Grist', external: 'Site externe', document: 'Code dans le document', self: 'Ce widget d\'audit' };
+export const ORIGIN_LABELS = { gallery: 'Galerie Grist', external: 'Site externe', document: 'Code dans le document', self: 'Cette vue d\'audit' };
 
 function parseJson(value) {
   if (value && typeof value === 'object') return value;
@@ -52,7 +52,7 @@ function parseJson(value) {
 const hostOf = (url) => { try { return url ? new URL(url).host : ''; } catch { return ''; } };
 const bareUrl = (url) => String(url || '').split(/[?#]/)[0].replace(/\/index\.html$/, '/').replace(/\/+$/, '');
 
-/** Widget personnalisé : origine, nom, auteur, accès, colonnes associées. */
+/** Vue personnalisée : origine, nom, auteur, accès, colonnes associées. */
 function customInfo(section, colName, selfUrl) {
   const o = parseJson(section.options);
   const cv = parseJson(o.customView);
@@ -69,7 +69,7 @@ function customInfo(section, colName, selfUrl) {
 
   if (section.parentKey === 'creator') {
     const html = typeof o.html === 'string' ? o.html : '';
-    return { origin: 'document', name: 'Widget créé dans Grist', author: '', maintained: null, url: '', host: '', access, mapping, missingColumns,
+    return { origin: 'document', name: 'Vue créée dans Grist', author: '', maintained: null, url: '', host: '', access, mapping, missingColumns,
       codeLines: html ? html.split('\n').length : 0 };
   }
   const url = cv.url || def?.url || '';
@@ -101,7 +101,7 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
   const secRows = columnarToRows(sections);
   const secById = new Map(secRows.map((s) => [s.id, s]));
   const tableName = (ref) => tableById.get(ref)?.tableId || '';
-  const sectionLabel = (s) => (s ? s.title || tableName(s.tableRef) || `widget ${s.id}` : '');
+  const sectionLabel = (s) => (s ? s.title || tableName(s.tableRef) || `vue ${s.id}` : '');
 
   const result = [];
   const shown = new Set();
@@ -119,7 +119,7 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
         id: s.id,
         type,
         page: pageName,
-        typeLabel: custom && custom.origin !== 'gallery' ? 'Widget non officiel' : (WIDGET_TYPES[type] || type || 'Widget') + (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
+        typeLabel: custom && custom.origin !== 'gallery' ? 'Vue non officielle' : (WIDGET_TYPES[type] || type || 'Vue') + (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
         title: s.title || '',
         table,
         summary: Boolean(tableById.get(s.tableRef)?.summarySourceTable),
@@ -146,7 +146,7 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
   };
 }
 
-/** Phrase courte décrivant l'origine d'un widget personnalisé. */
+/** Phrase courte décrivant l'origine d'une vue personnalisée. */
 export function originText(c) {
   if (!c) return '';
   if (c.origin === 'gallery') return `${ORIGIN_LABELS.gallery} — ${c.name}${c.author ? ` (${c.author}${c.maintained ? '' : ', hors Grist Labs'})` : ''}`;
@@ -155,19 +155,19 @@ export function originText(c) {
   return `${ORIGIN_LABELS.self} — ${c.host}`;
 }
 
-/** Nombre de widgets par type, hors tableaux : « 2 fiches, 3 widgets personnalisés ». */
+/** Nombre de vues par type, hors tableaux : « 2 fiches, 3 vues personnalisées ». */
 export function typeCounts(model) {
   const counts = new Map();
   for (const w of [...model.views, ...model.custom]) counts.set(w.typeLabel, (counts.get(w.typeLabel) || 0) + 1);
   return [...counts.entries()].map(([label, n]) => `${n} ${n > 1 ? pluralLabel(label) : label.toLowerCase()}`).join(', ');
 }
 function pluralLabel(label) {
-  return { Fiche: 'fiches', 'Liste de fiches': 'listes de fiches', 'Widget personnalisé': 'widgets personnalisés', 'Widget non officiel': 'widgets non officiels', Formulaire: 'formulaires' }[label]
+  return { Fiche: 'fiches', 'Liste de fiches': 'listes de fiches', 'Vue personnalisée': 'vues personnalisées', 'Vue non officielle': 'vues non officielles', Formulaire: 'formulaires' }[label]
     || (label.startsWith('Graphique') ? label.replace('Graphique', 'graphiques') : label.toLowerCase());
 }
 
 const DEFAULT_PAGE = /^(New page|Nouvelle page|Page sans titre|Untitled page|Page \d+)$/i;
-const REFRESH_STEP = 'Revenez dans ce widget et cliquez sur « Relire le document ».';
+const REFRESH_STEP = 'Revenez dans cette vue et cliquez sur « Relire le document ».';
 const widgetName = (w) => w.title || w.custom?.name || w.typeLabel;
 
 /** Constats sur les pages et widgets, au format de insights.js. */
@@ -179,10 +179,10 @@ export function pageInsights(model) {
   if (unmapped.length) {
     push({
       id: 'widget-unmapped', severity: 'blocking',
-      title: unmapped.length > 1 ? `${unmapped.length} widgets personnalisés sans leurs colonnes` : 'Un widget personnalisé sans ses colonnes',
-      summary: 'Ces widgets attendent qu\'on leur indique quelles colonnes utiliser : tant que ce n\'est pas fait, ils n\'affichent rien.',
-      why: 'Les personnes qui ouvrent la page voient un widget vide ou un message d\'erreur.',
-      steps: ['Sélectionnez le widget, panneau de droite ▸ « Widget », et choisissez une colonne pour chaque champ demandé.', REFRESH_STEP],
+      title: unmapped.length > 1 ? `${unmapped.length} vues personnalisées sans leurs colonnes` : 'Une vue personnalisée sans ses colonnes',
+      summary: 'Ces vues attendent qu’on leur indique quelles colonnes utiliser : tant que ce n’est pas fait, elles n’affichent rien.',
+      why: 'Les personnes qui ouvrent la page voient une vue vide ou un message d\'erreur.',
+      steps: ['Sélectionnez la vue, panneau de droite ▸ les paramètres de la vue, et choisissez une colonne pour chaque champ demandé.', REFRESH_STEP],
       targets: unmapped.map((w) => ({ table: w.page, note: `${widgetName(w)} — à associer : ${w.custom.missingColumns.join(', ')}` })),
     });
   }
@@ -207,10 +207,10 @@ export function pageInsights(model) {
     push({
       id: 'table-without-page', severity: 'choice',
       title: model.tablesWithoutPage.length > 1 ? `${model.tablesWithoutPage.length} tables affichées sur aucune page` : 'Une table affichée sur aucune page',
-      summary: 'Ces tables n\'apparaissent dans aucun widget : on ne les voit que dans « Données brutes ».',
+      summary: 'Ces tables n\'apparaissent dans aucune vue : on ne les voit que dans « Données brutes ».',
       why: 'Les personnes qui utilisent le document risquent de ne jamais les trouver.',
       intended: 'Table technique ou de paramètres, volontairement à l\'écart : rien à faire.',
-      steps: ['Sinon : « Ajouter » ▸ « Ajouter une page » (ou « Ajouter un widget à la page ») et choisissez la table.', REFRESH_STEP],
+      steps: ['Sinon : « Ajouter » ▸ « Ajouter une page » (ou « Ajouter une vue à la page ») et choisissez la table.', REFRESH_STEP],
       targets: model.tablesWithoutPage.map((t) => ({ table: t })),
     });
   }
@@ -218,8 +218,8 @@ export function pageInsights(model) {
   if (inDoc.length) {
     push({
       id: 'widget-in-document', severity: 'info',
-      title: inDoc.length > 1 ? `${inDoc.length} widgets dont le code est dans le document` : 'Un widget dont le code est dans le document',
-      summary: 'Ces widgets ont été créés dans Grist (« Créer le vôtre ») : leur code est enregistré dans le document et le suit quand on le copie.',
+      title: inDoc.length > 1 ? `${inDoc.length} vues dont le code est dans le document` : 'Une vue dont le code est dans le document',
+      summary: 'Ces vues ont été créées dans Grist (« Créer le vôtre ») : leur code est enregistré dans le document et le suit quand on le copie.',
       why: 'Toute personne qui peut modifier la structure peut modifier ce code.',
       steps: [],
       targets: inDoc.map((w) => ({ table: w.page, note: widgetName(w) })),
@@ -227,6 +227,7 @@ export function pageInsights(model) {
   }
   return items;
 }
+
 
 
 

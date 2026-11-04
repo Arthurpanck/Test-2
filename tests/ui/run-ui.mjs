@@ -417,12 +417,12 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   check(text.includes('dont le nom ne précise pas l’usage') && !text.includes('Un widget externe avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
   await frame.locator('#tab-widgets').click();
   const w = await frame.locator('#widgets-body').textContent();
-  check(await frame.locator('.widget-card').count() === 5 && w.includes('Code dans le document') && w.includes('widgets.exemple.fr') && w.indexOf('Widgets non officiels') < w.indexOf('Widgets personnalisés'), 'onglet Widgets : non officiels en premier, avec origine et adresse');
-  check(await frame.locator('.widget-cols li').count() >= 3 && !(await frame.locator('#widgets-body').textContent()).includes('gristlabs.github.io'), 'onglet Widgets : galerie réduite à l\'accès et aux colonnes en liste');
-  check(w.includes('Fiche client') && w.includes('Graphique (barres)') && !/\bTableau · table\b/.test(w) && w.includes('que des tableaux') && w.includes('Brouillon'), 'onglet Widgets : tableaux exclus, autres vues par page');
-  check(await frame.locator('.widget-cols--missing').count() === 3, 'onglet Widgets : colonnes à associer signalées');
+  check(await frame.locator('.widget-card').count() === 5 && w.includes('Code dans le document') && w.includes('widgets.exemple.fr') && w.indexOf('Vues non officielles') < w.indexOf('Vues personnalisées'), 'onglet Vues : non officiels en premier, avec origine et adresse');
+  check(await frame.locator('.widget-cols li').count() >= 3 && !(await frame.locator('#widgets-body').textContent()).includes('gristlabs.github.io'), 'onglet Vues : galerie réduite à l\'accès et aux colonnes en liste');
+  check(w.includes('Fiche client') && w.includes('Graphique (barres)') && !/\bTableau · table\b/.test(w) && w.includes('que des tableaux') && w.includes('Brouillon'), 'onglet Vues : tableaux exclus, autres vues par page');
+  check(await frame.locator('.widget-cols--missing').count() === 3, 'onglet Vues : colonnes à associer signalées');
   await frame.locator('label[for="wkind-gallery"]').click();
-  check(await frame.locator('.widget-card').count() === 2 && !(await frame.locator('#widgets-body').textContent()).includes('Widgets non officiels'), 'widgets : filtre « Galerie »');
+  check(await frame.locator('.widget-card').count() === 2 && !(await frame.locator('#widgets-body').textContent()).includes('Vues non officielles'), 'widgets : filtre « Galerie »');
   await frame.locator('label[for="wkind-all"]').click();
   await frame.locator('#widgets-filter').fill('carte');
   await page.waitForTimeout(250);
@@ -433,7 +433,7 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__toc', { timeout: 30000 });
   const doc = await frame.locator('.doc').textContent();
-  check(doc.includes('Widgets personnalisés') && doc.includes('Widgets non officiels') && doc.includes('Tableau croisé dynamique') && doc.includes('Table des matières'), 'rapport : section Widgets');
+  check(doc.includes('Vues personnalisées') && doc.includes('Vues non officielles') && doc.includes('Tableau croisé dynamique') && doc.includes('Table des matières'), 'rapport : section Vues');
   await frame.locator('#tab-analysis').click();
   await page.waitForTimeout(600);
   await shot(page, '16-mal-structure-analyse.png');

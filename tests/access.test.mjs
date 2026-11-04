@@ -103,8 +103,9 @@ test('document complexe : types en français, colonnes vides, formules d\'initia
   assert.equal(out.tables.find((t) => t.name === 'Agents').description, 'Une ligne par agent, titulaire ou contractuel. Données RH sensibles.');
   const ins = buildInsights(out.tables, access);
   assert.equal(ins.verdict.level, 'blocking');
-  assert.ok(ins.items.some((i) => i.id === 'empty' && i.targets.length === 3));
-  assert.ok(ins.items.some((i) => i.id === 'untyped' && i.targets.some((t) => t.column === 'Statut_calcule')));
+  assert.ok(ins.items.some((i) => i.id === 'empty' && i.targets.length >= 3));
+  assert.ok(ins.items.some((i) => i.id === 'empty' && i.targets.some((t) => t.column === 'Statut_calcule')));
+  assert.ok(!ins.items.some(i=>i.id==='untyped'));
 });
 
 test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, sans faux « bloquant »', () => {

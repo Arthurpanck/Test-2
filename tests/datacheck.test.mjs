@@ -58,7 +58,7 @@ test('mal structuré : noms par défaut, doublons, copie non protégée, tables 
   assert.ok(has(item(ins, 'never-filled'), 'Commandes', 'Remise'));
   assert.ok(has(item(ins, 'wide-table'), 'Personnel'));
   for(const id of ['empty-table','never-filled','acl-attr-unused'])assert.equal(item(ins,id).severity,'blocking');
-  for (const id of ['wide-table', 'untyped', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
+  for (const id of ['wide-table', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
 });
 
 test('mal structuré : droits d\'accès en désordre', () => {

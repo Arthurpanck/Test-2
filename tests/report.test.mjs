@@ -50,7 +50,7 @@ test('le rapport Word contient toutes les sections et les données du document',
   writeFileSync(path.join(here, '..', 'captures', 'rapport-test.docx'), buf);
   for (const s of REPORT_SECTIONS) assert.ok(has(xml, `>${s.title}<`), `section « ${s.title} »`);
   for (const t of ctx.tables) assert.ok(xml.includes(`>${t.name}<`) || xml.includes(`>${t.name} (synthèse)<`), `table ${t.name}`);
-  assert.ok(xml.includes('Aucun problème bloquant détecté'), 'verdict');
+  assert.ok(has(xml,ctx.insights.verdict.title), 'verdict actualisé avec les colonnes non typées À corriger');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
   assert.ok(xml.includes('>Code DBML<') && xml.includes('Table '), 'section DBML à la fin');
   assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple → ') && xml.includes('>Date et Heure'), 'types de colonnes en français');
@@ -115,7 +115,7 @@ test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dan
   const ctx = { ...context(), pages, insights: { ...context().insights, items: pageInsights(pages) } };
   const blocks = buildReport(ctx, ['summary', 'pages']);
   const toc = blocks.find((b) => b.type === 'toc');
-  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Widgets non officiels', 'Widgets personnalisés', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
+  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Vues non officielles', 'Vues personnalisées', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
   const { xml } = await docxXml(blocks);
   for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', '• Name → à associer', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
   assert.ok(!xml.includes('>Tableau<'), 'aucun widget « Tableau » listé');

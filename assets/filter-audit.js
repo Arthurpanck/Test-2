@@ -1,7 +1,7 @@
 /** Filtres enregistrés affichés dans les vues Tableau ; aucun accès aux lignes métier. */
-import { columnarToRows } from './converter.js?v=3.12.0';
+import { columnarToRows } from './converter.js?v=3.13.0';
 
-export const VISIBLE_FILTER_THRESHOLD = 5;
+export const VISIBLE_FILTER_THRESHOLD = 3;
 const technical = /^(id|manualSort|gristHelper_.*|#.*)$/;
 
 export function inspectVisibleFilters(schema, meta = {}) {
@@ -30,5 +30,6 @@ export function inspectVisibleFilters(schema, meta = {}) {
   }
   return { available: true, partial, views: [...grouped.values()].filter(v => v.columns.size >= VISIBLE_FILTER_THRESHOLD).map(v => ({ ...v, count: v.columns.size, columns: [...v.columns.values()] })) };
 }
+
 
 

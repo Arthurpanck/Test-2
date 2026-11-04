@@ -11,26 +11,26 @@ import JSZip from 'jszip';
 const finding = x => runAudit(x).items.find(i=>i.id==='X13');
 const check = x => runAudit(x).checks.find(i=>i.id==='X13');
 
-test('X13 : cinq champs déclenchent, quatre non ; six sont décrits sans inférer un usage',()=>{
-  assert.equal(finding(visibleFilterContext(4)),undefined);
-  assert.ok(finding(visibleFilterContext(5)));
+test('X13 : trois champs déclenchent, deux non ; six sont décrits sans inférer un usage',()=>{
+  assert.equal(finding(visibleFilterContext(2)),undefined);
+  assert.ok(finding(visibleFilterContext(3)));
   const item=finding(visibleFilterContext());
   assert.equal(item.severity,'choice'); assert.equal(item.area,'pages');
   assert.match(item.targets[0].note,/6 champs/); assert.match(item.targets[0].note,/Suivi des demandes/);
   assert.doesNotMatch(item.summary,/doivent refaire/);
 });
-test('X13 : désépingler deux filtres laisse leurs sélections et retire le constat',()=>{
-  const x=visibleFilterContext();for(const f of x.meta.filters.slice(0,2))f.pinned=false;
+test('X13 : désépingler quatre filtres laisse leurs sélections et retire le constat',()=>{
+  const x=visibleFilterContext();for(const f of x.meta.filters.slice(0,4))f.pinned=false;
   assert.equal(finding(x),undefined); assert.equal(x.meta.filters.length,6);
   assert.ok(x.meta.filters.every(f=>f.filter));
 });
 test('X13 : un champ reste un champ, même avec vingt valeurs ou une ligne dupliquée',()=>{
-  const x=visibleFilterContext(4);x.meta.filters[0].filter=JSON.stringify({included:Array.from({length:20},(_,i)=>'v'+i)});
+  const x=visibleFilterContext(2);x.meta.filters[0].filter=JSON.stringify({included:Array.from({length:20},(_,i)=>'v'+i)});
   x.meta.filters.push({...x.meta.filters[0],id:99});assert.equal(finding(x),undefined);
 });
 test('X13 : filtres comptés par vue, sans sommer toute une page',()=>{
-  const x=visibleFilterContext();x.meta.sections.push({...x.meta.sections[0],id:11});
-  for(const f of x.meta.filters.slice(3))f.viewSectionRef=11;
+  const x=visibleFilterContext(4);x.meta.sections.push({...x.meta.sections[0],id:11});
+  for(const f of x.meta.filters.slice(2))f.viewSectionRef=11;
   assert.equal(finding(x),undefined);
 });
 test('X13 : les widgets non Tableau et les vues brutes ne sont pas concernés',()=>{
@@ -38,7 +38,7 @@ test('X13 : les widgets non Tableau et les vues brutes ne sont pas concernés',(
   const x=visibleFilterContext();x.meta.sections[0].parentId=0;assert.equal(finding(x),undefined);
 });
 test('X13 : chaînes vides et ancien null Grist ne sont pas des filtres affichés',()=>{
-  const x=visibleFilterContext();x.meta.filters[0].filter='';x.meta.filters[1].filter='null';assert.equal(finding(x),undefined);
+  const x=visibleFilterContext(4);x.meta.filters[0].filter='';x.meta.filters[1].filter='null';assert.equal(finding(x),undefined);
 });
 test('X13 : métadonnées absentes non vérifiables, propriété inconnue non devinée',()=>{
   for(const key of ['filters','sections','tables','columns']){const x=visibleFilterContext();delete x.meta[key];assert.equal(check(x).state,'unavailable');assert.equal(finding(x),undefined);}
@@ -48,7 +48,7 @@ test('X13 : métadonnées absentes non vérifiables, propriété inconnue non de
 });
 test('X13 : colonnes censurées, mauvais parent et filtres censurés ne sont pas comptés',()=>{
   for(const transform of [x=>{x.meta.columns[0].colId='';x.meta.columns[1].colId=''},x=>{x.meta.columns[0].parentId=99;x.meta.columns[1].parentId=99},x=>{x.meta.filters[0].filter=['C'];x.meta.filters[1].pinned=['C']}]){
-    const x=visibleFilterContext();transform(x);assert.equal(finding(x),undefined);assert.equal(check(x).state,'limited');
+    const x=visibleFilterContext(4);transform(x);assert.equal(finding(x),undefined);assert.equal(check(x).state,'limited');
   }
   const x=visibleFilterContext();x.meta.tables[0].tableId='';assert.equal(finding(x),undefined);
 });
@@ -61,7 +61,7 @@ test('X13 : accepte les métadonnées colonnaires et pinned numérique',()=>{
 test('X13 : contrôle indépendant du budget des lignes et validation modifiée si nombre change',()=>{
   const x=visibleFilterContext();x.data={Dossiers:{id:[1,2],Statut:['Ouvert','Ouvert']}};x.limits={...AUDIT_LIMITS,rows:0,cells:0};
   assert.ok(finding(x));assert.equal(finding(x).evidence.coverage,'visible');
-  assert.notEqual(insightKey(finding(visibleFilterContext(5))),insightKey(finding(visibleFilterContext(6))));
+  assert.notEqual(insightKey(finding(visibleFilterContext(3))),insightKey(finding(visibleFilterContext(6))));
   x.meta.filters=[];assert.equal(check(x).state,'checked');
 });
 test('X13 : contexte et explication transmis au rapport HTML et Word',async()=>{

@@ -47,8 +47,8 @@ test('seuil numérique et liste de choix : un indice reste une recommandation av
 test('choix unique et multiple : une faute dans un élément déclenche le bon contrôle, sans doublon',()=>{
  const x=doc([['Statut','Choice',['Ouvert','Fermé']],['Competences','ChoiceList',['Accueil','Cuisine']]],[{Statut:'Ouvret',Competences:['L','Accueil','Acceuil']},{Statut:'Ouvert',Competences:['L','Accueil','Cuisine']}]);
  const result=buildInsights(x.tables,null,{profiles:x.profiles,audit:{schema:x.schema,data:x.data}});
- assert.deepEqual(result.items.find(i=>i.id==='choice-outside').targets.map(t=>t.column),['Statut']);
- assert.deepEqual(result.items.find(i=>i.id==='N64').targets.map(t=>t.column),['Competences']);
+ assert.deepEqual(result.items.find(i=>i.id==='choice-outside').targets.map(t=>t.column),['Statut','Competences']);
+ assert.ok(!result.items.some(i=>i.id==='N64'));assert.equal(result.items.find(i=>i.id==='choice-outside').severity,'blocking');
  const good=doc([['Statut','Choice',['Ouvert']],['Competences','ChoiceList',['Accueil','Cuisine']]],[{Statut:'Ouvert',Competences:['L','Cuisine','Accueil']},{Statut:'',Competences:['L']},{Statut:'Ouvert',Competences:['C']}]);
  const items=buildInsights(good.tables,null,{profiles:good.profiles,audit:{schema:good.schema,data:good.data}}).items;
  assert.ok(!items.some(i=>['choice-outside','N64'].includes(i.id)),'ordre différent, liste vide et censure ne sont pas des valeurs hors choix');

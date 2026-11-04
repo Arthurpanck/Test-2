@@ -3,8 +3,8 @@
  * détail filtrable (une ligne par case) et les paramètres de lecture.
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
-import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.12.0';
-import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.12.0';
+import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.13.0';
+import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.13.0';
 
 const BLUE = '000091', GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD', WHITE = 'FFFFFF';
 const TONE = { ok: ['DFFEE6', '18753C'], ko: ['FFE9E9', 'CE0500'], uk: ['EEEEEE', '3A3A3A'] };
@@ -49,11 +49,11 @@ const STYLES = {
 /** Texte complet de la case (sans « … » : toutes les colonnes qui décident). */
 const fullText = (c) => ({ allow: 'Oui', deny: 'Non', unknown: '?', na: '—' }[c.state] ?? c.labels.join(' + '));
 const tone = (c) => (c.state === 'allow' || c.state === 'rows-allow' ? 'ok' : c.state === 'deny' || c.state === 'rows-deny' ? 'ko' : c.state === 'na' ? 'na' : 'uk');
-/** Case de la matrice, en badge (MAJUSCULES comme dans le widget). */
+/** Case de la matrice, en badge (MAJUSCULES comme dans la vue). */
 const badgeCell = (c, edge) => (c.state === 'na' ? { v: '—', s: edge ? 'naEdge' : 'na' } : { v: fullText(c).toUpperCase(), s: tone(c) });
 const fmtDate = (d) => `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 
-export const MATRIX_HELP = 'Pour chaque rôle métier, ce que permettent les règles. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne. En rouge : oui, sauf sur ces lignes. « ? » : condition que le widget ne sait pas lire, à vérifier dans Grist. « — » : sans objet pour une colonne.';
+export const MATRIX_HELP = 'Pour chaque rôle métier, ce que permettent les règles. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne. En rouge : oui, sauf sur ces lignes. « ? » : condition que la vue ne sait pas lire, à vérifier dans Grist. « — » : sans objet pour une colonne.';
 export const MATRIX_WARNING = 'Lecture des règles, sans connexion réelle : pour un cas sensible, vérifiez avec « Voir en tant que » dans Grist.';
 
 /**
@@ -154,7 +154,7 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
   for (const [v, s, text] of [['Oui', 'okLeft', 'Permis sur toutes les lignes.'], ['Non', 'koLeft', 'Refusé sur toutes les lignes.'],
     ['Nom de colonne', 'okLeft', 'Oui, mais seulement sur les lignes où cette colonne correspond à la personne (ou si cette case de son habilitation est renseignée).'],
     ['Nom de colonne', 'koLeft', 'Oui, sauf sur les lignes où cette colonne correspond à la personne.'],
-    ['?', 'ukLeft', 'Condition que le widget ne sait pas lire (attribut inexistant, fonction, forme non prise en charge) : à vérifier dans Grist.'],
+    ['?', 'ukLeft', 'Condition que la vue ne sait pas lire (attribut inexistant, fonction, forme non prise en charge) : à vérifier dans Grist.'],
     ['—', 'na', 'Sans objet : on ne crée ni ne supprime une colonne seule.']]) p.push({ cells: [{ v, s }, { v: text, s: 'text' }] });
   const unknown = unknownCases(mx);
   if (unknown.length) {
@@ -176,5 +176,6 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
 export function matrixXlsx(mx, opts) {
   return writeXlsx(matrixWorkbook(mx, opts));
 }
+
 
 

@@ -13,7 +13,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Ouvrez les cellules indiquées, lisez le détail de l’erreur, corrigez la donnée ou la formule puis vérifiez les résultats.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Calculs ligne 1 : 12 / 0 renvoie ZeroDivisionError.",
     "justification": "Un calcul échoue réellement.",
@@ -49,7 +49,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Filtrez les cellules indiquées ; corrigez leur contenu ou choisissez le type adapté dans le panneau Colonne ; vérifiez l’aperçu de conversion.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Imports.Montant = « douze ».",
     "justification": "Incompatibilité constatée et non simple ressemblance.",
@@ -88,7 +88,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Triez sur les colonnes indiquées, comparez les pièces sources et les liens ; supprimez seulement les lignes dont le doublon est confirmé.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Imports lignes 1 et 2.",
     "justification": "Doublon probable mais répétition parfois légitime.",
@@ -105,7 +105,7 @@ export const AUDIT_CATALOG = [
       "Une ligne avec une cellule censurée n’est jamais déclarée doublon",
       "Les formules peuvent différer : elles ne sont pas comparées."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -123,14 +123,14 @@ export const AUDIT_CATALOG = [
     "level": "À améliorer",
     "domain": "données",
     "title": "Un même code désigne plusieurs fiches",
-    "detection": "Utiliser uniquement keys, les clés déclarées dans les options du widget. Pour chaque ligne, construire le tuple des colonnes choisies ; ignorer les tuples incomplets, erronés ou censurés. Regrouper les tuples strictement identiques. Un groupe de deux lignes suffit. Avec Code + Annee, A001 en 2025 et A001 en 2026 sont différents. Sans clé déclarée : état À configurer, aucun constat.",
+    "detection": "Utiliser uniquement keys, les clés déclarées dans les options de la vue. Pour chaque ligne, construire le tuple des colonnes choisies ; ignorer les tuples incomplets, erronés ou censurés. Regrouper les tuples strictement identiques. Un groupe de deux lignes suffit. Avec Code + Annee, A001 en 2025 et A001 en 2026 sont différents. Sans clé déclarée : état À configurer, aucun constat.",
     "false_positives": "Les numéros peuvent être uniques seulement par année ou établissement ; utiliser une clé composée déclarée.",
     "summary": "La ou les colonnes que vous avez désignées comme identifiant contiennent une même valeur sur plusieurs lignes. Par exemple, le code A001 apparaît sur deux fiches.",
     "why": "Lorsqu’un code doit désigner une seule fiche, un doublon rend les recherches et les rapprochements ambigus. Le contrôle utilise uniquement les colonnes que vous avez explicitement choisies comme clé.",
     "intended": null,
     "steps": [
       "Filtrez ce code, vérifiez les fiches et définissez une règle commune de numérotation ; corrigez les doublons confirmés.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Code A001 présent deux fois.",
     "justification": "La clé doit être confirmée avant d’affirmer une anomalie.",
@@ -140,14 +140,14 @@ export const AUDIT_CATALOG = [
     "area": "data",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Utiliser uniquement keys, les clés déclarées dans les options du widget",
+      "Utiliser uniquement keys, les clés déclarées dans les options de la vue",
       "Pour chaque ligne, construire le tuple des colonnes choisies ; ignorer les tuples incomplets, erronés ou censurés",
       "Regrouper les tuples strictement identiques",
       "Un groupe de deux lignes suffit",
       "Avec Code + Annee, A001 en 2025 et A001 en 2026 sont différents",
       "Sans clé déclarée : état À configurer, aucun constat."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -172,7 +172,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Filtrez les variantes puis harmonisez leur écriture ; pour un statut, utilisez une liste de choix.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "« Alice », « Alice », « Alice  » ; « en cours » et « En cours ».",
     "justification": "Amélioration de cohérence sans fusion imposée.",
@@ -187,7 +187,7 @@ export const AUDIT_CATALOG = [
       "Déclencher si deux écritures d’origine différentes donnent la même valeur normalisée",
       "Les accents et la ponctuation restent significatifs."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -212,7 +212,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Ouvrez les cellules indiquées et retirez les espaces parasites ; nettoyez les colonnes dans une copie avant le prochain import.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Imports.Nom = « Bob  ».",
     "justification": "Cela perturbe les correspondances mais reste corrigeable.",
@@ -252,7 +252,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Retrouvez la ligne, comparez avec le fichier importé puis retirez l’en tête recopié ; vérifiez le choix de la première ligne à l’import.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Imports ligne 4.",
     "justification": "Indice fort d’un copier coller mal délimité.",
@@ -289,8 +289,8 @@ export const AUDIT_CATALOG = [
     "why": "Une synthèse risque de les additionner une seconde fois.",
     "intended": "Si ces lignes servent à un état figé, gardez les dans une table séparée et décrivez leur rôle.",
     "steps": [
-      "Déplacez les totaux hors de la table de détail et ajoutez un widget de synthèse pour les recalculer.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Déplacez les totaux hors de la table de détail et ajoutez une vue de synthèse pour les recalculer.",
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Imports : ligne TOTAL, montant 24.",
     "justification": "Le format peut être volontaire.",
@@ -331,18 +331,18 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Participants = « Alice; Bob; Chloé ».",
     "justification": "Le bon modèle dépend du besoin.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Données",
     "area": "data",
     "ruleVersion": 2,
     "calculationSteps": [
       "Uniquement dans les colonnes de saisie de type Texte (jamais Choix multiple ou Liste de références), hors noms évoquant notes, descriptions et adresses. Sur au plus 200 cellules échantillonnées de 500 caractères maximum : au moins cinq textes non vides et au moins 30 % contenant deux éléments non vides séparés par un point-virgule ou un retour à la ligne."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré le 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
+    "reviewNote": "Supprimé sur demande le 4 novembre 2026. Le calcul ne s’exécute plus.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
@@ -364,7 +364,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si chaque ligne décrit un paramètre différent, ce mélange peut être utile.",
     "steps": [
       "Séparez les usages en colonnes nommées puis choisissez leur type ; vérifiez les valeurs converties.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Dans une colonne Any : 5 nombres réels (12, 18, 20, 9, 4) et 5 textes (« douze », « attente », « inconnu », « cinq », « aucun ») déclenchent le contrôle. Dix textes, même certains ressemblant à des nombres, ne le déclenchent pas.",
     "justification": "Le mélange peut être intentionnel.",
@@ -404,7 +404,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous distinguez plusieurs raisons d’absence, conservez cette distinction dans un champ dédié.",
     "steps": [
       "Videz les valeurs artificielles confirmées et ajoutez au besoin une colonne Motif d’absence avec des choix.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Téléphone = « N/A », « - », « inconnu ».",
     "justification": "Convention métier à confirmer.",
@@ -417,7 +417,7 @@ export const AUDIT_CATALOG = [
       "Sur au moins cinq textes remplis, hors notes et descriptions, chercher au moins deux marqueurs exacts : N/A, NA, NC, inconnu, à renseigner ou tiret isolé",
       "La valeur numérique zéro et le booléen faux ne sont pas vides."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -442,7 +442,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Comparez avec la source puis corrigez les adresses indiquées ; séparez les adresses multiples si nécessaire.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "alice@@example.invalid.",
     "justification": "Erreur de forme probable sans test d’envoi.",
@@ -478,7 +478,7 @@ export const AUDIT_CATALOG = [
     "intended": "La colonne contient bien une quantité utilisée dans des calculs : conservez le type numérique.",
     "steps": [
       "Passez la colonne en Texte dans le panneau Colonne et comparez au fichier source pour restaurer les zéros éventuellement perdus.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "La colonne Code_postal est de type Numérique : 01230 risque d’être conservé comme 1230. Le contrôle se déclenche sur le nom et le type, même dans une table vide.",
     "justification": "La perte historique n’est pas démontrable sans source.",
@@ -518,7 +518,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si la colonne conserve les valeurs originales d’un import, gardez la et ajoutez une colonne de montant converti.",
     "steps": [
       "Vérifiez le pays et le format du fichier source ; convertissez chaque groupe avec la bonne convention et contrôlez quelques totaux.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Montant contient « 1,234.56 », « 2,345.67 », « 1.234,56 », « 2.345,67 » et « 100 ». Deux formats explicites apparaissent au moins deux fois chacun.",
     "justification": "Conversion à confirmer, pas de remplacement automatique.",
@@ -558,7 +558,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si le format est commun à toute l’équipe et documenté, confirmez ce choix.",
     "steps": [
       "Vérifiez les dates dans le fichier d’origine puis convertissez la colonne en Date en contrôlant l’aperçu.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "03/04/2026 avec 10/25/2026.",
     "justification": "L’intention ne se déduit pas de la valeur seule.",
@@ -594,7 +594,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Retrouvez la date source, corrigez le jour ou le mois, puis utilisez le type Date.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "31/02/2026.",
     "justification": "Erreur de calendrier établie dans une colonne de dates.",
@@ -630,7 +630,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ce sont des numéros ou des durées, conservez le type numérique.",
     "steps": [
       "Vérifiez le format dans le fichier source, réimportez avec les bonnes dates puis comparez plusieurs jours connus.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Date_adhesion = 45292.",
     "justification": "Ressemblance seulement.",
@@ -643,7 +643,7 @@ export const AUDIT_CATALOG = [
       "Colonne Numérique ou Entier dont l’identifiant contient date ; au moins cinq nombres valides, dont 80 % ou plus sont entiers entre 20000 et 80000",
       "Aucune conversion automatique, ni choix implicite entre origines Excel 1900 et 1904."
     ],
-    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
@@ -668,7 +668,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Ouvrez les lignes indiquées et vérifiez les deux dates, y compris l’année et l’heure ; corrigez la source.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Calculs ligne 1 : fin un jour avant début.",
     "justification": "Incohérence utile une fois le sens des champs établi.",
@@ -704,7 +704,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ces dates correspondent à des archives ou à des projets lointains, ajustez la période attendue.",
     "steps": [
       "Filtrez les dates signalées, comparez aux sources et corrigez les années erronées.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Cotisation 2206 pour campagne 2026.",
     "justification": "Les bornes dépendent du métier.",
@@ -720,7 +720,7 @@ export const AUDIT_CATALOG = [
       "Une valeur hors bornes suffit",
       "Sans configuration : aucun signal."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -745,7 +745,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si chaque colonne décrit l’heure locale d’un lieu différent, précisez ce lieu dans son libellé.",
     "steps": [
       "Sélectionnez chaque colonne Date et Heure, vérifiez le fuseau du panneau Colonne puis comparez un rendez vous connu.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Départ Europe/Paris et arrivée UTC sans indication.",
     "justification": "Aucun décalage réel n’est affirmé sans événement témoin.",
@@ -781,7 +781,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si seul le jour compte pour ce suivi, conservez cette présentation.",
     "steps": [
       "Gardez la source et utilisez Date et Heure si l’ordre précis des événements est nécessaire.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Source 2026-10-25T01:30:00Z, cible 25/10/2026.",
     "justification": "Perte potentiellement volontaire.",
@@ -817,7 +817,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si les valeurs supérieures à 100 % sont réelles, précisez les règles de calcul.",
     "steps": [
       "Choisissez une convention, corrigez les valeurs d’après la source et appliquez le format Pourcentage.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "0,2 ; 0,15 ; 20 ; 15 ; 0,2 ; 20.",
     "justification": "Une échelle n’est pas prouvée par la taille seule.",
@@ -832,7 +832,7 @@ export const AUDIT_CATALOG = [
       "Leur rapport de médianes doit être compris entre 50 et 200",
       "La médiane utilisée est la valeur centrale supérieure."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -857,7 +857,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous conservez les mesures originales, ajoutez une colonne convertie pour les calculs.",
     "steps": [
       "Séparez la valeur et l’unité, choisissez une unité commune et vérifiez les conversions.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "« 500 g », « 2 kg », « 300 g », « 1 kg », « 4 kg ».",
     "justification": "Le stockage original peut être utile.",
@@ -871,7 +871,7 @@ export const AUDIT_CATALOG = [
       "Chercher au moins deux occurrences de chacune de deux unités d’une même famille : kg/g, h/min, EUR/USD ou m/cm",
       "Les valeurs ne sont pas converties."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -896,7 +896,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ces montants exceptionnels sont justifiés, confirmez les.",
     "steps": [
       "Filtrez les lignes indiquées et comparez aux justificatifs avant toute correction.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "29 cotisations entre 10 et 30 euros et une à 20000.",
     "justification": "Signal statistique à confirmer.",
@@ -911,7 +911,7 @@ export const AUDIT_CATALOG = [
       "Si Q3−Q1 > 0, signaler les valeurs hors Q1−3×écart et Q3+3×écart",
       "Les colonnes Date sont exclues."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -936,7 +936,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Filtrez les fiches concernées puis complétez les champs ; précisez dans la description quand ils doivent être remplis.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Statut Validé mais Date_validation vide.",
     "justification": "Attente explicitement déclarée.",
@@ -972,7 +972,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Vérifiez le statut et les champs associés puis corrigez la source ; ajoutez une colonne de contrôle si cette vérification est régulière.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Payée = oui et Date_paiement vide.",
     "justification": "Contradiction avec une règle connue.",
@@ -1008,7 +1008,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ce total comprend un ajustement, ajoutez le détail de cet ajustement.",
     "steps": [
       "Comparez quantité, prix, remise et justificatif ; utilisez une formule quand le total doit toujours suivre ces valeurs.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Calculs : 2 × 10 mais Total_saisi = 25.",
     "justification": "Écart parfois intentionnel.",
@@ -1023,7 +1023,7 @@ export const AUDIT_CATALOG = [
       "Remises et taxes ne sont pas devinées",
       "Sans règle déclarée : À configurer."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1048,7 +1048,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si c’est votre convention pour la racine, décrivez la et assurez vous que les calculs la gèrent.",
     "steps": [
       "Ouvrez la fiche puis choisissez le bon parent, ou laissez vide pour une racine.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Hierarchie ligne 3 Parent = 3.",
     "justification": "Convention de racine possible.",
@@ -1062,7 +1062,7 @@ export const AUDIT_CATALOG = [
       "Une égalité positive déclenche",
       "Le choix d’une racine sur elle-même reste une convention à confirmer."
     ],
-    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
@@ -1087,7 +1087,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous décrivez un réseau et non une hiérarchie, confirmez ce choix.",
     "steps": [
       "Vérifiez les liens de chaque fiche citée puis retirez ou corrigez le lien qui ferme la boucle.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Hierarchie : A → B → A.",
     "justification": "Le sens hiérarchique doit être confirmé.",
@@ -1102,7 +1102,7 @@ export const AUDIT_CATALOG = [
       "Déclencher seulement pour une boucle fermée de longueur au moins deux",
       "Arrêter au plafond de 100000 arêtes ; un chemin vers une ligne hors échantillon n’est pas une preuve de boucle."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1127,7 +1127,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si la fiche est masquée par les droits, demandez une vérification à une personne habilitée.",
     "steps": [
       "Ouvrez le lien dans Grist ; vérifiez les droits puis choisissez une fiche existante si la destination a été supprimée.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Commande.Client = 99, aucune ligne 99 lisible.",
     "justification": "Visibilité et suppression indiscernables.",
@@ -1141,7 +1141,7 @@ export const AUDIT_CATALOG = [
       "Si la cible n’a pas été chargée, ne pas conclure",
       "Un identifiant absent signifie seulement « destination non visible », jamais « ligne supprimée »."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1206,7 +1206,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si cette ligne est un paramètre stable et documenté, vous pouvez conserver ce choix.",
     "steps": [
       "Remplacez le numéro fixe par une référence ou une recherche sur une clé métier ; contrôlez les résultats.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Parametres.lookupOne(id=1).Valeur.",
     "justification": "Fragilité lors de reconstruction, pas lors d’un tri.",
@@ -1219,7 +1219,7 @@ export const AUDIT_CATALOG = [
       "Après masquage des chaînes et commentaires, rechercher un appel exact Table.lookupOne(id=entier) sans autre argument",
       "Aucun numéro de position affichée n’est confondu avec l’id Grist ; un tri ne change pas cet id."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1244,7 +1244,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ce remplacement est prévu, ajoutez un contrôle distinct pour distinguer absence et erreur.",
     "steps": [
       "Examinez la formule et ajoutez un message ou une colonne de contrôle avant de masquer le résultat.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Calculs.Erreur_masquee = IFERROR($Prix / $Quantite, 0).",
     "justification": "Intention de gestion des erreurs à confirmer.",
@@ -1257,7 +1257,7 @@ export const AUDIT_CATALOG = [
       "Après masquage des chaînes et commentaires, repérer IFERROR, ISERROR ou un bloc except",
       "Cette version signale un traitement d’erreurs à relire, pas la preuve qu’une erreur s’est produite ou que son résultat a été remplacé par zéro."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1271,8 +1271,8 @@ export const AUDIT_CATALOG = [
   },
   {
     "id": "N34",
-    "severity": "improve",
-    "level": "À améliorer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "structure",
     "title": "Un calcul pourrait diviser par zéro",
     "detection": "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro. Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR. Les gardes complexes restent hors périmètre.",
@@ -1292,7 +1292,7 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées et données",
     "area": "structure",
-    "ruleVersion": 2,
+    "ruleVersion": 3,
     "calculationSteps": [
       "Reconnaître une division simple par $Colonne ; vérifier qu’un diviseur visible vaut exactement zéro. Ne pas émettre le constat si la colonne calculée contient déjà une erreur E, ou si le code contient if, IF ou IFERROR. Les gardes complexes restent hors périmètre."
     ],
@@ -1321,7 +1321,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous voulez afficher la date du jour, renommez la colonne pour l’indiquer.",
     "steps": [
       "Utilisez une formule d’initialisation appliquée aux nouvelles lignes seulement ; restaurez les anciennes dates depuis une source fiable si nécessaire.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Cree_le formule ordinaire NOW().",
     "justification": "Le nom peut exprimer une autre intention.",
@@ -1334,7 +1334,7 @@ export const AUDIT_CATALOG = [
       "Colonne de formule ordinaire nommée Cree_le, Date_creation, created_at, Numero ou UUID, contenant un appel NOW ou TODAY hors commentaires et chaînes",
       "Une initialisation exécutée seulement à la création n’est pas concernée."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1359,7 +1359,7 @@ export const AUDIT_CATALOG = [
     "intended": "La colonne sert volontairement de date de dernière modification, ou sa valeur doit suivre certains champs : gardez ce déclenchement.",
     "steps": [
       "Dans Colonne, vérifiez la formule d’initialisation et choisissez l’application aux nouvelles lignes seulement pour une valeur immuable.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "UUID est une colonne de saisie avec la formule d’initialisation UUID() et le réglage « à chaque modification ». Le contrôle lit ce réglage, sans attendre de voir l’identifiant changer.",
     "justification": "Configuration à confirmer.",
@@ -1399,7 +1399,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si c’est un prix ou une adresse conservés au moment de la commande, ce fonctionnement est utile.",
     "steps": [
       "Vérifiez les colonnes de déclenchement dans le panneau Colonne ; utilisez une formule ordinaire pour un calcul toujours à jour.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Montant initialisé par Quantite × Prix, déclenché seulement par Quantite.",
     "justification": "Les instantanés sont légitimes.",
@@ -1413,7 +1413,7 @@ export const AUDIT_CATALOG = [
       "Extraire les accès $Col ou rec.Col ; signaler si au moins un champ utilisé n’est pas dans les déclencheurs",
       "Une capture historique peut être intentionnelle."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1438,7 +1438,7 @@ export const AUDIT_CATALOG = [
     "intended": "Le parcours global est nécessaire et le document reste réactif : conservez-le.",
     "steps": [
       "Essayez une recherche filtrée, une référence ou une synthèse ; comparez les résultats sur quelques lignes.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Une formule présente dans Commandes (1 500 lignes visibles) contient SUM(r.Montant for r in Paiements.all), et Paiements a 6 000 lignes visibles.",
     "justification": "Risque de coût, pas mesure de performance.",
@@ -1479,7 +1479,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si le résultat décrit volontairement la situation actuelle ou une simulation, confirmez.",
     "steps": [
       "Gardez une date ou une valeur source fixe pour les historiques ; utilisez une initialisation pour un identifiant créé une fois.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Numero formule ordinaire UUID().",
     "justification": "Fonctions utiles selon le besoin.",
@@ -1493,7 +1493,7 @@ export const AUDIT_CATALOG = [
       "Écarter le cas déjà couvert par N35",
       "Ne pas promettre une actualisation à chaque seconde ni à chaque ouverture."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1518,7 +1518,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si le nombre de champs est fixe et utile à la lecture, conservez cette grille.",
     "steps": [
       "Créez une table liée avec une ligne par objet si le nombre doit évoluer ; conservez les attributs de chaque objet ensemble.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Enfant_1, Enfant_2, Enfant_3.",
     "justification": "Modèle dépendant du besoin.",
@@ -1532,7 +1532,7 @@ export const AUDIT_CATALOG = [
       "Au moins trois colonnes de même famille déclenchent",
       "Les suffixes de quatre chiffres sont exclus et relèvent plutôt des périodes."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1546,8 +1546,8 @@ export const AUDIT_CATALOG = [
   },
   {
     "id": "N41",
-    "severity": "improve",
-    "level": "À améliorer",
+    "severity": "blocking",
+    "level": "À corriger",
     "domain": "structure",
     "title": "Des années sont réparties dans plusieurs colonnes",
     "detection": "Métadonnées uniquement. Examiner les colonnes de saisie non techniques et leurs libellés. Regrouper par sujet les identifiants ou libellés portant une année 1900–2099 (Budget_2024, Budget_2025, Budget_2026) ou une suite explicite Année 1 / Année 2 / Année 3, Year_1 / Year_2 / Year_3. Déclencher avec au moins trois périodes distinctes d’une même famille. Ne pas regrouper trois sujets sans rapport (Création_2024, Validation_2025, Budget_2026). Les formules, mois et autres numéros comme Telephone_1 sont exclus de cette fiche.",
@@ -1567,7 +1567,7 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "source": "Métadonnées uniquement",
     "area": "structure",
-    "ruleVersion": 2,
+    "ruleVersion": 3,
     "calculationSteps": [
       "Lire les identifiants et libellés des colonnes de saisie.",
       "Repérer les années calendaires ou les numéros accompagnés explicitement de Année / Year.",
@@ -1667,7 +1667,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous utilisez un formulaire commun avec des rubriques conditionnelles, confirmez.",
     "steps": [
       "Décrivez le type de fiche puis envisagez des tables liées pour les informations propres à chaque type.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Bénévoles : disponibilités ; Entreprises : SIRET, TVA, raison sociale.",
     "justification": "Séparation non systématiquement nécessaire.",
@@ -1681,7 +1681,7 @@ export const AUDIT_CATALOG = [
       "Considérer au plus dix groupes ayant chacun cinq lignes",
       "Deux groupes déclenchent si chacun possède trois colonnes remplies à 80 % dans son groupe et à 10 % maximum dans l’autre."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1706,7 +1706,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Renommez les en têtes avec leur sens précis, par exemple Montant prévu et Montant payé.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Deux colonnes de libellé « Montant », ids Montant et Montant2.",
     "justification": "Ambiguïté d’interface effectivement possible.",
@@ -1720,7 +1720,7 @@ export const AUDIT_CATALOG = [
       "Deux identifiants distincts avec le même libellé déclenchent",
       "Aucun contrôle d’identifiant en double impossible à saisir n’est ajouté."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1745,7 +1745,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si un autre détail permet déjà de les distinguer dans votre usage, confirmez.",
     "steps": [
       "Ajoutez dans la cible une colonne d’affichage avec nom et code, puis choisissez la comme colonne à afficher dans la référence.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Deux Dupont avec codes C01 et C02.",
     "justification": "Les homonymes restent valides.",
@@ -1758,7 +1758,7 @@ export const AUDIT_CATALOG = [
       "Pour une référence dont visibleCol a pu être résolu, compter les valeurs identiques non vides de cette colonne dans les lignes lisibles échantillonnées de la cible",
       "Deux fiches portant le même affichage suffisent ; ce n’est pas une demande de supprimer les homonymes."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1783,7 +1783,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si cette colonne montre un total général ou sert de dénominateur, indiquez le dans son nom.",
     "steps": [
       "Vérifiez la formule ; utilisez les lignes du groupe pour les sous totaux puis comparez deux groupes.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Synthèse par service : SUM(Personnel.all.Salaire).",
     "justification": "Le total général peut être intentionnel.",
@@ -1796,7 +1796,7 @@ export const AUDIT_CATALOG = [
       "Dans une vraie synthèse (summarySourceTable), chercher une fonction SUM, AVERAGE, MIN, MAX ou len appliquée à Source.all ou lookupRecords() sans critère, sans accès à $group",
       "Le calcul global peut être intentionnel ; pas d’analyse symbolique des agrégats complexes."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1821,7 +1821,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si le lien sert seulement à naviguer entre groupes, confirmez.",
     "steps": [
       "Pour une catégorie durable, créez une table de catégories et reliez y les fiches source ; gardez la synthèse pour les totaux.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Dossier.Service pointe sur Personnel_summary_Service.",
     "justification": "Fragilité seulement selon l’usage.",
@@ -1834,7 +1834,7 @@ export const AUDIT_CATALOG = [
       "Repérer une colonne Référence ou Référence multiple d’une table ordinaire dont la cible a summarySourceTable non nul",
       "Aucun jugement sur la validité des ids ; le contrôle interroge la stabilité du groupe utilisé comme fiche."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1858,8 +1858,8 @@ export const AUDIT_CATALOG = [
     "why": "Elle peut être difficile à trouver pour la maintenir.",
     "intended": null,
     "steps": [
-      "Ajoutez une page ou un widget basé sur cette table si l’équipe doit la modifier régulièrement.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Ajoutez une page ou une vue basé sur cette table si l’équipe doit la modifier régulièrement.",
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Tarifs lus par formules, aucune section de page.",
     "justification": "Information de navigation, pas anomalie.",
@@ -1897,7 +1897,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si cette table est un inventaire de chemins, conservez les.",
     "steps": [
       "Pour partager les fichiers, utilisez une colonne Pièces jointes ou une adresse de stockage accessible aux personnes concernées ; vérifiez les droits du stockage.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Audit_Hierarchie.Justificatif_local = C:\\Users\\test\\recu.pdf.",
     "justification": "Accessibilité non démontrée pour les autres.",
@@ -1910,7 +1910,7 @@ export const AUDIT_CATALOG = [
       "Dans un champ dont le nom indique fichier, pièce, justificatif, lien, chemin ou document, repérer un texte qui commence par file://, une lettre de lecteur Windows suivie de deux points et antislash, ou un chemin UNC",
       "Ne pas tester l’accès réseau."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -1935,7 +1935,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si les liens sont renouvelés automatiquement, indiquez ce fonctionnement.",
     "steps": [
       "Utilisez un lien durable géré par votre stockage ou joignez le fichier dans Grist ; testez depuis un compte autorisé.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "https://exemple.invalid/recu?X-Amz-Expires=3600&X-Amz-Signature=…",
     "justification": "Expiration seulement probable sans contrat du service.",
@@ -1949,7 +1949,7 @@ export const AUDIT_CATALOG = [
       "Repérer X-Amz-Expires ou X-Amz-Signature, ou sig avec se, ou token avec expires",
       "Afficher seulement le fait qu’un lien temporaire est probable : aucune valeur de paramètre n’est incluse dans la preuve."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2013,7 +2013,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si la règle suivante prépare un changement futur, documentez la.",
     "steps": [
       "Dans Règles d’accès, comparez les permissions concernées et l’ordre ; placez l’exception avant la règle générale puis utilisez Voir en tant que.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "True +U avant user.Access == EDITOR -U.",
     "justification": "Ordre valide accepté mais effet à vérifier.",
@@ -2027,7 +2027,7 @@ export const AUDIT_CATALOG = [
       "Si tous les rôles reconnus visés par une règle ont déjà une décision avant elle pour cette permission, signaler une règle sans effet pour ces rôles",
       "Une condition non comprise donne « limité », jamais une autorisation supposée."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2052,7 +2052,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si l’exception est nécessaire, décrivez la dans le mémo.",
     "steps": [
       "Vérifiez les règles de la colonne et de la table puis testez avec Voir en tant que pour le profil concerné.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Table Personnel -R aux éditeurs, colonne Nom +R aux éditeurs.",
     "justification": "Exception souvent volontaire.",
@@ -2065,7 +2065,7 @@ export const AUDIT_CATALOG = [
       "Pour une colonne et un même rôle, chercher une autorisation Lire ou Modifier décidée dans ses règles et un refus de la même permission dans les règles de sa table",
       "Les règles de colonne étant prioritaires, c’est une exception à confirmer, pas une erreur d’assemblage."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2129,7 +2129,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si une équipe administre volontairement les habilitations, limitez et documentez cette délégation.",
     "steps": [
       "Protégez les colonnes d’identité et de rôle puis testez création et modification depuis les profils concernés.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Habilitations.Email et Role modifiables par tous les éditeurs.",
     "justification": "Risque sérieux, mais délégation possible.",
@@ -2168,7 +2168,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Vérifiez les lignes, gardez une correspondance claire ou adaptez le modèle des habilitations et les règles ; testez le profil.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "alice@example.invalid avec Role RH et Role Bénévole.",
     "justification": "Ambiguïté observée dans une clé d’accès.",
@@ -2182,7 +2182,7 @@ export const AUDIT_CATALOG = [
       "Deux lignes avec la même clé suffisent",
       "Les rôles ne sont pas supposés se cumuler ; les adresses ne sont pas affichées dans la preuve."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2207,7 +2207,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si le rôle est prévu pour une prochaine arrivée, conservez la règle.",
     "steps": [
       "Comparez la valeur de la condition avec les choix du rôle puis corrigez la règle ou les habilitations.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Condition Role == « Comptabilite », valeurs « Compta ».",
     "justification": "Absence globale non démontrable sous restrictions.",
@@ -2221,7 +2221,7 @@ export const AUDIT_CATALOG = [
       "Sur au moins cinq valeurs lisibles de ce champ, signaler si aucune n’est exactement égale",
       "Le rôle peut être prévu plus tard ou caché ; l’absence globale n’est jamais affirmée."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2246,7 +2246,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si c’est un exemple sans données réelles, confirmez ce choix.",
     "steps": [
       "Utilisez une identité stable ou une table d’habilitations liée à l’adresse de connexion puis testez les accès.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "user.Name == « Marie Dupont ».",
     "justification": "Identité fragile mais usage de démonstration possible.",
@@ -2258,7 +2258,7 @@ export const AUDIT_CATALOG = [
     "calculationSteps": [
       "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes."
     ],
-    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 4 novembre 2026. Le calcul n’est plus exécuté.",
@@ -2283,7 +2283,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si une autre protection limite déjà l’accès, vérifiez la avec le propriétaire.",
     "steps": [
       "Utilisez un code aléatoire long créé une seule fois et restreignez les droits ; remplacez les anciens liens si nécessaire.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Clé de lien = CMD-101 ; exemple fictif uniquement.",
     "justification": "Prévisibilité à confirmer sans attaque.",
@@ -2312,14 +2312,14 @@ export const AUDIT_CATALOG = [
     "level": "Bon à savoir",
     "domain": "droits d’accès",
     "title": "Le widget ne peut pas vérifier le partage du document",
-    "detection": "Information unique sur la limite des ACL et le réglage du widget. Les invitations et héritages ne sont pas déduits de _grist_ACLRules. Le rappel d’Accès complet concerne seulement l’audit ; aucun autre widget n’est invité à recevoir des droits inutiles.",
+    "detection": "Information unique sur la limite des ACL et le réglage de la vue. Les invitations et héritages ne sont pas déduits de _grist_ACLRules. Le rappel d’Accès complet concerne seulement l’audit ; aucun autre widget n’est invité à recevoir des droits inutiles.",
     "false_positives": "Ne pas déduire « public » de +R ni « privé » de l’absence de règle ; MCP distinct ne confère pas cette capacité au widget.",
     "summary": "Le widget lit les règles d’accès, mais ne peut pas établir à lui seul la liste de toutes les personnes qui ont accès au document.",
-    "why": "Le partage du document, les règles de lecture et l’autorisation accordée à un widget sont trois réglages différents.",
+    "why": "Le partage du document, les règles de lecture et l’autorisation accordée à une vue sont trois réglages différents.",
     "intended": null,
     "steps": [
       "Dans Partager puis Gérer les utilisateurs, vérifiez les invités et les accès hérités ou publics.",
-      "Pour ce widget d’audit uniquement, sélectionnez le widget puis ouvrez le panneau Widget et vérifiez « Accès complet au document ». Ce réglage permet la lecture de la structure sans contourner les droits de la personne connectée.",
+      "Pour cette vue d’audit uniquement, sélectionnez la vue puis ouvrez le panneau Widget et vérifiez « Accès complet au document ». Ce réglage permet la lecture de la structure sans contourner les droits de la personne connectée.",
       "Pour un autre widget, n’accordez que l’accès nécessaire à son fonctionnement."
     ],
     "example": "Document partagé à toute une équipe, ACL sans liste des membres.",
@@ -2330,11 +2330,11 @@ export const AUDIT_CATALOG = [
     "area": "access",
     "ruleVersion": 1,
     "calculationSteps": [
-      "Information unique sur la limite des ACL et le réglage du widget",
+      "Information unique sur la limite des ACL et le réglage de la vue",
       "Les invitations et héritages ne sont pas déduits de _grist_ACLRules",
       "Le rappel d’Accès complet concerne seulement l’audit ; aucun autre widget n’est invité à recevoir des droits inutiles."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Information de contexte",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2359,7 +2359,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Demandez à une personne disposant des accès nécessaires de compléter l’examen puis comparez les résultats ; ne relâchez pas les protections pour l’audit.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Personnel.Salaire masqué dans la session observée.",
     "justification": "Information indispensable à l’interprétation.",
@@ -2369,7 +2369,7 @@ export const AUDIT_CATALOG = [
     "area": "access",
     "ruleVersion": 1,
     "typology": "Proposition écartée",
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "calculationSteps": [
       "Contexte : toujours afficher ; préciser tables chargées, échecs et lignes analysées ; si métadonnées expurgées ou fetch refusé, état partiel, jamais conforme par défaut."
     ],
@@ -2396,7 +2396,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Ouvrez les formules indiquées et remplacez une des dépendances par une donnée source indépendante ; vérifiez toutes les lignes concernées.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "A = $B + 1 et B = $A + 1, erreur circulaire observée.",
     "justification": "Erreur réelle indispensable au niveau À corriger.",
@@ -2410,7 +2410,7 @@ export const AUDIT_CATALOG = [
       "Une structure de références réciproques sans erreur de calcul ne suffit pas",
       "N01 est fusionné pour cette même erreur."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Erreur observée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2427,7 +2427,7 @@ export const AUDIT_CATALOG = [
     "severity": "choice",
     "level": "Choix à confirmer",
     "domain": "structure",
-    "title": "Une formule désigne une colonne que le widget ne retrouve pas",
+    "title": "Une formule désigne une colonne que la vue ne retrouve pas",
     "detection": "Extraire les accès locaux $Col et rec.Col des formules, hors chaînes et commentaires. Ignorer id, qui est implicite. Si Col manque aux métadonnées lisibles, demander une vérification ; ne pas affirmer une suppression. Les dépendances vers d’autres tables ou dynamiques ne sont pas déduites.",
     "false_positives": "Renommage normalement propagé par Grist ; colonnes masquées, chaînes de code, attributs calculés et dépendances dynamiques ; ne pas affirmer une suppression.",
     "summary": "Une formule utilise une colonne locale qui n’apparaît pas parmi les colonnes que vous pouvez lire.",
@@ -2435,7 +2435,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si cette information est masquée pour vous, faites vérifier le calcul par une personne habilitée.",
     "steps": [
       "Ouvrez la formule dans Grist et contrôlez son résultat ; si la source a été supprimée, choisissez une colonne existante.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Ancienne formule $Tarif_supprime après suppression, ou colonne masquée.",
     "justification": "Absence visible seulement.",
@@ -2450,7 +2450,7 @@ export const AUDIT_CATALOG = [
       "Si Col manque aux métadonnées lisibles, demander une vérification ; ne pas affirmer une suppression",
       "Les dépendances vers d’autres tables ou dynamiques ne sont pas déduites."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2475,7 +2475,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ce résultat est volontairement partagé, documentez précisément ce qui peut être montré.",
     "steps": [
       "Vérifiez les droits de la colonne calculée avec Voir en tant que ; restreignez cette colonne ou adaptez le calcul si nécessaire.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Salaire interdit dans Personnel, formule visible $Agent.Salaire.",
     "justification": "Circulation d’information à confirmer sans exposer sa valeur.",
@@ -2490,7 +2490,7 @@ export const AUDIT_CATALOG = [
       "Pas de divulgation de la valeur",
       "Les agrégats, l’anonymisation et les dépendances indirectes ne sont pas évalués."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2515,12 +2515,12 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Ajoutez les nouveaux choix légitimes dans Colonne puis Choix ou harmonisez les cellules indiquées.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Compétences = [Accueil, Acceuil], liste prévue Accueil et Cuisine.",
     "justification": "Extension concrète du contrôle existant.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "fusionné",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -2528,7 +2528,7 @@ export const AUDIT_CATALOG = [
       "Décoder chaque ChoiceList et comparer ses éléments texte à widgetOptions.choices non vide",
       "Une valeur absente des choix proposés déclenche ; liste de choix non configurée, erreurs et censures ne déclenchent pas."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Fusionné dans choice-outside",
     "typology": "Qualité de saisie ou de structure",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
@@ -2537,7 +2537,8 @@ export const AUDIT_CATALOG = [
       "correctionMCP": false
     },
     "reviewStage": "",
-    "reviewQuestion": ""
+    "reviewQuestion": "",
+    "reviewNote": "Fusionné dans le constat unique des modalités de choix."
   },
   {
     "id": "N65",
@@ -2552,7 +2553,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous conservez l’information au moment d’un événement, indiquez la date de cette copie.",
     "steps": [
       "Utilisez une colonne calculée pour un affichage toujours actuel ou corrigez la copie confirmée erronée.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Client.Ville = Lyon, Commande.Ville_actuelle = Bron.",
     "justification": "Un instantané est souvent voulu.",
@@ -2566,7 +2567,7 @@ export const AUDIT_CATALOG = [
       "Ignorer valeurs vides, erreurs et censures",
       "Sans déclaration « copie courante », aucun signal sur un prix ou une adresse historiques."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2591,7 +2592,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si chaque table conserve un état daté, précisez sa date et son rôle.",
     "steps": [
       "Choisissez la source de référence avec l’équipe puis regroupez les modifications utiles ; vérifiez les liens avant de retirer une copie.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Code P01 : Prix 20 dans Produits, 25 dans Produits_copie.",
     "justification": "Divergence non nécessairement fautive.",
@@ -2606,7 +2607,7 @@ export const AUDIT_CATALOG = [
       "Indexer seulement les clés non ambiguës ; exiger trois clés communes et au moins un champ non vide divergent",
       "Aucune « table originale » déduite de la longueur du nom."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Règle métier déclarée",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2669,7 +2670,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si vous conservez volontairement le fichier brut, gardez le et préparez une table séparée pour l’exploiter.",
     "steps": [
       "Réimportez le fichier dans une nouvelle table en vérifiant séparateur, guillemets et en têtes dans l’aperçu ; comparez les lignes avant de remplacer quoi que ce soit.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Colonne « Nom;Email;Ville », lignes « Alice;a@example.invalid;Lyon ».",
     "justification": "Import brut éventuellement volontaire.",
@@ -2705,7 +2706,7 @@ export const AUDIT_CATALOG = [
     "intended": null,
     "steps": [
       "Si des lignes doivent rester confidentielles, vérifiez les règles d’accès et testez aussi les données brutes avec Voir en tant que.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Vue « Mes dossiers » filtrée par service.",
     "justification": "Conseil de portée générale attaché au contexte.",
@@ -2742,7 +2743,7 @@ export const AUDIT_CATALOG = [
     "intended": "Si ces originaux sont nécessaires, conservez les et précisez leur rôle.",
     "steps": [
       "Comparez les pièces dans Grist puis classez les par objet et date ; remplacez par une version plus légère seulement si elle reste suffisante.",
-      "Revenez dans le widget et cliquez sur « Relire le document »."
+      "Revenez dans la vue et cliquez sur « Relire le document »."
     ],
     "example": "Deux reçu.pdf de 24500000 octets, ids différents.",
     "justification": "Contrôle disponible seulement si les métadonnées de pièces sont accessibles.",
@@ -2756,7 +2757,7 @@ export const AUDIT_CATALOG = [
       "Signaler un fichier de plus de 20 Mio ou au moins deux ids utilisés ayant même nom et même taille",
       "Ces indices ne prouvent ni un doublon binaire ni une pièce orpheline."
     ],
-    "implementation": "Retiré du widget lors de la revue du 29 octobre 2026",
+    "implementation": "Retiré de la vue lors de la revue du 29 octobre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "reviewNote": "Supprimé sur demande le 29 octobre 2026. Le calcul n’est plus exécuté.",
@@ -2777,28 +2778,28 @@ export const AUDIT_CATALOG = [
     "status": "implémenté",
     "decision": "Retenu",
     "typology": "Ergonomie de navigation",
-    "summary": "Au moins cinq champs de filtre sont affichés dans une même vue Tableau. Vérifiez si des vues préparées rendraient les listes habituelles plus faciles à retrouver.",
+    "summary": "Au moins trois champs de filtre sont affichés dans une même vue Tableau. Vérifiez si des vues préparées rendraient les listes habituelles plus faciles à retrouver.",
     "why": "Des vues préparées pour les usages récurrents peuvent être plus faciles à retrouver et à utiliser. Plusieurs vues peuvent afficher la même table, sans dupliquer les données.",
     "intended": "Une vue Exploration destinée à combiner librement de nombreux critères peut être adaptée. Gardez ses filtres si cette souplesse est utile et confirmez « C’est voulu ».",
     "steps": [
       "Dans la page concernée, repérez les listes utilisées régulièrement : dossiers à traiter, dossiers terminés, dossiers d’un service.",
-      "Avec « Ajouter une page » ou « Ajouter un widget à la page », choisissez Tableau et la même table existante. Donnez à chaque vue un nom correspondant à son usage ; ne créez pas de copie de la table.",
+      "Avec « Ajouter une page » ou « Ajouter une vue à la page », choisissez Tableau et la même table existante. Donnez à chaque vue un nom correspondant à son usage ; ne créez pas de copie de la table.",
       "Dans chaque vue, réglez les filtres voulus depuis les en-têtes des colonnes. Enregistrez les filtres pour que cette liste soit retrouvée ensuite.",
       "Dans les réglages des tris et filtres de la vue, désépinglez de la barre les filtres fixes. Ils restent appliqués ; gardez visibles les filtres que les personnes doivent souvent modifier.",
       "Conservez une vue Exploration si les personnes ont besoin de combiner librement tous les critères, puis utilisez « Relire le document » dans l’audit."
     ],
     "example": "Une seule vue Dossiers affiche six filtres : Statut, Service, Responsable, Année, Priorité, Commune. Chaque matin, l’équipe doit remettre Statut = Ouvert et Service = Accueil pour retrouver sa liste de travail.",
-    "detection": "Joindre _grist_Filters à _grist_Views_section par viewSectionRef, aux colonnes par colRef et aux tables par tableRef. Garder les vues Tableau (parentKey = record) placées sur une page (parentId > 0), les tables et colonnes nommées lisibles et les colonnes de cette même table. Compter les colRef distincts dont pinned vaut true ou 1 et dont filter est une chaîne différente de chaîne vide et de « null » (ancien filtre vide Grist). Dès cinq champs affichés dans une même vue, signaler cette vue et son nombre de champs. Ne pas compter les valeurs sélectionnées, les filtres masqués, les vues brutes hors page ou les autres types de widgets. Coût linéaire dans les métadonnées, aucune ligne métier lue pour ce contrôle. Sources absentes : non vérifiable ; propriété pinned absente ou filtre censuré : contrôle limité, aucune valeur devinée. Les réglages temporaires non enregistrés dans Grist ne sont pas visibles.",
+    "detection": "Joindre _grist_Filters à _grist_Views_section par viewSectionRef, aux colonnes par colRef et aux tables par tableRef. Garder les vues Tableau (parentKey = record) placées sur une page (parentId > 0), les tables et colonnes nommées lisibles et les colonnes de cette même table. Compter les colRef distincts dont pinned vaut true ou 1 et dont filter est une chaîne différente de chaîne vide et de « null » (ancien filtre vide Grist). Dès trois champs affichés dans une même vue, signaler cette vue et son nombre de champs. Ne pas compter les valeurs sélectionnées, les filtres masqués, les vues brutes hors page ou les autres types de vues. Coût linéaire dans les métadonnées, aucune ligne métier lue pour ce contrôle. Sources absentes : non vérifiable ; propriété pinned absente ou filtre censuré : contrôle limité, aucune valeur devinée. Les réglages temporaires non enregistrés dans Grist ne sont pas visibles.",
     "calculationSteps": [
       "Relier les filtres à leur vue Tableau, à la table et à la colonne lisible correspondantes.",
       "Ne conserver que les filtres enregistrés, épinglés (pinned = true ou 1) et actifs (filter différent de chaîne vide et de « null »).",
       "Compter les colonnes distinctes par vue, jamais les valeurs choisies dans un filtre ni les filtres de toute la page.",
-      "Déclencher à partir de cinq champs dans une vue ; indiquer page, titre de vue, numéro, nombre et champs lisibles.",
+      "Déclencher à partir de trois champs dans une vue ; indiquer page, titre de vue, numéro, nombre et champs lisibles.",
       "Ignorer les filtres masqués et les vues brutes. Signaler la limite de lecture si pinned ou une colonne ne peut pas être lu. Aucun calcul sur les lignes métier.",
-      "Exemple réellement vérifié via MCP : Audit_Imports, page 28, vue 79 ; Code, Nom, Email, Montant, Date_brute et Statut sont épinglés. Après désépinglage de Code et Nom : quatre champs affichés, aucun X13."
+      "Exemple de vérification : six filtres épinglés déclenchent ; après désépinglage de quatre champs, deux restent affichés et X13 disparaît. Le cas limite de trois champs déclenche, celui de deux ne déclenche pas."
     ],
-    "false_positives": "Une vue d’exploration peut légitimement afficher six critères. Le seuil de cinq est un choix du widget, pas une limite Grist. Le nombre ne prouve pas que des réglages sont refaits au quotidien. Les réglages temporaires non enregistrés et les champs masqués par les droits ne sont pas comptés. Masquer un filtre conserve son effet et ne modifie pas les droits d’accès.",
-    "justification": "Choix à confirmer : cinq filtres affichés constituent un indice d’ergonomie, sans prouver une gêne réelle.",
+    "false_positives": "Une vue d’exploration peut légitimement afficher six critères. Le seuil de trois est un seuil proposé par cet audit, pas une limite Grist. Le nombre ne prouve pas que des réglages sont refaits au quotidien. Les réglages temporaires non enregistrés et les champs masqués par les droits ne sont pas comptés. Masquer un filtre conserve son effet et ne modifie pas les droits d’accès.",
+    "justification": "Choix à confirmer : trois filtres affichés constituent un indice d’ergonomie, sans prouver une gêne réelle.",
     "source": "Métadonnées seulement : _grist_Filters, _grist_Views_section, _grist_Tables, _grist_Tables_column et noms des pages dans _grist_Views si lisibles.",
     "implementation": "Automatique sur les filtres enregistrés et lisibles",
     "reviewNote": "Retenue et intégrée au widget 2.8.1 le 27 octobre 2026.",
@@ -2854,7 +2855,7 @@ export const AUDIT_CATALOG = [
       "counterexample": "Un analyste qui combine souvent les six critères a intérêt à conserver sa vue Exploration. Le constat demande de confirmer le besoin, pas de supprimer automatiquement des filtres."
     },
     "area": "pages",
-    "ruleVersion": 1,
+    "ruleVersion": 2,
     "reviewStage": "",
     "reviewQuestion": ""
   }

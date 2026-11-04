@@ -1,23 +1,23 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.12.0';
-import { ErdViewer } from './erd.js?v=3.12.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.12.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.12.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.12.0';
-import { profileTables } from './datacheck.js?v=3.12.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.12.0';
-import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.12.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.12.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.12.0';
-import { findLookups } from './lookups.js?v=3.12.0';
-import { findFormulaDeps } from './formula-deps.js?v=3.12.0';
-import { tablesXlsx } from './tables-export.js?v=3.12.0';
-import { matrixXlsx } from './rights-export.js?v=3.12.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.13.0';
+import { ErdViewer } from './erd.js?v=3.13.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.13.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.13.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.13.0';
+import { profileTables } from './datacheck.js?v=3.13.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.13.0';
+import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.13.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.13.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.13.0';
+import { findLookups } from './lookups.js?v=3.13.0';
+import { findFormulaDeps } from './formula-deps.js?v=3.13.0';
+import { tablesXlsx } from './tables-export.js?v=3.13.0';
+import { matrixXlsx } from './rights-export.js?v=3.13.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.12.0';
+} from './rights-matrix.js?v=3.13.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.12.0';
+} from './report.js?v=3.13.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -54,7 +54,7 @@ const state = {
   loadProgress: null, // { done, total } pendant la lecture des données
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
-  accepted: new Set(), // constats « C'est voulu », mémorisés dans les options du widget
+  accepted: new Set(), // constats « C'est voulu », mémorisés dans les options de la vue
   details: false,
   accessFilter: '',
   matrixDetail: 'columns', // « Par table » ou « Par table et par colonne »
@@ -74,7 +74,7 @@ const state = {
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id).filter((id) => id !== 'analysis')), // Analyse : à cocher si besoin
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
-  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, calc: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
+  diagram: { detail: 'keys', positions: null, lookups: true, refs: true, calc: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options de la vue (detail seulement s'il a été choisi)
   lines: { table: new Map(), column: new Map() },
 };
 
@@ -248,7 +248,7 @@ async function loadData({ force = false } = {}) {
 const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // ---------------------------------------------------------------------------
-// Options du widget (enregistrées dans le document Grist)
+// Options de la vue (enregistrées dans le document Grist)
 // ---------------------------------------------------------------------------
 
 function saveOption(key, value) {
@@ -296,7 +296,7 @@ function emptyState(html) {
 }
 
 function unavailableMessage() {
-  if (!inGrist) return emptyState('<p>Ce widget s\'utilise dans Grist : ajoutez-le comme widget personnalisé avec l\'accès « Accès complet au document ».</p>');
+  if (!inGrist) return emptyState('<p>Cette vue s\'utilise dans Grist : ajoutez-le comme vue personnalisée avec l\'accès « Accès complet au document ».</p>');
   if (state.loadProgress) return emptyState(`<p>Lecture des données : ${state.loadProgress.done} sur ${state.loadProgress.total} tables…</p>`);
   if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
   return emptyState('<p>La structure du document n\'est pas disponible.</p>');
@@ -319,7 +319,7 @@ function renderHeader() {
   els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
 
   if (!inGrist) {
-    els['doc-alert'].innerHTML = `<div class="fr-alert fr-alert--info fr-alert--sm"><p>Ouvrez ce widget dans un document Grist : il lit directement la structure du document où il est installé.</p></div>`;
+    els['doc-alert'].innerHTML = `<div class="fr-alert fr-alert--info fr-alert--sm"><p>Ouvrez cette vue dans un document Grist : il lit directement la structure du document où il est installé.</p></div>`;
   } else if (state.schemaError) {
     els['doc-alert'].innerHTML = `
       <div class="fr-alert fr-alert--warning fr-alert--sm">
@@ -567,7 +567,7 @@ function renderAnalysis() {
       : '';
     const actions = [];
     if (it.area === 'access') actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-lock-line" type="button" data-goto-access="${esc(aclTables.has(it.targets[0]?.table) ? it.targets[0].table : '*')}">Voir les droits d'accès</button>`);
-    else if (it.area === 'pages') actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" type="button" data-goto-widgets="1">Voir les widgets</button>');
+    else if (it.area === 'pages') actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" type="button" data-goto-widgets="1">Voir les vues</button>');
     else if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
     if (it.steps.length && !accepted) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
     if (it.severity === 'choice') {
@@ -897,7 +897,7 @@ function renderAccess() {
 // Widgets
 // ---------------------------------------------------------------------------
 
-const WIDGET_KIND = { external: ['Externe', 'improve'], document: ['Dans le document', ''], self: ['Ce widget', 'ok'] };
+const WIDGET_KIND = { external: ['Externe', 'improve'], document: ['Dans le document', ''], self: ['Cette vue', 'ok'] };
 
 function renderWidgets() {
   const body = els['widgets-body'];
@@ -923,7 +923,7 @@ function renderWidgets() {
   };
   const accessText = (c) => (c.access === 'full' && c.origin === 'external' ? badge(ACCESS_LABELS.full, 'improve') : esc(ACCESS_LABELS[c.access] || c.access || '—'));
   const card = (w, badges, rows) => `<article class="card widget-card">
-      <header class="card__head"><h4 class="card__title">${esc(w.title || w.custom?.name || 'Widget personnalisé')}</h4>${badges.join('')}</header>
+      <header class="card__head"><h4 class="card__title">${esc(w.title || w.custom?.name || 'Vue personnalisée')}</h4>${badges.join('')}</header>
       <div class="card__body">${where(w)}<dl class="widget-props">${rows.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div></article>`;
 
   const unofficialCards = unofficial.map((w) => {
@@ -955,15 +955,15 @@ function renderWidgets() {
 
   const sections = [];
   if (show('unofficial')) {
-    sections.push(`<section>${sectionHead('Widgets non officiels', { count: unofficial.length, hint: 'Ajoutés par leur adresse ou créés dans le document, hors de la galerie de Grist.' })}
-      ${unofficialCards ? `<div class="cards-grid">${unofficialCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucun widget non officiel ne correspond.' : 'Aucun widget non officiel dans ce document.'}</p>`}</section>`);
+    sections.push(`<section>${sectionHead('Vues non officielles', { count: unofficial.length, hint: 'Ajoutés par leur adresse ou créés dans le document, hors de la galerie de Grist.' })}
+      ${unofficialCards ? `<div class="cards-grid">${unofficialCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucune vue non officielle ne correspond.' : 'Aucune vue non officielle dans ce document.'}</p>`}</section>`);
   }
   if (show('gallery')) {
-    sections.push(`<section>${sectionHead('Widgets personnalisés', { count: gallery.length, hint: 'Choisis dans la galerie de Grist : l\'accès accordé et la colonne associée à chaque champ attendu.' })}
-      ${galleryCards ? `<div class="cards-grid">${galleryCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucun widget de la galerie ne correspond.' : 'Aucun widget de la galerie dans ce document.'}</p>`}</section>`);
+    sections.push(`<section>${sectionHead('Vues personnalisées', { count: gallery.length, hint: 'Choisis dans la galerie de Grist : l\'accès accordé et la colonne associée à chaque champ attendu.' })}
+      ${galleryCards ? `<div class="cards-grid">${galleryCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucune vue de la galerie ne correspond.' : 'Aucune vue de la galerie dans ce document.'}</p>`}</section>`);
   }
   if (show('views')) {
-    sections.push(`<section>${sectionHead('Fiches, listes, graphiques et formulaires', { count: views.length, hint: 'Les vues classiques autres que les tableaux, avec le widget dont elles suivent la sélection.' })}
+    sections.push(`<section>${sectionHead('Fiches, listes, graphiques et formulaires', { count: views.length, hint: 'Les vues classiques autres que les tableaux, avec la vue dont elles suivent la sélection.' })}
       ${viewRows ? `<div class="card"><div class="table-scroll"><table class="grid-table"><caption class="fr-sr-only">Fiches, listes, graphiques et formulaires</caption>
         <thead><tr><th scope="col">Page</th><th scope="col">Vue</th><th scope="col">Type</th><th scope="col">Table</th><th scope="col">Suit la sélection de</th></tr></thead><tbody>${viewRows}</tbody></table></div></div>`
         : `<p class="empty empty--inline">${q ? 'Aucune vue ne correspond.' : 'Aucune autre vue que des tableaux.'}</p>`}</section>`);
@@ -982,8 +982,8 @@ function renderWidgets() {
   }
 
   const header = pageHeader({
-    title: 'Widgets',
-    lead: 'Tout ce qui n\'est pas un tableau : widgets personnalisés, fiches, listes, graphiques et formulaires.',
+    title: 'Vues',
+    lead: 'Tout ce qui n\'est pas un tableau : vues personnalisées, fiches, listes, graphiques et formulaires.',
     kpis: [
       { value: m.unofficial.length, label: 'non officiels' },
       { value: m.gallery.length, label: 'de la galerie' },
@@ -1596,6 +1596,7 @@ syncTheme();
 selectTab('schema');
 if (inGrist) connectGrist();
 recompute();
+
 
 
 
