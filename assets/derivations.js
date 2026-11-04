@@ -9,8 +9,8 @@
  *    (les critères du lookup, ici `$Code`, ne sont pas la valeur reprise).
  * Lecture du texte des formules seulement, sans les exécuter. Module pur.
  */
-import { columnNature } from './table-format.js?v=3.10.0';
-import { findLookups } from './lookups.js?v=3.10.0';
+import { columnNature } from './table-format.js?v=3.11.0';
+import { findLookups } from './lookups.js?v=3.11.0';
 
 /**
  * Code sans commentaires ; le contenu des chaînes est effacé, sauf celui des f-strings
@@ -101,3 +101,4 @@ export function findDerivations(tables, schema = null, lookups = null) {
   }
   return out;
 }
+

@@ -292,3 +292,14 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
   « Copier le document entier » (propre à la version hébergée) n'est plus affiché. Les réglages s'affichent aussi quand le document n'a aucune règle.
 - **Rapport :** dans « Qui peut faire quoi ? », un trait épais sépare les rôles (blanc dans l'en-tête, bleu dans le tableau), dans l'aperçu comme dans le Word. La section Analyse est décochée par défaut. La note sur la police sous « Contenu du rapport » est retirée.
 - **Schéma :** la légende s'étend sur toute la largeur.
+
+
+## Revue du 4 novembre 2026 — version 3.11.0
+
+Les constats `acl-hidden`, `duplicate-table`, `text-ref`, `summary`, `N17`, `N28` et `N57` sont retirés ; leurs calculs dédiés ne s’exécutent plus. Le modèle de visibilité des droits et l’affichage des tables de synthèse restent nécessaires aux autres onglets.
+
+Le constat `typed-as-text` est consacré aux nombres. `boolean-as-text` et `date-as-text` donnent des recommandations et exemples séparés. Les choix uniques (`choice-outside`) et multiples (`N64`) restent distincts. Le nom des pages est examiné aussi lorsqu’il reprend le nom d’une table affichée ; la recommandation propose un titre correspondant à un usage, sans renommage automatique.
+
+Les explications des droits de structure des éditeurs, de l’activation des droits avancés et de la bulle de mémo sont précisées. Un attribut déclaré à source non lisible est distingué d’un nom d’attribut non déclaré.
+
+Validation : 190 tests automatisés. Essai MCP dans `Audit_Types_Choix` : trois recommandations de type et les deux contrôles de choix observés ; correction des deux choix de la ligne 3 puis disparition contrôlée, exemples ensuite rétablis. Aucun droit d’accès réel n’a été modifié pour cet essai.

@@ -77,7 +77,7 @@ pos('N67',one(Array.from({length:20},(_,i)=>c('Champ_'+i)),[{}]));
 pos('N69',ctx(undefined,{meta:{filters:[{id:1,filter:'{"included":["RH"]}'}]}}));
 pos('N70',one([c('Pieces','Attachments')],[{Pieces:['L',1]}],{meta:{attachments:[{id:1,fileName:'recu.pdf',fileSize:25*1024*1024}]}}));
 
-test('16 identifiants retenus après deuxième revue, aucun retrait activé',()=>{assert.equal(RETAINED_IDS.length,16);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
+test('13 identifiants retenus après revue du 4 novembre, aucun retrait activé',()=>{assert.equal(RETAINED_IDS.length,13);for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Écarté'))assert.ok(!RETAINED_IDS.includes(x.id));});
 test('zéro, faux, listes, erreurs et censures ne sont pas confondus',()=>{const r=runAudit(one([c('N','Numeric'),c('B','Bool'),c('L','RefList:T')],[{N:0,B:false,L:['L']},{N:['C'],B:['C'],L:['C']} ]));assert.ok(!r.items.some(i=>i.id==='N02'));});
 test('clés composées : la même référence dans deux années est légitime',()=>assert.ok(!hit(one([c('Code'),c('Annee','Int')],[{Code:'A',Annee:2025},{Code:'A',Annee:2026}],{config:{keys:[{table:'T',columns:['Code','Annee']}]}}),'N04')));
 test('absence de clé ou de convention ne devient pas une anomalie',()=>{const r=runAudit(one([c('Code')],[{Code:'A'},{Code:'A'}]));for(const id of ['N04','N19','N27','N65','N66'])assert.ok(!r.checks.some(c=>c.id===id));});
@@ -97,7 +97,7 @@ test('pas de faux refus du code ordinaire ou de règle après le dernier cas',()
 test('valeurs de pourcentage exceptionnelles sans deux groupes suffisants',()=>assert.ok(!hit(one([c('Taux','Numeric')],[.2,.3,.4,.5,.6,20].map(Taux=>({Taux}))),'N22')));
 test('pièces non utilisées et absence de métadonnées restent non vérifiables',()=>{assert.ok(!hit(ctx(undefined,{meta:{attachments:[{id:1,fileSize:999999999}]}}),'N70'));assert.ok(!runAudit(ctx()).checks.some(c=>c.id==='N70'));});
 test('couverture des échecs de lecture et budgets de formule',()=>{const r=runAudit(ctx(undefined,{failedTables:['Cachee'],limits:{...AUDIT_LIMITS,formulaChars:0}}));assert.ok(r.checks.some(c=>c.state==='limited'));assert.deepEqual(r.failedTables,['Cachee']);});
-test('la confirmation change quand la preuve change',()=>{const a=hit(one([c('Parent','Ref:T')],[{Parent:1}]),'N28'),b=hit(one([c('Parent','Ref:T')],[{Parent:1},{Parent:2}]),'N28');assert.notEqual(insightKey(a),insightKey(b));});
+test('la confirmation change quand la preuve change',()=>{const a=hit(one([c('Code')],[{Code:' A'}]),'N06'),b=hit(one([c('Code')],[{Code:' A'},{Code:' B'}]),'N06');assert.notEqual(insightKey(a),insightKey(b));});
 test('tous les textes utilisateur sont renseignés et sans format technique exclu',()=>{for(const x of AUDIT_CATALOG.filter(x=>x.decision==='Retenu')){assert.ok(x.title&&x.summary&&x.why&&x.steps.length);if(x.severity==='choice')assert.ok(x.intended);assert.doesNotMatch([x.title,x.summary,x.why,...x.steps].join(' '),/DBML/);}});
 test('une table ou colonne masquée n’est pas un défaut certain',()=>{const out=buildInsights([{name:'T',columns:[{name:'Client',ref:{table:'Cachee'}}]}]);assert.ok(!out.items.some(i=>i.id==='broken-ref'));assert.equal(out.counts.blocking,0);});
 

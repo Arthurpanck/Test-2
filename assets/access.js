@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.10.0';
-import { columnarToRows } from './converter.js?v=3.10.0';
+import { effectivePermission } from './audit-engine.js?v=3.11.0';
+import { columnarToRows } from './converter.js?v=3.11.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -273,7 +273,7 @@ export function accessInsights(access) {
       title: 'Aucune règle d\'accès avancée dans le document',
       summary: 'Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.',
       why: 'C\'est suffisant si tous les invités peuvent voir toutes les données. Sinon, les règles d\'accès permettent de restreindre une table, une colonne ou certaines lignes.',
-      steps: [], targets: [],
+      steps: [OPEN_RULES, 'Si vous avez besoin de limiter les accès, cliquez sur « Activer les règles d’accès », puis confirmez après avoir lu les changements proposés.', 'Ajoutez les droits nécessaires pour une table, une colonne ou certaines lignes ; vérifiez leur effet pour les profils concernés avant de les enregistrer.', REFRESH_STEP], targets: [],
     });
     return items;
   }
@@ -285,13 +285,12 @@ export function accessInsights(access) {
       title: 'Attribut utilisateur inexistant',
       summary: 'La source de cet attribut utilisateur n’apparaît pas dans les éléments lisibles : sa table ou sa colonne peut être absente, ou masquée à l’utilisateur concerné par les droits d’accès. Le widget ne peut pas distinguer ces situations.',
       why: 'Si la source a été supprimée, les droits d’accès qui utilisent cet attribut ne trouvent plus la fiche prévue. Si elle est masquée, il s’agit d’une limite de l’audit.',
-      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », vérifiez la table et la colonne ; choisissez-en d\'existantes ou supprimez l\'attribut.', REFRESH_STEP],
+      steps: [OPEN_RULES, 'Dans « Attributs utilisateur », retrouvez la déclaration de cet attribut : elle existe déjà. Vérifiez la table source et la colonne de recherche, puis corrigez leur sélection si nécessaire. Si elles sont seulement masquées pour vous, faites vérifier par une personne habilitée.', REFRESH_STEP],
       targets: brokenAttr.map((a) => ({ table: a.tableId, note: `user.${a.name} : ${a.problems.join(', ')}` })),
     });
   }
 
   const unknown = [];
-  const missingCols = [];
   const forEachRule = (fn) => {
     for (const r of access.defaults) fn(r, '*');
     for (const t of access.tables) {
@@ -300,50 +299,28 @@ export function accessInsights(access) {
     }
   };
   forEachRule((r, table) => {
-    for (const p of r.problems) (p.kind === 'unknown-attribute' ? unknown : missingCols).push({ table, note: p.text, rule: r });
+    for (const p of r.problems) if (p.kind === 'unknown-attribute') unknown.push({ table, note: p.text, rule: r });
   });
-  for (const t of access.tables) {
-    if (t.missing) missingCols.push({ table: t.tableId, note: 'table invisible pour vous' });
-    for (const c of t.columns) for (const col of c.missing) missingCols.push({ table: t.tableId, column: col, note: 'colonne invisible pour vous' });
-  }
   if (unknown.length) {
     push({
       id: 'acl-unknown-attribute', severity: 'blocking',
       title: 'Condition de droit d’accès utilisant un attribut inconnu',
-      summary: 'La condition fait appel à « user.… » pour un attribut qui n\'est défini nulle part.',
+      summary: 'La condition utilise un nom d’attribut utilisateur qui n’est pas déclaré, par exemple user.Profil alors que seul user.Habilitation existe.',
       why: 'Cet attribut utilisateur n’est pas déclaré dans les éléments lus. La condition des droits d’accès peut ne jamais correspondre ; vérifiez sa définition et son nom.',
       steps: [OPEN_RULES, 'Corrigez la condition, ou créez l\'attribut manquant dans « Attributs utilisateur ».', REFRESH_STEP],
       targets: unknown.map((u) => ({ table: u.table === '*' ? 'Droits d’accès par défaut' : u.table, note: `${u.rule.formula}` })),
     });
   }
-  if (missingCols.length) {
-    push({
-      id: 'acl-hidden', severity: 'choice',
-      intended: 'Ces éléments sont volontairement masqués à l’utilisateur concerné : conservez les droits d’accès. Une personne habilitée peut compléter l’audit.',
-      title: 'Colonnes utilisées pour les droits d’accès non visibles pour l’utilisateur concerné',
-      summary: 'Les droits d’accès mentionnent une colonne ou une table absente de ce que l’utilisateur connecté peut lire. Par exemple, Personnel.Salaire peut être volontairement masquée : le widget ne peut alors pas l’examiner. Une suppression reste aussi possible.',
-      why: 'Ces éléments peuvent manquer au schéma, aux tables et au rapport. Les droits d’accès d’une colonne sont prioritaires sur ceux de sa table, propriétaires compris.',
-      steps: [
-        OPEN_RULES,
-        'Sinon, si les propriétaires doivent les voir : dans les droits d’accès de ces colonnes, ajoutez en premier une condition « user.Access in [OWNER] » avec Lire autorisé.',
-        'Si elles ont été supprimées : retirez-les des droits d’accès.',
-        REFRESH_STEP,
-      ],
-      targets: missingCols.map((m) => ({ table: m.table, column: m.column, note: m.note })),
-    });
-  }
-
   if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
     push({
       id: 'acl-bypass', severity: 'choice',
       intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
-      title: 'Accès des éditeurs aux données malgré les droits d’accès',
-      summary: 'Des données sont cachées par des droits d’accès, mais les éditeurs peuvent toujours modifier la structure et écrire des formules.',
+      title: 'Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès',
+      summary: 'Des restrictions de lecture existent via les droits d’accès, mais les éditeurs peuvent modifier la structure et écrire des formules.',
       why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
       steps: [
         OPEN_RULES,
         'Dans les droits d’accès spéciaux, décochez l\'autorisation donnée aux éditeurs de modifier la structure.',
-        'Ou ajoutez aux droits d’accès par défaut : condition « user.Access != OWNER », permission Structure refusée.',
         REFRESH_STEP,
       ],
       targets: [],
@@ -357,7 +334,7 @@ export function accessInsights(access) {
       title: 'Message de refus de droits d’accès sans explication',
       summary: 'Ces refus de droits d’accès ne comportent aucun message explicatif (« mémo »). La personne concernée comprend plus difficilement pourquoi une action est refusée.',
       why: 'Un message court (« Réservé au service RH ») évite les demandes d\'aide.',
-      steps: [OPEN_RULES, 'Ouvrez le menu du droit d’accès concerné et ajoutez un mémo.'],
+      steps: [OPEN_RULES, 'À droite de la condition concernée, cliquez sur la petite icône de discussion (bulle de commentaire) pour ajouter un mémo.', 'Écrivez une explication courte, par exemple « Réservé au service RH », puis enregistrez les droits d’accès.', REFRESH_STEP],
       targets: denyNoMemo,
     });
   }
@@ -381,5 +358,6 @@ export function permissionCells(rule, bits) {
 }
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
 export const PERMISSION_LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.bit, p.label]));
+
 
 

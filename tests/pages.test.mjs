@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { buildPages, pageInsights, originText, typeCounts } from '../assets/pages.js';
 import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
 
-const SELF = 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html?v=2.4.0';
+const SELF = 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html?v=3.11.0';
 const model = () => { const m = metadataFromDefinition(definition); return buildPages({ pages: m.pages, views: m.views, sections: m.sections, tables: m.tables, selfUrl: SELF }); };
 
 test('les tableaux sont comptés mais pas détaillés', () => {

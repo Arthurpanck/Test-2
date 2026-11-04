@@ -1,8 +1,8 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.10.0';
-import { columnarToRows } from './converter.js?v=3.10.0';
-import { inspectVisibleFilters } from './filter-audit.js?v=3.10.0';
-import { annualColumnFamilies } from './annual-columns.js?v=3.10.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.11.0';
+import { columnarToRows } from './converter.js?v=3.11.0';
+import { inspectVisibleFilters } from './filter-audit.js?v=3.11.0';
+import { annualColumnFamilies } from './annual-columns.js?v=3.11.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
 const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -95,10 +95,10 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  const sampled=sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
  const items=[],hits=new Map(),counts=new Map(),signatures=new Map();
  const status=new Map(RETAINED_IDS.map(id=>[id,{id,state:'checked',reason:'Aucun signal dans les éléments examinés.'}]));
- const metadataOnly=new Set(['N41','N47','N53','N57','N69','X13']);
+ const metadataOnly=new Set(['N41','N47','N53','N69','X13']);
  const unavailable=(id,reason)=>status.set(id,{id,state:'unavailable',reason});
  const limited=(id,reason)=>{if(status.get(id)?.state==='checked')status.set(id,{id,state:'limited',reason});};
- if(!access){unavailable('N53','Droits d’accès indisponibles.');unavailable('N57','Droits d’accès indisponibles.');}
+ if(!access)unavailable('N53','Droits d’accès indisponibles.');
  if(!pages)unavailable('N47','Métadonnées des pages indisponibles.');
  if(!meta.filters)unavailable('N69','Métadonnées des filtres indisponibles.');
  const filterViews=inspectVisibleFilters(schema,meta);
@@ -136,9 +136,6 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
     const text=texts.filter(v=>v.length<=500);if(text.length>=5&&ratio(text.filter(v=>v.split(/[;\n]/).filter(s=>s.trim()).length>=2).length,text.length)>=.3)emit('N09',name,col,[],'Au moins 30 % de '+text.length+' textes examinés contiennent une liste apparente');
     if(vs.length>200)limited('N09','Au plus 200 cellules examinées par colonne Texte.');
    }
-   const nums=vs.filter(usable).map(scalar).filter(v=>typeof v==='number'&&Number.isFinite(v));
-   if(['Numeric','Int'].includes(type)&&/date/i.test(col)&&nums.length>=5&&ratio(nums.filter(v=>Number.isInteger(v)&&v>=20000&&v<=80000).length,nums.length)>=.8)emit('N17',name,col);
-   if(type==='Ref'&&String(c.type).slice(4)===name&&/^(parent|manager|responsable|superieur)$/i.test(fold(col))){const self=rowids(name,i=>scalar(vs[i])===ids[i]);if(self.length)emit('N28',name,col,self);}
    if(type==='Attachments'){const many=rowids(name,i=>(listValue(vs[i])||[]).length>=20);if(many.length||vs.reduce((n,v)=>n+(listValue(v)||[]).length,0)>=1000)emit('N50',name,col,many);}
    if(type==='ChoiceList'&&Array.isArray(c.widgetOptions?.choices)&&c.widgetOptions.choices.length){const allowed=new Set(c.widgetOptions.choices),outside=rowids(name,i=>(listValue(vs[i])||[]).some(x=>typeof x==='string'&&!allowed.has(x)));if(outside.length)emit('N64',name,col,outside,'Éléments absents des choix proposés');}
    if(!raw.trim())continue;
@@ -168,7 +165,6 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
    const name=a.name.replace(/[^A-Za-z0-9_]/g,''),uses=all.flatMap(r=>[...String(r.formula).matchAll(new RegExp('\\buser\\.'+name+'\\.([A-Za-z_]\\w*)','g'))].map(m=>m[1]));
    for(const c of new Set([a.lookupColId,...uses]))if(target.columns.has(c)&&!target.columns.get(c).isFormula&&(canWrite(a.tableId,c)||['EDITOR','VIEWER'].some(role=>effectivePermission(access,a.tableId,null,role,'C')==='allow')))emit('N53',a.tableId,c,[],'Champ de la table d’habilitation : modification ou création reconnue pour un rôle non propriétaire');
   }
-  for(const r of all)if(/\buser\.Name\s*(?:==|!=|in)/.test(maskPython(r.formula||'')))emit('N57','Droits d’accès',null,[],'Condition utilisant le nom affiché');
  }
  for(const [id,targets]of hits){const def=infoById.get(id),isSample=!metadataOnly.has(id)&&(targets.some(t=>byCoverage.get(t.table)?.sampled)||['N06','N09'].includes(id)&&targets.some(t=>(values(t.table,t.column).length||0)>200)||id==='N31'&&(sampled.coverage.some(c=>c.sampled)||targets.some(t=>values(t.table,'id').length>200)));
   items.push({id,severity:def.severity,area:def.area,title:def.title,summary:def.summary,why:def.why,...(def.intended?{intended:def.intended}:{}),steps:def.steps,targets,method:def.detection,limitations:def.false_positives,evidence:{version:def.ruleVersion||1,signature:signatures.get(id),coverage:isSample?'sample':'visible',targetCount:counts.get(id),rowExamples:targets.flatMap(t=>t.note.match(/lignes ([\d, ]+)/)?.[1]?.split(',').map(s=>s.trim())||[]).slice(0,3)},calculation:targets.map(t=>t.note).filter(Boolean).slice(0,3).join(' ; ')});
@@ -178,3 +174,4 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  const truncated=sampled.coverage.some(c=>c.sampled);if(truncated||failedTables.length)for(const id of RETAINED_IDS)if(!metadataOnly.has(id))limited(id,'Vérification limitée à l’échantillon ou aux tables chargées.');
  return {items,checks:[...status.values()],coverage:sampled.coverage,failedTables,configurationError:'',cells:sampled.cells,formulaChars:chars,sampled:truncated,profilesData:sd};
 }
+

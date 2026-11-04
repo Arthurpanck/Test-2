@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.10.0';
+import { columnarToRows } from './converter.js?v=3.11.0';
 
 /** Types de widgets, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
@@ -186,14 +186,20 @@ export function pageInsights(model) {
       targets: unmapped.map((w) => ({ table: w.page, note: `${widgetName(w)} — à associer : ${w.custom.missingColumns.join(', ')}` })),
     });
   }
-  const defaults = model.pages.filter((p) => DEFAULT_PAGE.test(p.name.trim()) || !p.name.trim()).map((p) => ({ table: p.name || '(sans nom)', note: p.widgets.map((w) => w.title || w.table).filter(Boolean).join(', ') }));
+  const pageNameKey = (name) => String(name || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const defaults = model.pages.flatMap((p) => {
+    const name = String(p.name || '').trim();
+    const sameTable = p.widgets.find((w) => w.table && name && pageNameKey(name) === pageNameKey(w.table));
+    if (!DEFAULT_PAGE.test(name) && name && !sameTable) return [];
+    return [{ table: name || '(sans nom)', note: sameTable ? `Même nom que la table « ${sameTable.table} » ; préciser l’usage de cette page` : 'Nom vide ou laissé par défaut' }];
+  });
   if (defaults.length) {
     push({
       id: 'page-default-name', severity: 'improve',
-      title: defaults.length > 1 ? `${defaults.length} pages au nom par défaut` : 'Une page au nom par défaut',
-      summary: 'Ces pages s\'appellent encore « New page » ou n\'ont pas de nom.',
-      why: 'Dans le menu de gauche, on ne sait pas ce qu\'elles contiennent sans les ouvrir.',
-      steps: ['Dans le menu de gauche, survolez la page, ouvrez son menu « ⋯ » et choisissez « Renommer ».', REFRESH_STEP],
+      title: defaults.length > 1 ? `${defaults.length} pages dont le nom ne précise pas l’usage` : 'Une page dont le nom ne précise pas l’usage',
+      summary: 'Ces pages portent un nom par défaut ou le même nom que leur table. Leur nom ne précise pas ce que la personne vient y faire.',
+      why: 'Une table stocke des données ; une page organise un usage. Un nom comme « Traiter les demandes » ou « Suivre les paiements » aide à trouver la bonne action dans le menu.',
+      steps: ['Repérez l’usage principal de la page : saisir une demande, traiter les dossiers ou suivre les paiements.', 'Dans le menu de gauche, survolez la page, ouvrez son menu « ⋯ » et choisissez « Renommer ».', 'Donnez un nom qui indique cet usage. Plusieurs pages peuvent utiliser la même table avec des vues adaptées, sans copier ses données.', REFRESH_STEP],
       targets: defaults,
     });
   }
@@ -221,5 +227,6 @@ export function pageInsights(model) {
   }
   return items;
 }
+
 
 

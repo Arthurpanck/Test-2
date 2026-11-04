@@ -72,8 +72,8 @@ test('table, colonne ou table d\'attribut absentes des métadonnées (supprimée
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
   const hidden = items.find((i) => i.id === 'acl-hidden');
-  assert.equal(hidden.severity, 'choice', 'pas bloquant : peut-être seulement masqué pour la personne connectée');
-  assert.ok(hidden.targets.some((t) => t.table === 'Conges') && hidden.targets.some((t) => t.column === 'Quotite'));
+  assert.equal(hidden,undefined,'le constat de visibilité est retiré ; les limites restent dans le modèle');
+  assert.ok(access.tables.some(t=>t.missing));
   const attr = items.find((i) => i.id === 'acl-attribute');
   assert.ok(attr.severity === 'blocking' && attr.targets.some((t) => /Habilitation/.test(t.note)));
 });
@@ -115,7 +115,7 @@ test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, 
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const items = accessInsights(access);
   assert.ok(items.some(i=>i.id==='acl-unknown-attribute'&&i.severity==='blocking'));
-  assert.deepEqual(items.find((i) => i.id === 'acl-hidden').targets.map((t) => t.column), ['Quotite', 'Derniere_connexion']);
+  assert.equal(items.find((i) => i.id === 'acl-hidden'),undefined);
 });
 
 test('réglages généraux : permissions avancées puis les trois cases de Grist (open source)', async () => {
@@ -130,3 +130,4 @@ test('réglages généraux : permissions avancées puis les trois cases de Grist
   const locked = generalSettings({ ...access, structureRestricted: true, defaults: [{ perms: { S: 'deny' }, who: { text: 'Tous sauf les propriétaires' } }] });
   assert.equal(locked[2].state, 'Non');
 });
+

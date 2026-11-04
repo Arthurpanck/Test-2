@@ -9,11 +9,11 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=3.10.0';
-import { structureSmells } from './datacheck.js?v=3.10.0';
-import { runAudit } from './audit-engine.js?v=3.10.0';
-import { pageInsights } from './pages.js?v=3.10.0';
-import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.10.0';
+import { accessInsights } from './access.js?v=3.11.0';
+import { structureSmells } from './datacheck.js?v=3.11.0';
+import { runAudit } from './audit-engine.js?v=3.11.0';
+import { pageInsights } from './pages.js?v=3.11.0';
+import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.11.0';
 
 
 export const SEVERITIES = {
@@ -97,19 +97,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     });
   }
 
-  // 7. Tables de synthèse.
-  const summaries = tables.filter((t) => t.kind === 'summary').map((t) => ({ table: t.name }));
-  if (summaries.length) {
-    items.push({
-      id: 'summary', severity: 'info',
-      title: summaries.length > 1 ? `${summaries.length} tables de synthèse` : 'Une table de synthèse',
-      summary: 'Grist calcule ces tables automatiquement à partir d\'une table source (totaux, regroupements) ; leurs colonnes sont des formules.',
-      why: 'Elles sont dessinées en violet sur le schéma et reliées à leur table source.',
-      steps: [],
-      targets: summaries,
-    });
-  }
-
   for (const it of items) it.area = 'structure';
   items.push(...structureSmells(tables, profiles, access));
   items.push(...accessInsights(access));
@@ -127,15 +114,12 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   for (const it of active) counts[it.severity] += 1;
 
   const has = (id) => items.some((i) => i.id === id);
-  const checks = [
-    { id: 'text-ref', label: 'Les relations utilisent des colonnes de référence' },
-  ];
-  if (profiles) checks.push({ id: 'typed-as-text', label: 'Nombres, dates et oui/non ont le bon type' });
+  const checks = [];
+  if (profiles) checks.push({ id: 'typed-as-text', label: 'Les nombres ont un type numérique' }, { id: 'boolean-as-text', label: 'Les oui/non ont un type booléen' }, { id: 'date-as-text', label: 'Les dates ont le type Date' });
   if (profiles) checks.push({ id: 'choice-outside', label: 'Les listes de choix sont respectées' });
   if (access && access.hasRules) {
     checks.push(
       { id: 'acl-unknown-attribute', label: 'Les conditions n\'utilisent que des attributs définis' },
-      { id: 'acl-hidden', label: 'Les éléments des droits d’accès sont lisibles dans le périmètre de l’audit' },
     );
     if (access.restrictsRead) checks.push({ id: 'acl-bypass', label: 'Les données cachées ne sont pas lisibles par formule' });
   }
@@ -176,5 +160,6 @@ export function stepsAfterIntended(it) {
 export function targetLabel(t) {
   return t.column ? `${t.table}.${t.column}` : t.table;
 }
+
 
 

@@ -29,22 +29,11 @@ test('profil des valeurs : nombres, dates, oui/non, listes', () => {
   assert.deepEqual([...l.items].sort(), ['Laurent', 'Martin']);
 });
 
-test('mal structuré : liens écrits à la main repérés par les données et par les noms', () => {
-  const { ins } = load();
-  const it = item(ins, 'text-ref');
-  for (const [t, c, target] of [['Commandes', 'Client', 'Clients'], ['Commandes', 'Produit', 'Produits'], ['Clients', 'Commercial', 'Personnel'],
-    ['Produits', 'Fournisseur', 'Fournisseurs'], ['Personnel', 'Manager', 'Personnel'], ['Taches', 'Assigne', 'Personnel'],
-    ['Factures', 'Commande', 'Commandes'], ['Cotisations', 'Adherent', 'Adherents'], ['Personnel', 'Service', 'Services']]) {
-    assert.ok(it.targets.some((x) => x.table === t && x.column === c && x.note.startsWith(`vers ${target}`)), `${t}.${c} → ${target}`);
-  }
-  assert.ok(it.targets.some((x) => x.table === 'Evenements' && x.column === 'Participants' && /plusieurs/.test(x.note)), 'liste de noms → référence multiple');
-  assert.ok(!has(it, 'Inscriptions'), 'les vraies références ne sont pas signalées');
-  assert.equal(it.severity, 'improve');
-});
+test('les anciens liens manuels ne sont plus analysés', () => { assert.equal(item(load().ins, 'text-ref'), undefined); });
 
 test('mal structuré : nombres, dates, oui/non en texte, choix répétés, valeurs hors liste', () => {
   const { ins } = load();
-  const typed = item(ins, 'typed-as-text');
+  const typed = {targets:['typed-as-text','boolean-as-text','date-as-text'].flatMap(id=>item(ins,id)?.targets||[])};
   for (const [t, c] of [['Commandes', 'Quantite'], ['Commandes', 'Prix_unitaire'], ['Commandes', 'Date_commande'], ['Clients', 'Date_inscription'],
     ['Clients', 'Actif'], ['Factures', 'Payee'], ['Evenements', 'Budget'], ['Taches', 'Fait'], ['Adherents', 'Montant_cotisation']]) {
     assert.ok(has(typed, t, c), `${t}.${c}`);
@@ -64,12 +53,12 @@ test('mal structuré : noms par défaut, doublons, copie non protégée, tables 
   const leak = item(ins, 'acl-copy-leak');
   assert.equal(leak,undefined,'le constat de copie et d’accès est retiré');
   const dup = item(ins, 'duplicate-table');
-  assert.ok(has(dup, 'Commandes_copie') && has(dup, 'Produits_old'));
+  assert.equal(dup,undefined);
   assert.ok(has(item(ins, 'empty-table'), 'Export_2023') && has(item(ins, 'empty-table'), 'Test'));
   assert.ok(has(item(ins, 'never-filled'), 'Commandes', 'Remise'));
   assert.ok(has(item(ins, 'wide-table'), 'Personnel'));
   for(const id of ['empty-table','never-filled','acl-attr-unused'])assert.equal(item(ins,id).severity,'blocking');
-  for (const id of ['duplicate-table', 'wide-table', 'untyped', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
+  for (const id of ['wide-table', 'untyped', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
 });
 
 test('mal structuré : droits d\'accès en désordre', () => {
@@ -113,6 +102,6 @@ test('vu par le propriétaire : tables entièrement masquées (nom effacé par G
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const ins = buildInsights(out.tables, access, { profiles: profileTables(records) });
   assert.ok(!item(ins, 'bad-name'), 'pas de faux « identifiant invalide »');
-  assert.ok(has(item(ins, 'acl-hidden'), 'Personnel') && has(item(ins, 'acl-hidden'), 'Factures'), 'tables invisibles signalées');
+  assert.equal(item(ins, 'acl-hidden'),undefined, 'constat de visibilité retiré');
   assert.equal(item(ins,'acl-copy-leak'),undefined,'aucune alerte de copie même si la table source est masquée');
 });

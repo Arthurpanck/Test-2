@@ -34,7 +34,7 @@ test('deuxième revue : niveaux des contrôles enrichis et absence des calculs s
  assert.equal(AUDIT_CATALOG.find(x=>x.id==='N34').severity,'improve');
  const engine=readFileSync(new URL('../assets/audit-engine.js',import.meta.url),'utf8');
  for(const id of ['N07','N10','N13','N14','N36','N38']){assert.ok(!RETAINED_IDS.includes(id));assert.ok(!engine.includes("'"+id+"'"));}
- assert.equal(RETAINED_IDS.length,16);
+ assert.equal(RETAINED_IDS.length,13);
 });
 test('deuxième revue : attribut inutilisé, table vide et colonne vide sont À corriger ; courriels retirés',()=>{
  const m=metadataFromDefinition(definition),schema=schemaFromMetadata(m.tables,m.cols),access=buildAccess({resources:m.aclResources,rules:m.aclRules,schema});
@@ -42,14 +42,14 @@ test('deuxième revue : attribut inutilisé, table vide et colonne vide sont À 
  for(const id of ['acl-attr-unused','empty-table','never-filled'])assert.equal(ins.items.find(x=>x.id===id).severity,'blocking',id);
  assert.ok(!ins.items.some(x=>x.id==='acl-emails'));assert.ok(!accessInsights(access).some(x=>x.id==='acl-emails'));
  assert.equal(ins.items.find(x=>x.id==='acl-no-memo').severity,'improve');
- assert.equal(ins.items.find(x=>x.id==='acl-bypass').title,'Accès des éditeurs aux données malgré les droits d’accès');
+ assert.equal(ins.items.find(x=>x.id==='acl-bypass').title,'Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès');
 });
 test('attribut déclaré à source absente : À corriger, avec la limite de lecture explicitée',()=>{
  const a={hasRules:true,attributes:[{name:'Habilitation',tableId:'Invisible',lookupColId:'Email',problems:['source absente de la lecture']}],defaults:[],tables:[],special:[],uncovered:[]};
  const item=accessInsights(a).find(x=>x.id==='acl-attribute');assert.equal(item.severity,'blocking');assert.match(item.summary,/masquée/);assert.match(item.summary,/ne peut pas distinguer/);
 });
-test('acl-none et acl-uncovered diffèrent par leur périmètre ; acl-hidden est conservé',()=>{
+test('acl-none et acl-uncovered diffèrent par leur périmètre ; acl-hidden est maintenant retiré',()=>{
  const empty=buildAccess({resources:[],rules:[],schema:new Map()});assert.deepEqual(accessInsights(empty).map(x=>x.id),['acl-none']);
  const a={hasRules:true,attributes:[],defaults:[],special:[],uncovered:['Autre'],restrictsRead:false,tables:[{tableId:'Invisible',missing:true,rules:[],columns:[]}]};
- const items=accessInsights(a);assert.ok(items.some(x=>x.id==='acl-uncovered'));assert.ok(!items.some(x=>x.id==='acl-none'));assert.ok(items.some(x=>x.id==='acl-hidden'));assert.ok(!REMOVED_FINDING_IDS.has('acl-hidden'));
+ const items=accessInsights(a);assert.ok(items.some(x=>x.id==='acl-uncovered'));assert.ok(!items.some(x=>x.id==='acl-none'));assert.ok(!items.some(x=>x.id==='acl-hidden'));assert.ok(REMOVED_FINDING_IDS.has('acl-hidden'));
 });

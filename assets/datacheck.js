@@ -1,12 +1,12 @@
 /**
  * Défauts courants d'un document qui a grandi sans plan, repérés à partir de la structure
- * et, quand elles sont lisibles, des données : noms par défaut, liens écrits en texte,
+ * et, quand elles sont lisibles, des données : noms par défaut,
  * nombres / dates / oui-non saisis en texte, valeurs répétées sans liste de choix, valeurs
  * hors liste, tables en double, tables vides, colonnes sans valeur dans les lignes lues, tables très larges.
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.10.0';
+import { columnarToRows } from './converter.js?v=3.11.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -57,19 +57,10 @@ export function profileTables(data) {
 }
 
 const fold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-/** Nom de table ramené à un radical : « Clients » → « client », « Services » → « service ». */
-function stem(name) {
-  let s = fold(name).replace(/^(id_|ref_|code_)/, '').replace(/(_id|_ref|_nom|_name|_code|_num)$/, '');
-  if (s.length > 3 && /[sx]$/.test(s)) s = s.slice(0, -1);
-  return s;
-}
-const baseName = (name) => fold(name).replace(/(_?(copie|copy|old|ancien|backup|bak|test|archive|import|v\d+)|_?\d{2,4}|_\d+)$/, '');
-
 // Codes qui ressemblent à des nombres mais doivent rester du texte (zéros en tête, pas de calcul).
 const CODE_NAME = /^(cp|code.*|.*postal.*|tel|tel_.*|telephone.*|portable|mobile|siret|siren|iban|zip|numero.*|num_.*|ref|reference.*|matricule)$/;
 const DEFAULT_COLUMN = /^([A-Z]|(Colonne|Column|Col|Champ)_?\d+|Col_[A-Z])$/;
 
-const label = (t, c) => (c ? `${t}.${c}` : t);
 const pct = (a, b) => (b ? a / b : 0);
 
 /**
@@ -81,26 +72,9 @@ const pct = (a, b) => (b ? a / b : 0);
 export function structureSmells(tables, profiles = null, access = null) {
   const items = [];
   const real = tables.filter((t) => t.kind !== 'summary');
-  const byStem = new Map(real.map((t) => [stem(t.name), t]));
   const prof = (t) => (profiles ? profiles.get(t.name) : null);
   const colProf = (t, c) => prof(t)?.columns.get(c.name) || null;
   const steps = (...s) => [...s, 'Revenez dans ce widget et cliquez sur « Relire le document ».'];
-
-  // Valeurs de référence de chaque table : sa première colonne de texte (celle que Grist propose
-  // d'afficher), si elle identifie bien les lignes (valeurs presque toutes différentes).
-  const keys = [];
-  const keyOf = new Map();
-  for (const t of real) {
-    const p = prof(t);
-    if (!p || !p.rows) continue;
-    const key = t.columns.find((c) => !c.isFormula && c.gristType?.name === 'Text');
-    const kp = key && p.columns.get(key.name);
-    if (!kp) continue;
-    keyOf.set(t.name, key.name);
-    const unique = kp.distinct.size >= 3 && kp.distinct.size >= 0.8 * kp.filled;
-    const plain = kp.bool < kp.text / 2 && kp.numeric < kp.text / 2 && kp.date < kp.text / 2;
-    if (unique && plain) keys.push({ table: t.name, column: key.name, values: kp.distinct });
-  }
 
   // 1. Noms par défaut
   const defaults = [];
@@ -118,96 +92,54 @@ export function structureSmells(tables, profiles = null, access = null) {
     });
   }
 
-  // 2. Liens écrits en texte (ou en nombre) au lieu d'une colonne de référence
-  // Index inversé valeur → tables dont la colonne clé la contient : chaque valeur n'est
-  // cherchée qu'une fois, au lieu d'être comparée à toutes les tables une par une.
-  const keyIndex = new Map();
-  keys.forEach((k, ki) => { for (const v of k.values) { const at = keyIndex.get(v); if (at) at.push(ki); else keyIndex.set(v, [ki]); } });
-  const countByKey = (values) => {
-    const n = new Array(keys.length).fill(0);
-    for (const v of values) for (const ki of keyIndex.get(v) || []) n[ki]++;
-    return n;
-  };
-  const links = [];
-  for (const t of real) {
-    for (const c of t.columns) {
-      const type = c.gristType?.name;
-      if (c.isFormula || c.ref || !['Text', 'Int', 'Numeric', 'Choice', 'Any'].includes(type)) continue;
-      const p = colProf(t, c);
-      const byName = byStem.get(stem(c.name));
-      // La colonne qui nomme les lignes de sa propre table n'est pas un lien… sauf si elle porte le nom d'une autre table.
-      if (keyOf.get(t.name) === c.name && !(byName && byName.name !== t.name)) continue;
-      let hit = null;
-      if (p && p.text >= 2) {
-        const vals = [...p.distinct].filter((v) => typeof v === 'string');
-        const items2 = [...p.items];
-        const hits = [];
-        const singles = countByKey(vals);
-        const multiples = p.list >= 1 && items2.length >= 2 ? countByKey(items2) : null;
-        keys.forEach((k, ki) => {
-          if (k.table === t.name && k.column === c.name) return;
-          const single = singles[ki];
-          if (vals.length >= 2 && pct(single, vals.length) >= 0.8) hits.push({ target: k.table, by: k.column, many: false, data: true, score: pct(single, vals.length) });
-          else if (multiples && pct(multiples[ki], items2.length) >= 0.8) hits.push({ target: k.table, by: k.column, many: true, data: true, score: 0.8 });
-        });
-        hit = hits.find((h) => byName && h.target === byName.name) || hits.sort((a, b) => b.score - a.score)[0] || null;
-      }
-      if (!hit && byName && byName.name !== t.name && (type === 'Text' || type === 'Int')) hit = { target: byName.name, by: null, many: false, data: false };
-      if (hit) links.push({ table: t.name, column: c.name, note: `vers ${hit.target}${hit.many ? ' (plusieurs)' : ''}`, hit });
-    }
-  }
-  if (links.length) {
-    items.push({
-      id: 'text-ref', severity: 'improve',
-      title: links.length > 1 ? `${links.length} liens écrits à la main au lieu d'une référence` : 'Un lien écrit à la main au lieu d\'une référence',
-      summary: 'Ces colonnes contiennent le nom (ou le numéro) d\'une ligne d\'une autre table, saisi à la main.',
-      why: 'Une faute de frappe ou un renommage casse le lien sans prévenir, et le schéma ne montre pas la relation. Une colonne « Référence » garde le lien à jour et permet les formules comme $Client.Ville.',
-      steps: steps(
-        'Sélectionnez la colonne, puis dans le panneau de droite choisissez le Type de colonne « Référence » (ou « Référence multiple » pour une liste).',
-        'Choisissez la table visée et la colonne à afficher : Grist convertit les valeurs existantes et signale celles qu\'il ne trouve pas.',
-      ),
-      targets: links.map(({ table, column, note }) => ({ table, column, note })),
-    });
-  }
-
   // 3. Nombres, dates, oui/non saisis en texte ; valeurs répétées sans liste de choix
-  const typed = [];
+  const numbers = [];
+  const booleans = [];
+  const dates = [];
   const repeated = [];
   for (const t of real) {
     for (const c of t.columns) {
-      if (c.isFormula || c.gristType?.name !== 'Text' || links.some((l) => l.table === t.name && l.column === c.name)) continue;
+      if (c.isFormula || c.gristType?.name !== 'Text') continue;
       const p = colProf(t, c);
       if (!p || p.text < 3) continue;
       const isCode = CODE_NAME.test(fold(c.name));
-      if (pct(p.date, p.text) >= 0.8) typed.push({ table: t.name, column: c.name, note: `dates (${p.date}/${p.text})` });
-      else if (pct(p.bool, p.text) >= 0.9 && p.distinct.size <= 3) typed.push({ table: t.name, column: c.name, note: 'oui / non' });
-      else if (!isCode && pct(p.numeric, p.text) >= 0.8) typed.push({ table: t.name, column: c.name, note: `nombres (${p.numeric}/${p.text})` });
+      if (pct(p.date, p.text) >= 0.8) dates.push({ table: t.name, column: c.name, note: `dates (${p.date}/${p.text})` });
+      else if (pct(p.bool, p.text) >= 0.9 && p.distinct.size <= 3) booleans.push({ table: t.name, column: c.name, note: 'oui / non' });
+      else if (!isCode && pct(p.numeric, p.text) >= 0.8) numbers.push({ table: t.name, column: c.name, note: `nombres (${p.numeric}/${p.text})` });
       else if (p.text >= 6 && p.distinct.size <= 6 && p.distinct.size <= p.text / 3 && p.list === 0) {
         const lower = new Set([...p.distinct].map((v) => fold(v)));
         repeated.push({ table: t.name, column: c.name, note: `${p.distinct.size} valeurs${lower.size < p.distinct.size ? ', dont des variantes de casse' : ''}` });
       }
     }
   }
-  if (typed.length) {
-    items.push({
-      id: 'typed-as-text', severity: 'improve',
-      title: typed.length > 1 ? `${typed.length} colonnes de nombres, dates ou oui/non saisies en texte` : 'Une colonne de nombres, dates ou oui/non saisie en texte',
-      summary: 'Le contenu ressemble à des nombres, des dates ou des oui/non, mais la colonne est de type Texte.',
-      why: 'En texte, on ne peut ni additionner, ni trier par date, ni filtrer correctement ; « deux » ou « 12,5 » passent sans alerte.',
-      steps: steps(
-        'Sélectionnez la colonne et choisissez le Type de colonne adapté : Numérique, Date ou Booléen.',
-        'Grist montre un aperçu de la conversion : corrigez les valeurs qu\'il ne sait pas convertir (affichées en rouge).',
-      ),
-      targets: typed,
-    });
+  const typeFindings = [
+    { id: 'typed-as-text', targets: numbers,
+      title: numbers.length > 1 ? `${numbers.length} colonnes devraient être de type numérique` : 'Une colonne devrait être de type numérique',
+      summary: 'La plupart des valeurs ressemblent à des nombres, mais la colonne est de type Texte.',
+      why: 'Le type numérique permet les sommes et le tri par valeur. En texte, le classement peut placer « 100 » avant « 20 ».',
+      correction: 'Dans le panneau Colonne, choisissez « Numérique » ou « Entier ». Contrôlez les séparateurs décimaux et les valeurs que Grist ne peut pas convertir.' },
+    { id: 'boolean-as-text', targets: booleans,
+      title: booleans.length > 1 ? `${booleans.length} colonnes devraient être de type booléen` : 'Une colonne devrait être de type booléen',
+      summary: 'La plupart des valeurs expriment oui ou non, mais elles sont conservées dans une colonne de texte.',
+      why: 'Une case à cocher représente clairement deux états et évite les variantes comme « oui », « Oui » ou « vrai ».',
+      correction: 'Dans le panneau Colonne, choisissez « Booléen » et un affichage en case à cocher. Vérifiez que oui devient coché et non devient décoché ; ne transformez pas une valeur inconnue en non.' },
+    { id: 'date-as-text', targets: dates,
+      title: dates.length > 1 ? `${dates.length} colonnes devraient être de type date` : 'Une colonne devrait être de type date',
+      summary: 'La plupart des textes ont une forme de date, mais la colonne est de type Texte.',
+      why: 'Le type Date permet un classement chronologique et les calculs de durée.',
+      correction: 'Dans le panneau Colonne, choisissez « Date » et le format adapté à la source. Vérifiez plusieurs jours connus, notamment les dates comme 03/04/2026.' },
+  ];
+  for (const finding of typeFindings) if (finding.targets.length) {
+    const { correction, ...fields } = finding;
+    items.push({ ...fields, severity: 'improve', steps: steps('Sélectionnez la colonne concernée.', correction, 'Contrôlez les valeurs signalées en rouge avant de valider la conversion.') });
   }
   if (repeated.length) {
     items.push({
       id: 'text-choice', severity: 'improve',
-      title: repeated.length > 1 ? `${repeated.length} colonnes de texte qui devraient être des listes de choix` : 'Une colonne de texte qui devrait être une liste de choix',
-      summary: 'Quelques valeurs reviennent sans cesse (statut, catégorie…), tapées à la main.',
+      title: repeated.length > 1 ? `${repeated.length} colonnes devraient être de type choix` : 'Une colonne devrait être de type choix',
+      summary: 'Cette colonne de texte sert à sélectionner quelques catégories qui reviennent souvent, comme un statut ou un service.',
       why: 'Une liste de choix évite les variantes (« en cours » / « En cours ») et colore les valeurs.',
-      steps: steps('Sélectionnez la colonne et choisissez le Type de colonne « Choix unique » : Grist propose les valeurs existantes comme liste.'),
+      steps: steps('Sélectionnez la colonne et choisissez le Type de colonne « Choix unique » si chaque cellule contient une seule catégorie. Préparez la liste des valeurs autorisées. Pour plusieurs catégories dans une même cellule, utilisez « Choix multiple ».'),
       targets: repeated,
     });
   }
@@ -231,35 +163,6 @@ export function structureSmells(tables, profiles = null, access = null) {
       why: 'Ces valeurs personnalisées ne figurent pas parmi les choix proposés. Vérifiez s’il s’agit de nouvelles catégories utiles ou de variantes de saisie.',
       steps: steps('Ajoutez la valeur à la liste (panneau de droite, « Choix »), ou corrigez les cellules concernées.'),
       targets: outside,
-    });
-  }
-
-  // 5. Tables en double, et copie non protégée d'une table protégée
-  const dups = [];
-  for (let i = 0; i < real.length; i++) {
-    for (let j = i + 1; j < real.length; j++) {
-      const a = real[i]; const b = real[j];
-      const meaningful = (cols) => cols.filter((c) => !c.empty && !DEFAULT_COLUMN.test(c.name)).map((c) => c.name);
-      const ca = new Set(meaningful(a.columns)); const cb = meaningful(b.columns);
-      const shared = cb.filter((c) => ca.has(c)).length;
-      const small = Math.min(ca.size, cb.length);
-      const sameBase = baseName(a.name) === baseName(b.name) || baseName(a.name).startsWith(baseName(b.name)) || baseName(b.name).startsWith(baseName(a.name));
-      if ((small >= 3 && pct(shared, small) >= 0.8) || (sameBase && shared >= 2)) {
-        const [orig, copy] = a.name.length <= b.name.length ? [a, b] : [b, a];
-        dups.push({ orig: orig.name, copy: copy.name, shared });
-      }
-    }
-  }
-  const others = dups;
-  if (others.length) {
-    items.push({
-      id: 'duplicate-table', severity: 'choice',
-      title: others.length > 1 ? `${others.length} paires de tables de structure similaire` : 'Structures de deux tables similaires',
-      summary: 'Deux tables partagent une grande partie de leurs colonnes, ou des noms et des colonnes proches. Leurs données ne sont pas comparées.',
-      why: 'Une structure similaire peut être utile, mais elle peut aussi indiquer des tables créées pour des variantes d’un même besoin. Vérifiez leur rôle avant de les rapprocher.',
-      intended: 'Archive volontaire (une année close, par exemple) : rien à faire, mais protégez-la comme l\'originale.',
-      steps: steps('Sinon : gardez une seule table, et distinguez les versions par une colonne (Année, Statut…).', 'Supprimez la copie une fois les données regroupées.'),
-      targets: others.map((d) => ({ table: d.copy, note: `≈ ${d.orig}` })),
     });
   }
 
@@ -335,5 +238,6 @@ export function structureSmells(tables, profiles = null, access = null) {
   }
   return items.map((it) => ({ area: 'structure', ...it }));
 }
+
 
 

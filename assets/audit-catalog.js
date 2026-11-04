@@ -634,8 +634,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Date_adhesion = 45292.",
     "justification": "Ressemblance seulement.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -643,7 +643,7 @@ export const AUDIT_CATALOG = [
       "Colonne Numérique ou Entier dont l’identifiant contient date ; au moins cinq nombres valides, dont 80 % ou plus sont entiers entre 20000 et 80000",
       "Aucune conversion automatique, ni choix implicite entre origines Excel 1900 et 1904."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
@@ -652,7 +652,8 @@ export const AUDIT_CATALOG = [
       "correctionMCP": false
     },
     "reviewStage": "",
-    "reviewQuestion": ""
+    "reviewQuestion": "",
+    "reviewNote": "Supprimé sur demande le 4 novembre 2026. Le calcul n’est plus exécuté."
   },
   {
     "id": "N18",
@@ -1051,8 +1052,8 @@ export const AUDIT_CATALOG = [
     ],
     "example": "Audit_Hierarchie ligne 3 Parent = 3.",
     "justification": "Convention de racine possible.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées et données",
     "area": "data",
     "ruleVersion": 1,
@@ -1061,7 +1062,7 @@ export const AUDIT_CATALOG = [
       "Une égalité positive déclenche",
       "Le choix d’une racine sur elle-même reste une convention à confirmer."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
     "verification": {
@@ -1070,7 +1071,8 @@ export const AUDIT_CATALOG = [
       "correctionMCP": false
     },
     "reviewStage": "",
-    "reviewQuestion": ""
+    "reviewQuestion": "",
+    "reviewNote": "Supprimé sur demande le 4 novembre 2026. Le calcul n’est plus exécuté."
   },
   {
     "id": "N29",
@@ -2248,18 +2250,18 @@ export const AUDIT_CATALOG = [
     ],
     "example": "user.Name == « Marie Dupont ».",
     "justification": "Identité fragile mais usage de démonstration possible.",
-    "decision": "Retenu",
-    "status": "implémenté",
+    "decision": "Écarté",
+    "status": "retiré",
     "source": "Métadonnées",
     "area": "access",
     "ruleVersion": 2,
     "calculationSteps": [
       "Après masquage des chaînes et commentaires, repérer user.Name comparé avec ==, != ou in. Signaler l’usage du nom affiché comme base de reconnaissance, sans collecter ni afficher la liste des personnes."
     ],
-    "implementation": "Automatique sur le sous-ensemble décrit",
+    "implementation": "Retiré du widget lors de la revue du 4 novembre 2026",
     "typology": "Indice à vérifier",
     "testEvidence": "Test de déclenchement ou de non-régression après la revue du 29 octobre. Les scénarios réels observés sont indiqués dans Vérifications & portée.",
-    "reviewNote": "Niveau modifié selon la deuxième revue du 29 octobre 2026.",
+    "reviewNote": "Supprimé sur demande le 4 novembre 2026. Le calcul n’est plus exécuté.",
     "verification": {
       "unitaire": true,
       "observeMCP": false,
