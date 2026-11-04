@@ -281,3 +281,14 @@ La revue finale est livrée en 3.3.0 pour conserver simultanément les modificat
 - **Schéma :** un bouton « Tables », à côté de « Liens », ouvre un menu de trois bascules, toutes activées par défaut : Tables, Tables de synthèse, Tables de droits (avec le nombre de tables de chaque type). Une table masquée disparaît avec tous ses liens (références, lookups, colonnes dérivées) ; les autres tables restent à leur place. Le choix est mémorisé avec le schéma. Un seul menu est ouvert à la fois. La barre tient sur une ligne jusqu'à environ 1000 px de large (les deux menus perdent leur icône sous 1600 px).
 - **Rapport — schéma :** l'image ne dépend plus des réglages de l'écran : vue « Relations » (clé et colonnes de référence, les autres colonnes comptées), références seules, sans les tables de synthèse, avec une disposition recalculée aux proportions d'une page A4 en portrait.
 - **Rapport — contenu :** le panneau reprend le modèle de la liste des tables de l'onglet Tables : une ligne par section, avec une case pour l'inclure, son numéro dans le rapport (— si elle est exclue) et le compte en tête (7/7). Un clic sur le nom place l'aperçu sur la section (et l'ajoute si elle était exclue) ; la section lue est mise en avant pendant le défilement. La description de chaque section s'affiche au survol.
+
+## Réglages généraux de Grist, matrice plus lisible — 3.10.0
+
+- **Réglages généraux** (onglet Accès et rapport) : seulement l'état des permissions avancées (activées ou non) et les trois cases de la page « Règles d'accès » de Grist en version open source :
+  - « Ajouter automatiquement une règle pour les propriétaires » (règle SeedRule) ;
+  - « Autoriser les éditeurs à modifier la structure » : Non quand une règle par défaut retire la permission Structure (`user.Access != OWNER` → `-S`), sinon Oui ; si la case est décochée sans règle, le widget le précise ;
+  - « Autoriser tout le monde à voir les permissions avancées » (AccessRules), avec les personnes visées.
+
+  « Copier le document entier » (propre à la version hébergée) n'est plus affiché. Les réglages s'affichent aussi quand le document n'a aucune règle.
+- **Rapport :** dans « Qui peut faire quoi ? », un trait épais sépare les rôles (blanc dans l'en-tête, bleu dans le tableau), dans l'aperçu comme dans le Word. La section Analyse est décochée par défaut. La note sur la police sous « Contenu du rapport » est retirée.
+- **Schéma :** la légende s'étend sur toute la largeur.

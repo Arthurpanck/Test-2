@@ -9,8 +9,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.9.0';
-import { columnarToRows } from './converter.js?v=3.9.0';
+import { effectivePermission } from './audit-engine.js?v=3.10.0';
+import { columnarToRows } from './converter.js?v=3.10.0';
 
 /** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
 export const PERMISSIONS = [
@@ -53,6 +53,50 @@ export const SPECIAL = {
   },
 };
 SPECIAL.SeedRules = SPECIAL.SeedRule; // orthographe des anciens documents
+
+/**
+ * Réglages généraux à signaler : l'état des permissions avancées, puis les trois cases de la page
+ * « Règles d'accès » de Grist (version open source) :
+ *  - « Pour chaque ajout de règle pour une table, ajouter automatiquement une règle donnant tous les droits au groupe OWNER » (SeedRule) ;
+ *  - « Autoriser les Éditeurs à modifier la structure » : décochée, Grist écrit dans les règles par défaut
+ *    `user.Access != OWNER` → `-S` ; cochée, aucune règle (ou `user.Access == EDITOR` → `+S`) ;
+ *  - « Autoriser tout le monde à voir les permissions avancées » (AccessRules).
+ * @returns {Array<{ id, name, on: boolean, state, level: 'success' | 'warning' | 'info', text }>}
+ */
+export function generalSettings(a) {
+  const special = (id) => a.special.find((x) => x.id === id || (id === 'SeedRule' && x.id === 'SeedRules'));
+  const allowed = (sp) => (sp ? sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text) : []);
+  const seed = special('SeedRule');
+  const viewers = allowed(special('AccessRules'));
+  const editorsEditSchema = !a.structureRestricted;
+  const deny = a.defaults.filter((r) => r.perms.S === 'deny').map((r) => r.who.text);
+  const explicitAllow = a.defaults.some((r) => r.perms.S === 'allow');
+  return [
+    {
+      id: 'acl', name: 'Permissions avancées', on: a.hasRules, state: a.hasRules ? 'Activées' : 'Non activées', level: 'info',
+      text: a.hasRules
+        ? `Le document a des règles d'accès : ${a.ruleCount} condition${a.ruleCount > 1 ? 's' : ''}${a.attributes.length ? `, ${a.attributes.length} attribut${a.attributes.length > 1 ? 's' : ''} utilisateur` : ''}.`
+        : 'Aucune règle : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).',
+    },
+    {
+      id: 'seed', name: 'Ajouter automatiquement une règle pour les propriétaires', on: Boolean(seed?.rules.length), state: seed?.rules.length ? 'Oui' : 'Non', level: 'info',
+      text: seed?.rules.length
+        ? `Pour chaque ajout de règle pour une table, Grist ajoute d'abord une règle donnant tous les droits au groupe OWNER (${seed.rules.map((r) => r.who.text).join(' ; ')}).`
+        : 'Les nouvelles règles de table ne donnent pas d\'office tous les droits aux propriétaires.',
+    },
+    {
+      id: 'schema', name: 'Autoriser les éditeurs à modifier la structure', on: editorsEditSchema, state: editorsEditSchema ? 'Oui' : 'Non',
+      level: editorsEditSchema && a.restrictsRead ? 'warning' : editorsEditSchema ? 'info' : 'success',
+      text: editorsEditSchema
+        ? `Les éditeurs modifient tables, colonnes et dispositions, et écrivent des formules${a.restrictsRead ? ' : une formule peut lire toutes les données, malgré les règles qui en restreignent la lecture' : ''}.${a.hasRules && !explicitAllow ? ' La case est décochée dans Grist, mais aucune règle ne retire la permission Structure (Grist l\'indique par un avertissement).' : ''}`
+        : `Seuls les propriétaires modifient la structure et écrivent des formules (règle par défaut refusant la permission Structure : ${deny.join(' ; ')}).`,
+    },
+    {
+      id: 'access-rules', name: 'Autoriser tout le monde à voir les permissions avancées', on: viewers.length > 0, state: viewers.length ? 'Oui' : 'Non', level: 'info',
+      text: viewers.length ? `Les règles d'accès sont lisibles par : ${viewers.join(' ; ')}.` : 'Seuls les propriétaires voient les règles d\'accès.',
+    },
+  ];
+}
 
 /** Propriétés de `user` fournies par Grist. */
 const USER_BUILTINS = new Set(['Access', 'Email', 'UserID', 'UserRef', 'Name', 'LinkKey', 'Origin', 'SessionID', 'IsLoggedIn', 'ShareRef', 'Type']);

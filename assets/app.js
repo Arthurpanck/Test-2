@@ -1,23 +1,23 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.9.0';
-import { ErdViewer } from './erd.js?v=3.9.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.9.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.9.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.9.0';
-import { profileTables } from './datacheck.js?v=3.9.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.9.0';
-import { buildAccess, BITS, PERMISSION_LABEL, SPECIAL } from './access.js?v=3.9.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.9.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.9.0';
-import { findLookups } from './lookups.js?v=3.9.0';
-import { findDerivations } from './derivations.js?v=3.9.0';
-import { tablesXlsx } from './tables-export.js?v=3.9.0';
-import { matrixXlsx } from './rights-export.js?v=3.9.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.10.0';
+import { ErdViewer } from './erd.js?v=3.10.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.10.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.10.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.10.0';
+import { profileTables } from './datacheck.js?v=3.10.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.10.0';
+import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.10.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.10.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.10.0';
+import { findLookups } from './lookups.js?v=3.10.0';
+import { findDerivations } from './derivations.js?v=3.10.0';
+import { tablesXlsx } from './tables-export.js?v=3.10.0';
+import { matrixXlsx } from './rights-export.js?v=3.10.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.9.0';
+} from './rights-matrix.js?v=3.10.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.9.0';
+} from './report.js?v=3.10.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -71,7 +71,7 @@ const state = {
   auditOpen: false, // panneau « Ce que l'analyse a examiné »
   widgetsFilter: '',
   wkind: 'all',
-  reportSections: new Set(REPORT_SECTIONS.map((r) => r.id)),
+  reportSections: new Set(REPORT_SECTIONS.map((r) => r.id).filter((id) => id !== 'analysis')), // Analyse : à cocher si besoin
   snapshot: null, // image du schéma pour le rapport : { key, png, width, height, url }
   diagramKey: null,
   diagram: { detail: 'keys', positions: null, lookups: true, refs: true, derived: false, kinds: { table: true, summary: true, acl: true } }, // mémorisé dans les options du widget (detail seulement s'il a été choisi)
@@ -680,22 +680,6 @@ function accessMatches(q, ...values) {
 
 const SETTING_KIND = { success: 'ok', warning: 'improve', info: 'info' };
 
-/** « autorise tout », « autorise lire et modifier », « refuse supprimer »… d'une règle lue par buildAccess(). */
-function permsText(r) {
-  const names = (bits) => bits.map((b) => PERMISSION_LABEL[b].toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' et $1');
-  const on = Object.keys(r.perms).filter((b) => r.perms[b] === 'allow'), off = Object.keys(r.perms).filter((b) => r.perms[b] === 'deny');
-  if (on.length >= 4 && !off.length) return 'tout autorisé';
-  if (off.length >= 4 && !on.length) return 'tout refusé';
-  return [on.length ? `autorise ${names(on)}` : '', off.length ? `refuse ${names(off)}` : ''].filter(Boolean).join(', ');
-}
-
-/** Structure restreinte : qui la refuse, et à qui elle reste permise. */
-function structureText(a) {
-  const deny = a.defaults.filter((r) => r.perms.S === 'deny').map((r) => r.who.text);
-  const allow = a.defaults.filter((r) => r.perms.S === 'allow').map((r) => r.who.text);
-  return `Une règle par défaut refuse de modifier tables, colonnes et formules (permission Structure) : ${deny.join(' ; ')}.${allow.length ? ` Elle reste permise à : ${allow.join(' ; ')}.` : ''}`;
-}
-
 /** Nom de fichier tiré du nom du document (sans accents ni ponctuation). */
 const fileBase = () => (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'document';
 
@@ -820,6 +804,16 @@ function refreshMatrix(focusSelector) {
   if (focusSelector) el.querySelector(focusSelector)?.focus();
 }
 
+/**
+ * Réglages généraux : permissions avancées activées ou non, puis les trois cases de la page
+ * « Règles d'accès » de Grist (version open source), comme elles y sont libellées.
+ */
+function settingsSectionHtml(a) {
+  return `<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
+    <div class="card">${generalSettings(a).map((x) => `<div class="settings-row" data-setting="${x.id}"><p class="settings-row__name">${esc(x.name)}</p>
+      <p class="settings-row__state">${badge(x.state, SETTING_KIND[x.level])}</p><p class="settings-row__text">${esc(x.text)}</p></div>`).join('')}</div></section>`;
+}
+
 function renderAccess() {
   const body = els['access-body'];
   if (!state.out) { body.innerHTML = unavailableMessage(); return; }
@@ -834,7 +828,7 @@ function renderAccess() {
     body.innerHTML = `<div class="view">${pageHeader({
       title: 'Aucune règle d\'accès avancée',
       lead: 'Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.',
-    })}<p class="sec__hint">Pour restreindre une table, une colonne ou certaines lignes, ouvrez « Règles d'accès » dans le menu de gauche de Grist.</p></div>`;
+    })}<p class="sec__hint">Pour restreindre une table, une colonne ou certaines lignes, ouvrez « Règles d'accès » dans le menu de gauche de Grist.</p>${settingsSectionHtml(a)}</div>`;
     return;
   }
   const q = state.accessFilter.trim().toLowerCase();
@@ -852,33 +846,7 @@ function renderAccess() {
     side: attentionButton(accessIssues, 'access'),
   });
 
-  // Réglages généraux : une liste à trois colonnes
-  const settings = [];
-  settings.push({
-    name: 'Modifier la structure',
-    badge: a.structureRestricted ? ['success', 'Restreinte'] : [a.restrictsRead ? 'warning' : 'info', 'Éditeurs autorisés'],
-    text: a.structureRestricted ? structureText(a) : 'Réglage par défaut : propriétaires et éditeurs modifient tables, colonnes et formules.',
-  });
-  for (const id of ['FullCopies', 'AccessRules']) {
-    const sp = a.special.find((x) => x.id === id);
-    const allowedTo = sp ? sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text) : [];
-    settings.push({
-      name: SPECIAL[id].label,
-      badge: allowedTo.length ? [sp.allowedForAll && id === 'FullCopies' && a.restrictsRead ? 'warning' : 'info', sp.allowedForAll ? 'Tout le monde' : 'Personnalisé'] : ['success', 'Par défaut'],
-      text: allowedTo.length ? `${SPECIAL[id].allowed} Visées : ${allowedTo.join(' ; ')}.` : SPECIAL[id].byDefault,
-    });
-  }
-  for (const sp of a.special.filter((x) => !['FullCopies', 'AccessRules'].includes(x.id))) {
-    const seed = sp.id === 'SeedRule' || sp.id === 'SeedRules';
-    settings.push({
-      name: sp.label,
-      badge: ['info', seed ? 'Activé' : 'Défini'],
-      text: seed && sp.rules.length ? `${sp.allowed} Règle ajoutée : ${sp.rules.map((r) => `${r.who.text}, ${permsText(r)}`).join(' ; ')}. C'est pourquoi chaque table protégée commence par une règle pour les propriétaires.` : sp.allowed,
-    });
-  }
-  const settingsHtml = `<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
-    <div class="card">${settings.map((x) => `<div class="settings-row"><p class="settings-row__name">${esc(x.name)}</p>
-      <p class="settings-row__state">${badge(x.badge[1], SETTING_KIND[x.badge[0]])}</p><p class="settings-row__text">${esc(x.text)}</p></div>`).join('')}</div></section>`;
+  const settingsHtml = settingsSectionHtml(a);
 
   const attrs = a.attributes.length ? `<section>${sectionHead('Attributs utilisateur', {
     count: a.attributes.length,

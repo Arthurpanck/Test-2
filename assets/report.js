@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.9.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.9.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.9.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.9.0';
-import { BITS, PERMISSION_LABEL } from './access.js?v=3.9.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.9.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.9.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.10.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.10.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.10.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.10.0';
+import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.10.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.10.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.10.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -75,23 +75,12 @@ export function accessSummary(a) {
   ].filter(Boolean).join(' · ') + '.';
 }
 
-/** Réglages généraux : structure, copies, lecture des règles. */
+/** Réglages généraux : permissions avancées et les trois cases de Grist (voir generalSettings). */
 export function generalRows(a) {
-  const rows = [[
-    { text: 'Modifier la structure', bold: true },
-    a.structureRestricted
-      ? 'Restreinte par une règle par défaut (permission Structure refusée).'
-      : 'Propriétaires et éditeurs (réglage par défaut de Grist). Les éditeurs peuvent aussi écrire des formules.',
-  ]];
-  for (const sp of a.special) {
-    if (sp.id === 'SchemaEdit') continue;
-    const who = sp.rules.filter((r) => Object.values(r.perms).includes('allow')).map((r) => r.who.text);
-    rows.push([{ text: sp.label, bold: true }, who.length ? `${sp.allowed} Personnes visées : ${who.join(' ; ')}.` : sp.byDefault]);
-  }
-  for (const [id, label, byDefault] of [['FullCopies', 'Copier le document entier', 'Seuls les propriétaires peuvent copier le document entier.'], ['AccessRules', 'Voir les droits d’accès', 'Seuls les propriétaires voient les règles d\'accès.']]) {
-    if (!a.special.some((sp) => sp.id === id)) rows.push([{ text: label, bold: true }, byDefault]);
-  }
-  return rows;
+  return generalSettings(a).map((x) => [
+    { text: x.name, bold: true },
+    { lines: [{ text: x.state, bold: true, color: x.level === 'warning' ? 'improve' : x.on ? 'ready' : 'neutral' }, { text: x.text }] },
+  ]);
 }
 
 const PERM_CELL = { allow: { text: 'Autorisé', color: 'ready' }, deny: { text: 'Refusé', color: 'blocking' } };
@@ -361,14 +350,17 @@ export const REPORT_SECTIONS = [
     build(ctx) {
       const a = ctx.access;
       if (!a) return [{ type: 'paragraph', color: 'muted', text: 'Les règles d\'accès n\'ont pas pu être lues.' }];
+      const settings = [
+        { type: 'heading', level: 2, text: 'Réglages généraux' },
+        { type: 'table', columns: [{ label: 'Réglage', width: 34 }, { label: 'Situation', width: 66 }], rows: generalRows(a) },
+      ];
       if (!a.hasRules) {
-        return [{ type: 'paragraph', text: 'Ce document n\'a aucune règle d\'accès avancée : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).' }];
+        return [{ type: 'paragraph', text: 'Ce document n\'a aucune règle d\'accès avancée : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).' }, ...settings];
       }
       const blocks = [{ type: 'paragraph', text: accessSummary(a) }];
       const matrix = matrixBlocks(ctx.matrix);
       if (matrix.length) blocks.push(...matrix, { type: 'orientation', landscape: false });
-      blocks.push({ type: 'heading', level: 2, text: 'Réglages généraux' });
-      blocks.push({ type: 'table', columns: [{ label: 'Réglage', width: 30 }, { label: 'Situation', width: 70 }], rows: generalRows(a) });
+      blocks.push(...settings);
       if (a.attributes.length) {
         blocks.push({ type: 'heading', level: 2, text: 'Attributs utilisateur' });
         blocks.push({ type: 'paragraph', color: 'muted', size: 'small', text: 'Un attribut cherche la personne connectée dans une table ; les conditions l\'utilisent sous la forme user.Nom.Colonne.' });
@@ -450,6 +442,14 @@ const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const cellOf = (c) => (typeof c === 'object' && c !== null ? c : { text: String(c ?? '') });
 const lineClass = (l) => [l.mono ? 'doc__mono' : '', l.color ? `doc--${l.color}` : '', l.bold ? 'doc__b' : '', l.fill ? `doc__fill doc__fill--${l.fill}` : '', l.align === 'center' ? 'doc__center' : '', l.indent ? 'doc__indent' : ''].join(' ').trim();
+/** Colonnes où commence un groupe d'en-tête (sauf le premier) : un trait épais les sépare. */
+function groupStarts(b) {
+  const out = new Set();
+  let at = 0;
+  for (const g of b.groups || []) { if (at > 0) out.add(at); at += g.span; }
+  return out;
+}
+
 function cellHtml(c) {
   if (!c.lines) return esc(c.text);
   return c.lines.map((l) => `<div class="doc__line ${lineClass(l)}">${l.label ? `<span class="doc__label">${esc(l.label)} : </span>` : ''}${esc(l.text)}</div>`).join('');
@@ -476,9 +476,12 @@ export function renderHtml(blocks, { imageUrl } = {}) {
       case 'stats': return `<div class="doc__stats">${b.items.map((s) => `<div><strong>${esc(s.value)}</strong><span>${esc(s.label)}</span></div>`).join('')}</div>`;
       case 'callout': return `<div class="doc__callout doc__callout--${b.level}"><p><strong>${esc(b.title)}</strong></p><p>${esc(b.text)}</p></div>`;
       case 'table': {
-        const groups = b.groups ? `<tr>${b.groups.map((g) => `<th colspan="${g.span}" class="doc__th-group">${esc(g.label)}${g.sub ? `<span>${esc(g.sub)}</span>` : ''}</th>`).join('')}</tr>` : '';
-        const table = `<table class="doc__table doc__table--${b.header || 'primary'}${b.size === 'small' ? ' doc__table--small' : ''}"><thead>${groups}<tr>${b.columns.map((c) => `<th style="width:${c.width}%"${c.align === 'center' ? ' class="doc__center"' : ''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${
-          b.rows.map((r) => `<tr>${r.map((raw) => { const c = cellOf(raw); const cls = c.lines ? [c.fill ? `doc__fill doc__fill--${c.fill}` : ''].join('') : lineClass(c); return `<td${c.span ? ` colspan="${c.span}"` : ''} class="${cls}">${cellHtml(c)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+        const starts = groupStarts(b);
+        const sep = (i) => (starts.has(i) ? ' doc__sep' : '');
+        let gat = 0;
+        const groups = b.groups ? `<tr>${b.groups.map((g) => { const i = gat; gat += g.span; return `<th colspan="${g.span}" class="doc__th-group${sep(i)}">${esc(g.label)}${g.sub ? `<span>${esc(g.sub)}</span>` : ''}</th>`; }).join('')}</tr>` : '';
+        const table = `<table class="doc__table doc__table--${b.header || 'primary'}${b.size === 'small' ? ' doc__table--small' : ''}"><thead>${groups}<tr>${b.columns.map((c, i) => `<th style="width:${c.width}%"${c.align === 'center' || starts.has(i) ? ` class="${[c.align === 'center' ? 'doc__center' : '', sep(i).trim()].filter(Boolean).join(' ')}"` : ''}>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${
+          b.rows.map((r) => { let at = 0; return `<tr>${r.map((raw) => { const c = cellOf(raw); const i = at; at += c.span || 1; const cls = (c.lines ? [c.fill ? `doc__fill doc__fill--${c.fill}` : ''].join('') : lineClass(c)) + sep(i); return `<td${c.span ? ` colspan="${c.span}"` : ''} class="${cls.trim()}">${cellHtml(c)}</td>`; }).join('')}</tr>`; }).join('')}</tbody></table>`;
         return b.wide ? `<div class="doc__wide">${table}</div>` : table;
       }
       case 'orientation': return '';
@@ -610,7 +613,10 @@ export function renderDocx(blocks, theme, d) {
         const textSize = small ? pt(8.5) : pt(10);
         const margins = small ? { top: 40, bottom: 40, left: 70, right: 70 } : { top: 60, bottom: 60, left: 100, right: 100 };
         const widthOf = (i, span) => Math.round(b.columns.slice(i, i + span).reduce((n, c) => n + c.width, 0) * 10) / 10;
-        const cell = (raw, w, head, span = 1) => {
+        // Trait épais entre deux groupes d'en-tête (rôles de la matrice) : blanc dans l'en-tête, bleu dans le corps.
+        const starts = groupStarts(b);
+        const bordersAt = (i, head) => (starts.has(i) ? { ...borders, left: { style: d.BorderStyle.SINGLE, size: 18, color: head ? hex(theme.onPrimary) : color('primary') } } : borders);
+        const cell = (raw, w, head, span = 1, col = -1) => {
           const c = head ? { text: raw.label, bold: true, align: raw.align } : cellOf(raw);
           const fill = !head && c.fill ? FILLS[c.fill] : null;
           const alignment = c.align === 'center' ? d.AlignmentType.CENTER : undefined;
@@ -630,7 +636,7 @@ export function renderDocx(blocks, theme, d) {
             verticalAlign: small ? d.VerticalAlign.CENTER : undefined,
             shading: head ? { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' } : fill ? { type: d.ShadingType.CLEAR, fill: color(fill[0]), color: 'auto' } : undefined,
             margins,
-            borders,
+            borders: bordersAt(col, head),
             children: paragraphs,
           });
         };
@@ -638,12 +644,13 @@ export function renderDocx(blocks, theme, d) {
         if (b.groups) {
           let at = 0;
           rows.push(new d.TableRow({ tableHeader: true, cantSplit: true, children: b.groups.map((g) => {
+            const i = at;
             const w = widthOf(at, g.span); at += g.span;
             return new d.TableCell({
               width: { size: w, type: d.WidthType.PERCENTAGE },
               columnSpan: g.span > 1 ? g.span : undefined,
               shading: { type: d.ShadingType.CLEAR, fill: headFill, color: 'auto' },
-              margins, borders,
+              margins, borders: bordersAt(i, true),
               children: [
                 new d.Paragraph({ children: [new d.TextRun({ text: g.label, bold: true, size: pt(10), color: hex(theme.onPrimary) })] }),
                 ...(g.sub ? [new d.Paragraph({ children: [new d.TextRun({ text: g.sub, size: pt(7.5), color: hex(theme.onPrimary) })] })] : []),
@@ -651,12 +658,12 @@ export function renderDocx(blocks, theme, d) {
             });
           }) }));
         }
-        rows.push(new d.TableRow({ tableHeader: true, cantSplit: true, children: b.columns.map((c) => cell(c, c.width, true)) }));
+        rows.push(new d.TableRow({ tableHeader: true, cantSplit: true, children: b.columns.map((c, i) => cell(c, c.width, true, 1, i)) }));
         for (const r of b.rows) {
           let at = 0;
           rows.push(new d.TableRow({
             cantSplit: !r.some((v) => v && v.lines && v.lines.length > 3),
-            children: r.map((v) => { const span = cellOf(v).span || 1; const w = widthOf(at, span); at += span; return cell(v, w, false, span); }),
+            children: r.map((v) => { const span = cellOf(v).span || 1; const i = at; const w = widthOf(at, span); at += span; return cell(v, w, false, span, i); }),
           }));
         }
         children.push(new d.Table({ width: { size: 100, type: d.WidthType.PERCENTAGE }, rows }));

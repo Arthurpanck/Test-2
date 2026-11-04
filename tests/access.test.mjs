@@ -117,3 +117,16 @@ test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, 
   assert.ok(items.some(i=>i.id==='acl-unknown-attribute'&&i.severity==='blocking'));
   assert.deepEqual(items.find((i) => i.id === 'acl-hidden').targets.map((t) => t.column), ['Quotite', 'Derniere_connexion']);
 });
+
+test('réglages généraux : permissions avancées puis les trois cases de Grist (open source)', async () => {
+  const { generalSettings } = await import('../assets/access.js');
+  const { access } = complexe();
+  const g = generalSettings(access);
+  assert.deepEqual(g.map((x) => `${x.id}:${x.state}`), ['acl:Activées', 'seed:Non', 'schema:Oui', 'access-rules:Oui']);
+  assert.match(g[2].text, /aucune règle ne retire la permission Structure/);
+  assert.ok(!g.some((x) => /copier/i.test(x.name)), 'pas de « Copier le document entier » (réservé à la version hébergée)');
+  const none = generalSettings({ ...access, hasRules: false, ruleCount: 0, attributes: [], special: [], defaults: [], structureRestricted: false, restrictsRead: false });
+  assert.deepEqual(none.map((x) => x.state), ['Non activées', 'Non', 'Oui', 'Non']);
+  const locked = generalSettings({ ...access, structureRestricted: true, defaults: [{ perms: { S: 'deny' }, who: { text: 'Tous sauf les propriétaires' } }] });
+  assert.equal(locked[2].state, 'Non');
+});
