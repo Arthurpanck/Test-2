@@ -1,23 +1,22 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.14.0';
-import { ErdViewer } from './erd.js?v=3.14.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.14.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.14.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.14.0';
-import { profileTables } from './datacheck.js?v=3.14.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.14.0';
-import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.14.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.14.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.14.0';
-import { findLookups } from './lookups.js?v=3.14.0';
-import { findFormulaDeps } from './formula-deps.js?v=3.14.0';
-import { tablesXlsx } from './tables-export.js?v=3.14.0';
-import { matrixXlsx } from './rights-export.js?v=3.14.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.15.0';
+import { ErdViewer } from './erd.js?v=3.15.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.15.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.15.0';
+import { profileTables } from './datacheck.js?v=3.15.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.15.0';
+import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.15.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.15.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.15.0';
+import { findLookups } from './lookups.js?v=3.15.0';
+import { findFormulaDeps } from './formula-deps.js?v=3.15.0';
+import { tablesXlsx } from './tables-export.js?v=3.15.0';
+import { matrixXlsx } from './rights-export.js?v=3.15.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.14.0';
+} from './rights-matrix.js?v=3.15.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.14.0';
+} from './report.js?v=3.15.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -33,7 +32,7 @@ for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-coun
   'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
   'access-filter', 'btn-access-csv', 'access-body',
   'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
-  'analysis-filter', 'area-all', 'area-structure', 'area-data', 'area-access', 'area-pages', 'btn-audit-settings', 'analysis-body',
+  'analysis-filter', 'analysis-body',
   'report-sections', 'report-count', 'btn-docx', 'report-body', 'toast', 'live']) {
   els[id] = $(id);
 }
@@ -66,9 +65,7 @@ const state = {
   filter: '',
   cols: 'all',
   level: 'all',
-  area: 'all', // domaine des constats affichés
   analysisFilter: '',
-  auditOpen: false, // panneau « Ce que l'analyse a examiné »
   widgetsFilter: '',
   wkind: 'all',
   reportSections: new Set(REPORT_SECTIONS.map((r) => r.id).filter((id) => id !== 'analysis')), // Analyse : à cocher si besoin
@@ -500,30 +497,6 @@ function auditCoverageText(audit) {
   return parts.join(' · ');
 }
 
-/**
- * Panneau « Ce que l'analyse a examiné », ouvert depuis la barre d'outils : chaque vérification
- * détaillée (catalogue N01…X13), en clair, rangée selon son résultat sur ce document.
- */
-const AUDIT_STATES = [
-  ['detected', 'Un constat a été trouvé', 'Voir la carte correspondante dans la liste.'],
-  ['limited', 'Examiné en partie', 'La vérification a porté sur un échantillon ou a atteint une limite : l\'absence de constat ne vaut pas garantie.'],
-  ['checked', 'Examiné, rien trouvé', ''],
-  ['unavailable', 'Impossible à vérifier ici', 'Une information manquait (table illisible, métadonnée absente…).'],
-];
-function auditConfigurationPanel(audit) {
-  if (!audit) return '';
-  const title = (id) => AUDIT_CATALOG.find((c) => c.id === id)?.title || id;
-  const groups = AUDIT_STATES.map(([state, label, hint]) => {
-    const list = audit.checks.filter((c) => c.state === state);
-    if (!list.length) return '';
-    return `<div class="audit-panel__group"><p class="audit-panel__label">${esc(label)} <span class="count">${list.length}</span></p>${hint ? `<p class="audit-panel__hint">${esc(hint)}</p>` : ''}
-      <ul>${list.map((c) => `<li><strong>${esc(title(c.id))}</strong> <span class="audit-panel__id">${esc(c.id)}</span>${state === 'checked' ? '' : `<br><span class="audit-panel__reason">${esc(c.reason)}</span>`}</li>`).join('')}</ul></div>`;
-  }).join('');
-  return `<section class="audit-panel" id="audit-panel" aria-labelledby="audit-panel-title"><div class="audit-panel__head"><h3 id="audit-panel-title">Ce que l'analyse a examiné</h3><button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" data-action="audit-close">Fermer</button></div>
-    <p>L'analyse lance ${audit.checks.length} vérifications détaillées sur la structure, les formules, les droits d'accès et un échantillon des données. Sur les données, elle lit au plus 2 000 lignes par table et 100 000 cellules en tout ; les vérifications sur le texte regardent au plus 200 cellules par colonne. Voici le résultat de chacune.</p>
-    <div class="audit-panel__groups">${groups}</div></section>`;
-}
-
 const LEVEL_TILES = [
   { id: 'blocking', label: SEVERITIES.blocking.label },
   { id: 'improve', label: SEVERITIES.improve.label },
@@ -538,18 +511,12 @@ function renderAnalysis() {
   const ins = state.insights;
   if (!ins) {
     count.hidden = true;
-    els['btn-audit-settings'].disabled = true;
     els['analysis-body'].innerHTML = unavailableMessage();
     return;
   }
   count.hidden = !ins.counts.blocking;
   count.textContent = String(ins.counts.blocking);
   count.setAttribute('aria-label', plural(ins.counts.blocking, 'point à corriger', 'points à corriger'));
-  const toConfigure = ins.audit ? ins.audit.checks.filter((c) => c.state === 'configuration').length : 0;
-  const auditBtn = els['btn-audit-settings'];
-  auditBtn.disabled = !ins.audit;
-  auditBtn.textContent = toConfigure ? `Ce qui a été examiné · ${toConfigure} à configurer` : 'Ce qui a été examiné';
-  auditBtn.setAttribute('aria-expanded', String(state.auditOpen));
 
   const known = new Set(state.out.tables.map((t) => t.name));
   const aclTables = new Set((state.access?.tables || []).map((t) => t.tableId));
@@ -598,7 +565,7 @@ function renderAnalysis() {
   const q = state.analysisFilter.trim().toLowerCase();
   const textOf = (it) => [it.title, it.summary, it.why, ...it.targets.map((t) => `${targetLabel(t)} ${t.note || ''}`)].join(' ').toLowerCase();
   const pool = state.level === 'accepted' ? ins.accepted : ins.items.filter((it) => state.level === 'all' || it.severity === state.level);
-  const shown = pool.filter((it) => (state.area === 'all' || it.area === state.area) && (!q || textOf(it).includes(q)));
+  const shown = pool.filter((it) => (!q || textOf(it).includes(q)));
 
   const tileCount = { all: ins.items.length, accepted: ins.accepted.length, ...ins.counts };
   const tiles = LEVEL_TILES.map((t) => `<button type="button" class="tile tile--${t.id}" id="level-${t.id}" data-level="${t.id}" aria-pressed="${state.level === t.id}">
@@ -613,7 +580,7 @@ function renderAnalysis() {
     </header>`;
 
   const levelLabel = LEVEL_TILES.find((t) => t.id === state.level)?.label || 'Tout';
-  const filters = [state.area !== 'all' ? `domaine « ${AREAS[state.area]} »` : '', q ? `contenant « ${state.analysisFilter.trim()} »` : ''].filter(Boolean).join(', ');
+  const filters = [q ? `contenant « ${state.analysisFilter.trim()} »` : ''].filter(Boolean).join(', ');
   const listTitle = `${state.level === 'all' ? 'Tous les constats, du plus urgent au moins urgent' : `Constats « ${levelLabel} »`}${filters ? ` · ${filters}` : ''} (${shown.length})`;
   const list = shown.length
     ? shown.map((it) => card(it, { accepted: state.level === 'accepted' })).join('')
@@ -622,7 +589,7 @@ function renderAnalysis() {
   const checks = ins.checks.map((c) => `<li><span>${esc(c.label)}</span>${c.ok
     ? '<span class="coverage__ok">✓ Rien à signaler</span>'
     : `<button type="button" class="coverage__go" data-goto-finding="${esc(c.id)}">Voir le constat</button>`}</li>`).join('');
-  els['analysis-body'].innerHTML = `<div class="view">${verdict}${state.auditOpen ? auditConfigurationPanel(ins.audit) : ''}
+  els['analysis-body'].innerHTML = `<div class="view">${verdict}
     <div class="analysis">
       <div class="insights"><p class="insights__title">${esc(listTitle)}</p>${list}</div>
       <details class="coverage"${coverageOpen() ? ' open' : ''}><summary class="coverage__head"><span><span class="coverage__title">Vérifications principales</span>
@@ -643,10 +610,8 @@ function gotoFinding(id) {
   if (!visible()) {
     const accepted = state.insights?.accepted.some((it) => it.id === id);
     state.level = accepted ? 'accepted' : 'all';
-    state.area = 'all';
     state.analysisFilter = '';
     els['analysis-filter'].value = '';
-    els['area-all'].checked = true;
     renderAnalysis();
   }
   const el = visible();
@@ -1364,16 +1329,8 @@ function bindEvents() {
     els[id].addEventListener('change', () => { if (els[id].checked) { state.wkind = els[id].value; renderWidgets(); } });
   }
 
-  // Analyse : niveau (tuiles), domaine, recherche, règles métier
+  // Analyse : niveau (tuiles), recherche, règles métier
   els['analysis-filter'].addEventListener('input', debounce(() => { state.analysisFilter = els['analysis-filter'].value; renderAnalysis(); }, 120));
-  for (const id of ['area-all', 'area-structure', 'area-data', 'area-access', 'area-pages']) {
-    els[id].addEventListener('change', () => { if (els[id].checked) { state.area = els[id].value; renderAnalysis(); } });
-  }
-  els['btn-audit-settings'].addEventListener('click', () => {
-    state.auditOpen = !state.auditOpen;
-    renderAnalysis();
-    if (state.auditOpen) { const el = $('audit-panel'); if (el) scrollWithin(el); }
-  });
 
   // Rapport
   els['report-sections'].addEventListener('change', (ev) => {
@@ -1540,7 +1497,6 @@ function bindEvents() {
     if (target.dataset.indexTable) { const el = $(slug(target.dataset.indexTable)); if (el) { scrollWithin(el); flash(el); } return; }
     if (target.dataset.gotoFinding) { gotoFinding(target.dataset.gotoFinding); return; }
     if (target.dataset.gotoWidgets) { selectTab('widgets', { focus: true }); return; }
-    if (target.dataset.action === 'audit-close') { state.auditOpen = false; renderAnalysis(); els['btn-audit-settings'].focus(); return; }
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
     else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {
       if (target.dataset.action === 'accept') state.accepted.add(target.dataset.key); else state.accepted.delete(target.dataset.key);
@@ -1550,10 +1506,8 @@ function bindEvents() {
     }
     else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
     else if (target.dataset.gotoAnalysis) {
-      // « N points d'attention » : l'analyse s'ouvre sur ce domaine.
-      const area = AREAS[target.dataset.gotoAnalysis] ? target.dataset.gotoAnalysis : 'all';
-      state.area = area; state.level = 'all';
-      const radio = $(`area-${area}`); if (radio) radio.checked = true;
+      // « N points d'attention » : l'analyse s'ouvre sur tous les constats.
+      state.level = 'all';
       renderAnalysis();
       selectTab('analysis', { focus: true });
     }

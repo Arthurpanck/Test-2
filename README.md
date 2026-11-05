@@ -334,3 +334,7 @@ Le constat des tables sans référence explique les informations rapportées ent
 `X13` parle de vues de tables et recommande des pages par usage (RH, finances, managers), avec des liens entre vues pour filtrer dynamiquement les tables. Son seuil de trois filtres est inchangé.
 
 Validation : 202 tests. Métadonnées Grist relues : 31 tables ; constats retirés absents ; Personnel correspond au nouveau seuil ; deux déclarations d’attributs conservées dans le modèle des droits.
+
+## Analyse sans filtre par domaine — 3.15.0
+
+- La barre de l'onglet Analyse ne garde que la recherche : le filtre « Domaine » (Tous, Structure, Données, Droits d'accès, Vues) et le bouton « Ce qui a été examiné » (avec son panneau) sont retirés. Chaque carte garde son domaine en étiquette.

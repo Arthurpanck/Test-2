@@ -11,10 +11,10 @@
       window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.14.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.14.0">
+  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.15.0">
+  <link rel="stylesheet" href="assets/styles.css?v=3.15.0">
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.14.0"></script>
+  <script type="module" src="assets/app.js?v=3.15.0"></script>
 </head>
 <body>
   <div class="app">
@@ -192,23 +192,6 @@
         <div class="fr-input-wrap fr-icon-search-line toolbar__search">
           <label class="fr-label fr-sr-only" for="analysis-filter">Rechercher un constat</label>
           <input class="fr-input" id="analysis-filter" type="search" placeholder="Rechercher un constat" autocomplete="off">
-        </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="toolbar__group">
-          <span class="toolbar__label" aria-hidden="true">Domaine</span>
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Domaine</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="all" type="radio" id="area-all" name="area" checked><label class="fr-label" for="area-all">Tous</label></div>
-              <div class="fr-segmented__element"><input value="structure" type="radio" id="area-structure" name="area"><label class="fr-label" for="area-structure">Structure</label></div>
-              <div class="fr-segmented__element"><input value="data" type="radio" id="area-data" name="area"><label class="fr-label" for="area-data">Données</label></div>
-              <div class="fr-segmented__element"><input value="access" type="radio" id="area-access" name="area"><label class="fr-label" for="area-access">Droits d'accès</label></div>
-              <div class="fr-segmented__element"><input value="pages" type="radio" id="area-pages" name="area"><label class="fr-label" for="area-pages">Vues</label></div>
-            </div>
-          </fieldset>
-        </div>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-settings-5-line toolbar__collapse" id="btn-audit-settings" type="button" aria-expanded="false" aria-controls="audit-panel">Ce qui a été examiné</button>
         </div>
       </div>
       <div class="page__body" id="analysis-body"></div>
