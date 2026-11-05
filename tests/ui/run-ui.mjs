@@ -100,7 +100,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(await frame.locator('#area-all').count() === 0 && await frame.locator('#btn-audit-settings').count() === 0, 'analyse : plus de filtre par domaine ni de bouton « Ce qui a été examiné »');
   await frame.locator('#level-all').click();
   await shot(page, '04-analyse.png');
-  check(await frame.locator('.coverage li').count() >= 2 && await frame.locator('.coverage__go').count() === 0, 'couverture : tous les contrôles sans constat');
+  check(await frame.locator('.coverage').count() === 0 && !(await frame.locator('#analysis-body').textContent()).includes('Vérifications principales'), 'analyse : plus de « Vérifications principales »');
   await frame.locator('.insight .chip', { hasText: 'Table1' }).first().click();
   check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'clic sur un élément concerné → schéma');
 
@@ -243,8 +243,6 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès'), 'complexe : constats sur les droits d\'accès');
   check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
   await shot(page, '12-complexe-analyse.png');
-  await frame.locator('.coverage__go').first().click();
-  check(await frame.locator('.insight.is-target').count() === 1, 'couverture : « Voir le constat » mène à la carte');
   await frame.locator('.insight--blocking [data-goto-access]').first().click();
   check(await frame.locator('#tab-access').getAttribute('aria-selected') === 'true', 'complexe : « Voir les droits d\'accès » ouvre la page Accès');
 
@@ -408,7 +406,7 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   await frame.locator('#tab-analysis').click();
   const text = await frame.locator('#analysis-body').textContent();
   // Revue du 4 novembre (3.11.0) : « liens écrits à la main » retiré ; texte → nombres, booléens et dates séparés.
-  for (const t of ['devraient être de type numérique', 'listes de choix', 'tables sans aucune ligne']) {
+  for (const t of ['devraient être de type numérique', 'devraient être de type choix', 'tables sans aucune ligne']) {
     check(text.includes(t), `mal structuré : « ${t} »`);
   }
   check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');

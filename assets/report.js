@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.15.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.15.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.15.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.15.0';
-import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.15.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.15.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.15.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.16.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.16.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.16.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.16.0';
+import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.16.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.16.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.16.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
@@ -303,7 +303,7 @@ export const REPORT_SECTIONS = [
     title: 'Analyse',
     description: 'Ce qui bloque l\'import, ce qui est à vérifier et comment corriger',
     build(ctx) {
-      const { verdict, items, checks } = ctx.insights;
+      const { verdict, items } = ctx.insights;
       const accepted = ctx.insights.accepted || [];
       const blocks = [{ type: 'callout', level: verdict.level, title: verdict.title, text: verdict.text }];
       const counts = ctx.insights.counts;
@@ -336,8 +336,6 @@ export const REPORT_SECTIONS = [
             { text: STATE[c.state] || c.state, color: c.state === 'detected' ? 'blocking' : c.state === 'checked' ? 'ready' : 'muted' },
             { text: c.state === 'checked' ? '' : c.reason, color: 'muted' }]) });
       }
-      blocks.push({ type: 'heading', level: 2, text: 'Ce qui a été vérifié' });
-      blocks.push({ type: 'list', plain: true, items: checks.map((c) => `${c.ok ? '✓' : '✗'}  ${c.label}`) });
       return blocks;
     },
   },

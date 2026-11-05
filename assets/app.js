@@ -1,22 +1,22 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.15.0';
-import { ErdViewer } from './erd.js?v=3.15.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.15.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.15.0';
-import { profileTables } from './datacheck.js?v=3.15.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.15.0';
-import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.15.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.15.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.15.0';
-import { findLookups } from './lookups.js?v=3.15.0';
-import { findFormulaDeps } from './formula-deps.js?v=3.15.0';
-import { tablesXlsx } from './tables-export.js?v=3.15.0';
-import { matrixXlsx } from './rights-export.js?v=3.15.0';
+import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.16.0';
+import { ErdViewer } from './erd.js?v=3.16.0';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.16.0';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.16.0';
+import { profileTables } from './datacheck.js?v=3.16.0';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.16.0';
+import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.16.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.16.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.16.0';
+import { findLookups } from './lookups.js?v=3.16.0';
+import { findFormulaDeps } from './formula-deps.js?v=3.16.0';
+import { tablesXlsx } from './tables-export.js?v=3.16.0';
+import { matrixXlsx } from './rights-export.js?v=3.16.0';
 import {
   ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
-} from './rights-matrix.js?v=3.15.0';
+} from './rights-matrix.js?v=3.16.0';
 import {
   REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.15.0';
+} from './report.js?v=3.16.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -585,39 +585,10 @@ function renderAnalysis() {
   const list = shown.length
     ? shown.map((it) => card(it, { accepted: state.level === 'accepted' })).join('')
     : emptyState(`<p>${filters ? 'Aucun constat ne correspond à ces filtres.' : state.level === 'all' ? 'Rien à signaler.' : state.level === 'accepted' ? 'Aucun choix confirmé. Sur une carte « Choix à confirmer », le bouton « C\'est voulu » la range ici.' : `Aucun point « ${esc(levelLabel)} ».`}</p>`);
-  const okCount = ins.checks.filter((c) => c.ok).length;
-  const checks = ins.checks.map((c) => `<li><span>${esc(c.label)}</span>${c.ok
-    ? '<span class="coverage__ok">✓ Rien à signaler</span>'
-    : `<button type="button" class="coverage__go" data-goto-finding="${esc(c.id)}">Voir le constat</button>`}</li>`).join('');
   els['analysis-body'].innerHTML = `<div class="view">${verdict}
     <div class="analysis">
       <div class="insights"><p class="insights__title">${esc(listTitle)}</p>${list}</div>
-      <details class="coverage"${coverageOpen() ? ' open' : ''}><summary class="coverage__head"><span><span class="coverage__title">Vérifications principales</span>
-        <span class="coverage__sub">${esc(plural(ins.checks.length, 'vérification', 'vérifications'))} · ${esc(plural(okCount, 'sans constat', 'sans constat'))}</span></span></summary><ul>${checks}</ul></details>
     </div></div>`;
-}
-
-/** Vérifications principales : ouvertes à côté des constats, repliée quand elle passe au-dessus (widget étroit). */
-function coverageOpen() {
-  const el = els['analysis-body'].querySelector('.coverage');
-  if (el) return el.open;
-  return !window.matchMedia || window.matchMedia('(min-width: 64em)').matches;
-}
-
-/** Ouvre la carte d'un constat (depuis la couverture des contrôles), en levant les filtres qui la cachent. */
-function gotoFinding(id) {
-  const visible = () => els['analysis-body'].querySelector(`[data-finding="${CSS.escape(id)}"]`);
-  if (!visible()) {
-    const accepted = state.insights?.accepted.some((it) => it.id === id);
-    state.level = accepted ? 'accepted' : 'all';
-    state.analysisFilter = '';
-    els['analysis-filter'].value = '';
-    renderAnalysis();
-  }
-  const el = visible();
-  if (!el) return;
-  scrollWithin(el);
-  flash(el);
 }
 
 // ---------------------------------------------------------------------------
@@ -1471,7 +1442,7 @@ function bindEvents() {
 
   // Liens et boutons rendus dynamiquement
   document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-goto-finding],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close],[data-matrix-xlsx]');
+    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close],[data-matrix-xlsx]');
     if (!target) return;
     ev.preventDefault();
     if (target.dataset.matrixXlsx) { downloadMatrixXlsx(); return; }
@@ -1495,7 +1466,6 @@ function bindEvents() {
     }
     if (target.dataset.level) { state.level = target.dataset.level; renderAnalysis(); $(`level-${state.level}`)?.focus(); return; }
     if (target.dataset.indexTable) { const el = $(slug(target.dataset.indexTable)); if (el) { scrollWithin(el); flash(el); } return; }
-    if (target.dataset.gotoFinding) { gotoFinding(target.dataset.gotoFinding); return; }
     if (target.dataset.gotoWidgets) { selectTab('widgets', { focus: true }); return; }
     if (target.dataset.action === 'refresh') loadSchema({ manual: true });
     else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {

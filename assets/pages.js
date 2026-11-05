@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.15.0';
+import { columnarToRows } from './converter.js?v=3.16.0';
 
 /** Types de vues, avec les libellés de Grist. */
 export const WIDGET_TYPES = {

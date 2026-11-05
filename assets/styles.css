@@ -662,17 +662,6 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 @media (max-width: 52em) { .insight__body { padding-left: 1rem; } }
 
 /* Vérifications principales (à côté des constats) */
-.coverage { flex: 1 1 17rem; max-width: 21rem; position: sticky; top: 0; border: 1px solid var(--border-default-grey); background: var(--background-default-grey); }
-.coverage__head { display: flex; align-items: center; gap: .5rem; padding: .75rem 1rem; cursor: pointer; list-style: none; }
-.coverage__head::-webkit-details-marker { display: none; }
-.coverage__head::after { content: ""; margin-left: auto; width: .5rem; height: .5rem; border-right: 2px solid var(--text-action-high-blue-france); border-bottom: 2px solid var(--text-action-high-blue-france); transform: rotate(45deg); transition: transform .15s ease; }
-.coverage[open] > .coverage__head { border-bottom: 1px solid var(--border-default-grey); }
-.coverage[open] > .coverage__head::after { transform: rotate(-135deg); }
-.coverage__title { margin: 0; font-size: 1rem; line-height: 1.5rem; font-weight: 700; }
-.coverage__title { display: block; }
-.coverage__sub { display: block; font-size: .75rem; color: var(--text-mention-grey); }
-.coverage ul { list-style: none; margin: 0; padding: 0; }
-.coverage li {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -681,14 +670,6 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
   padding: .625rem 1rem;
   border-bottom: 1px solid var(--border-default-grey);
   font-size: .8125rem;
-}
-.coverage li:last-child { border-bottom: 0; }
-.coverage li::before { content: none; }
-.coverage__ok { flex: none; font-size: .75rem; font-weight: 700; color: var(--text-default-success); white-space: nowrap; }
-.coverage__go { flex: none; padding: 0; border: 0; background: none; font: inherit; font-size: .75rem; font-weight: 500; color: var(--text-action-high-blue-france); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
-@media (max-width: 64em) {
-  .coverage { order: -1; flex-basis: 100%; max-width: none; position: static; }
-  .coverage ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
 }
 
 /* Contrôles et règles métier */

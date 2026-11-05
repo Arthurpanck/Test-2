@@ -338,3 +338,7 @@ Validation : 202 tests. Métadonnées Grist relues : 31 tables ; constats retir�
 ## Analyse sans filtre par domaine — 3.15.0
 
 - La barre de l'onglet Analyse ne garde que la recherche : le filtre « Domaine » (Tous, Structure, Données, Droits d'accès, Vues) et le bouton « Ce qui a été examiné » (avec son panneau) sont retirés. Chaque carte garde son domaine en étiquette.
+
+## Sans « Vérifications principales » — 3.16.0
+
+- L'onglet Analyse n'affiche plus le panneau « Vérifications principales » : la liste des constats prend toute la largeur. Le rapport Word perd la liste correspondante (« Ce qui a été vérifié »).
