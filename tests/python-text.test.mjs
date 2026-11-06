@@ -31,10 +31,22 @@ test('indicateurs : commentaire, chaîne triple, chaîne non refermée, texte sa
 test('parenthèses, arguments, $Colonne et lookups', () => {
   const m = maskPython('SUM(Depenses.lookupRecords(Projet=$id, Exercice=$Annee).Montant) + f(1, (2, 3))');
   assert.equal(matchingParen(m, 3), m.indexOf(').Montant') + 9);
-  assert.deepEqual(splitTopLevel('a=1, b=f(2, 3), c=[4, 5]').map((s) => s.trim()), ['a=1', 'b=f(2, 3)', 'c=[4, 5]']);
-  assert.deepEqual(dollarChains('$Service.Direction.Nom + rec.Prenom + $Nom.upper()').map((r) => [r.name, r.attrs]),
-    [['Service', ['Direction', 'Nom']], ['Prenom', []], ['Nom', []]]);
+  assert.deepEqual(
+    splitTopLevel('a=1, b=f(2, 3), c=[4, 5]').map((s) => s.trim()),
+    ['a=1', 'b=f(2, 3)', 'c=[4, 5]'],
+  );
+  assert.deepEqual(
+    dollarChains('$Service.Direction.Nom + rec.Prenom + $Nom.upper()').map((r) => [r.name, r.attrs]),
+    [
+      ['Service', ['Direction', 'Nom']],
+      ['Prenom', []],
+      ['Nom', []],
+    ],
+  );
   const calls = lookupCalls(m);
-  assert.deepEqual(calls.map((c) => [c.table, c.method, c.args]), [['Depenses', 'lookupRecords', 'Projet=$id, Exercice=$Annee']]);
+  assert.deepEqual(
+    calls.map((c) => [c.table, c.method, c.args]),
+    [['Depenses', 'lookupRecords', 'Projet=$id, Exercice=$Annee']],
+  );
   assert.deepEqual(lookupCalls(maskPython('X.lookupOne(a=1')), [], 'appel non refermé ignoré');
 });

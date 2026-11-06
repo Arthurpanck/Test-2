@@ -10,8 +10,16 @@
  * Module pur : testé sous Node.
  */
 import {
-  PERMISSIONS, PERMISSION_LABEL, TABLE_BITS, COLUMN_BITS, DEFAULT_BITS, USER_BUILTINS, byRulePos as byPos,
-  parsePermissions, readAcl, editorsStructure,
+  PERMISSIONS,
+  PERMISSION_LABEL,
+  TABLE_BITS,
+  COLUMN_BITS,
+  DEFAULT_BITS,
+  USER_BUILTINS,
+  byRulePos as byPos,
+  parsePermissions,
+  readAcl,
+  editorsStructure,
 } from './acl-model.js?v=3.18.0';
 import { maskPython } from './python-text.js?v=3.18.0';
 
@@ -23,8 +31,8 @@ export const SPECIAL_LABELS = {
   AccessRules: 'Voir les droits d’accès',
   DocCopies: 'Copies du document',
   SchemaEdit: 'Modifier la structure (ancien réglage)',
-  SeedRule: 'Règles ajoutées d\'office',
-  SeedRules: 'Règles ajoutées d\'office', // orthographe des anciens documents
+  SeedRule: "Règles ajoutées d'office",
+  SeedRules: "Règles ajoutées d'office", // orthographe des anciens documents
 };
 
 /**
@@ -46,31 +54,47 @@ export function generalSettings(a) {
   const explicitAllow = a.defaults.some((r) => r.perms.S === 'allow');
   return [
     {
-      id: 'acl', name: 'Permissions avancées', on: a.hasRules, state: a.hasRules ? 'Activées' : 'Non activées', level: 'info',
+      id: 'acl',
+      name: 'Permissions avancées',
+      on: a.hasRules,
+      state: a.hasRules ? 'Activées' : 'Non activées',
+      level: 'info',
       text: a.hasRules
         ? `Le document a des règles d'accès : ${a.ruleCount} condition${a.ruleCount > 1 ? 's' : ''}${a.attributes.length ? `, ${a.attributes.length} attribut${a.attributes.length > 1 ? 's' : ''} utilisateur` : ''}.`
         : 'Aucune règle : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).',
     },
     {
-      id: 'seed', name: 'Ajouter automatiquement une règle pour les propriétaires', on: Boolean(seed?.rules.length), state: seed?.rules.length ? 'Oui' : 'Non', level: 'info',
+      id: 'seed',
+      name: 'Ajouter automatiquement une règle pour les propriétaires',
+      on: Boolean(seed?.rules.length),
+      state: seed?.rules.length ? 'Oui' : 'Non',
+      level: 'info',
       text: seed?.rules.length
         ? `Pour chaque ajout de règle pour une table, Grist ajoute d'abord une règle donnant tous les droits au groupe OWNER (${seed.rules.map((r) => r.who.text).join(' ; ')}).`
-        : 'Les nouvelles règles de table ne donnent pas d\'office tous les droits aux propriétaires.',
+        : "Les nouvelles règles de table ne donnent pas d'office tous les droits aux propriétaires.",
     },
     {
-      id: 'schema', name: 'Autoriser les éditeurs à modifier la structure', on: editorsEditSchema, state: editorsEditSchema ? 'Oui' : 'Non',
+      id: 'schema',
+      name: 'Autoriser les éditeurs à modifier la structure',
+      on: editorsEditSchema,
+      state: editorsEditSchema ? 'Oui' : 'Non',
       level: editorsEditSchema && a.restrictsRead ? 'warning' : editorsEditSchema ? 'info' : 'success',
       text: editorsEditSchema
-        ? `Les éditeurs modifient tables, colonnes et dispositions, et écrivent des formules${a.restrictsRead ? ' : une formule peut lire toutes les données, malgré les règles qui en restreignent la lecture' : ''}.${a.hasRules && !explicitAllow ? ' La case est décochée dans Grist, mais aucune règle ne retire la permission Structure (Grist l\'indique par un avertissement).' : ''}`
+        ? `Les éditeurs modifient tables, colonnes et dispositions, et écrivent des formules${a.restrictsRead ? ' : une formule peut lire toutes les données, malgré les règles qui en restreignent la lecture' : ''}.${a.hasRules && !explicitAllow ? " La case est décochée dans Grist, mais aucune règle ne retire la permission Structure (Grist l'indique par un avertissement)." : ''}`
         : `Seuls les propriétaires modifient la structure et écrivent des formules (règle par défaut refusant la permission Structure : ${deny.join(' ; ')}).`,
     },
     {
-      id: 'access-rules', name: 'Autoriser tout le monde à voir les permissions avancées', on: viewers.length > 0, state: viewers.length ? 'Oui' : 'Non', level: 'info',
-      text: viewers.length ? `Les règles d'accès sont lisibles par : ${viewers.join(' ; ')}.` : 'Seuls les propriétaires voient les règles d\'accès.',
+      id: 'access-rules',
+      name: 'Autoriser tout le monde à voir les permissions avancées',
+      on: viewers.length > 0,
+      state: viewers.length ? 'Oui' : 'Non',
+      level: 'info',
+      text: viewers.length
+        ? `Les règles d'accès sont lisibles par : ${viewers.join(' ; ')}.`
+        : "Seuls les propriétaires voient les règles d'accès.",
     },
   ];
 }
-
 
 const ROLES = { OWNER: 'propriétaires', EDITOR: 'éditeurs', VIEWER: 'lecteurs' };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -86,7 +110,10 @@ export function describeCondition(formula, { first = true } = {}) {
   if (!f) return { text: first ? 'Tout le monde' : 'Tous les autres', kind: 'everyone', row: false };
   let m = /^user\.Access\s*(==|!=|in|not in)\s*\[?\s*([A-Z_,\s]+?)\s*\]?$/.exec(f);
   if (m) {
-    const roles = m[2].split(',').map((r) => ROLES[r.trim()]).filter(Boolean);
+    const roles = m[2]
+      .split(',')
+      .map((r) => ROLES[r.trim()])
+      .filter(Boolean);
     if (roles.length) {
       const neg = m[1] === '!=' || m[1] === 'not in';
       return { text: neg ? `Tous sauf les ${joinFr(roles)}` : cap(joinFr(roles)), kind: 'role', row: false };
@@ -94,7 +121,13 @@ export function describeCondition(formula, { first = true } = {}) {
   }
   const emails = [];
   const emailOr = f.split(/\s+or\s+/);
-  if (emailOr.every((part) => { const e = /^user\.Email\s*==\s*['"]([^'"]+)['"]$/.exec(part.trim()); if (e) emails.push(e[1]); return Boolean(e); })) {
+  if (
+    emailOr.every((part) => {
+      const e = /^user\.Email\s*==\s*['"]([^'"]+)['"]$/.exec(part.trim());
+      if (e) emails.push(e[1]);
+      return Boolean(e);
+    })
+  ) {
     return { text: emails.join(' ou '), kind: 'email', row: false };
   }
   m = /^user\.Email\s+in\s+\[([^\]]*)\]$/.exec(f);
@@ -104,7 +137,11 @@ export function describeCondition(formula, { first = true } = {}) {
   }
   m = /^user\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s*(==|!=)\s*['"]([^'"]*)['"]$/.exec(f);
   if (m) {
-    return { text: `Personnes dont « ${m[1]}.${m[2]} » ${m[3] === '==' ? 'vaut' : 'ne vaut pas'} « ${m[4]} »`, kind: 'attribute', row: false };
+    return {
+      text: `Personnes dont « ${m[1]}.${m[2]} » ${m[3] === '==' ? 'vaut' : 'ne vaut pas'} « ${m[4]} »`,
+      kind: 'attribute',
+      row: false,
+    };
   }
   if (/^rec\.[A-Za-z_]\w*\s*==\s*user\.Email$/.test(f) || /^user\.Email\s*==\s*rec\.[A-Za-z_]\w*$/.test(f)) {
     return { text: 'Sur les lignes où la personne est désignée par son adresse', kind: 'row', row: true };
@@ -136,7 +173,8 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     if (!tableExists(a.tableId)) problems.push(`table « ${a.tableId} » introuvable`);
     else if (!columnExists(a.tableId, a.lookupColId)) problems.push(`colonne « ${a.tableId}.${a.lookupColId} » introuvable`);
     const charRoot = String(a.charId || '').split('.')[0];
-    if (charRoot && !USER_BUILTINS.has(charRoot) && !attributes.some((x) => x.name === charRoot)) problems.push(`« user.${a.charId} » n'est pas une propriété connue`);
+    if (charRoot && !USER_BUILTINS.has(charRoot) && !attributes.some((x) => x.name === charRoot))
+      problems.push(`« user.${a.charId} » n'est pas une propriété connue`);
     attributes.push({ id: r.id, name: a.name, tableId: a.tableId, lookupColId: a.lookupColId, charId: a.charId, problems });
   }
   const attrNames = new Set(attributes.map((a) => a.name));
@@ -149,23 +187,34 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     if (!groups.has(res.id)) groups.set(res.id, []);
     groups.get(res.id).push(r);
   }
-  const makeRules = (res, list, bits) => list.sort(byPos).map((r, i) => {
-    const formula = String(r.aclFormula || '').trim();
-    const who = describeCondition(formula, { first: i === 0 });
-    const perms = parsePermissions(r.permissionsText);
-    const problems = [];
-    for (const name of userAttrs(formula)) {
-      if (!USER_BUILTINS.has(name) && !attrNames.has(name)) problems.push({ kind: 'unknown-attribute', text: `« user.${name} » n'est défini nulle part` });
-    }
-    if (res.tableId !== '*' && !res.tableId.startsWith('*')) {
-      for (const c of recCols(formula)) if (tableExists(res.tableId) && !columnExists(res.tableId, c)) problems.push({ kind: 'missing-rec-column', text: `colonne « ${res.tableId}.${c} » introuvable` });
-    }
-    const unusable = Object.keys(perms).filter((b) => !bits.includes(b));
-    return {
-      id: r.id, pos: r.rulePos, formula, who, perms, permText: String(r.permissionsText || ''), memo: String(r.memo || ''),
-      unusable, problems,
-    };
-  });
+  const makeRules = (res, list, bits) =>
+    list.sort(byPos).map((r, i) => {
+      const formula = String(r.aclFormula || '').trim();
+      const who = describeCondition(formula, { first: i === 0 });
+      const perms = parsePermissions(r.permissionsText);
+      const problems = [];
+      for (const name of userAttrs(formula)) {
+        if (!USER_BUILTINS.has(name) && !attrNames.has(name))
+          problems.push({ kind: 'unknown-attribute', text: `« user.${name} » n'est défini nulle part` });
+      }
+      if (res.tableId !== '*' && !res.tableId.startsWith('*')) {
+        for (const c of recCols(formula))
+          if (tableExists(res.tableId) && !columnExists(res.tableId, c))
+            problems.push({ kind: 'missing-rec-column', text: `colonne « ${res.tableId}.${c} » introuvable` });
+      }
+      const unusable = Object.keys(perms).filter((b) => !bits.includes(b));
+      return {
+        id: r.id,
+        pos: r.rulePos,
+        formula,
+        who,
+        perms,
+        permText: String(r.permissionsText || ''),
+        memo: String(r.memo || ''),
+        unusable,
+        problems,
+      };
+    });
 
   const defaults = [];
   const special = [];
@@ -177,12 +226,20 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     } else if (res.tableId === '*SPECIAL') {
       special.push({ id: res.colIds, label: SPECIAL_LABELS[res.colIds] || res.colIds, rules: makeRules(res, list, DEFAULT_BITS) });
     } else {
-      if (!tableMap.has(res.tableId)) tableMap.set(res.tableId, { tableId: res.tableId, missing: !tableExists(res.tableId), rules: [], columns: [] });
+      if (!tableMap.has(res.tableId))
+        tableMap.set(res.tableId, { tableId: res.tableId, missing: !tableExists(res.tableId), rules: [], columns: [] });
       const entry = tableMap.get(res.tableId);
       if (res.colIds === '*' || !res.colIds) entry.rules.push(...makeRules(res, list, TABLE_BITS));
       else {
-        const colIds = res.colIds.split(',').map((c) => c.trim()).filter(Boolean);
-        entry.columns.push({ colIds, missing: colIds.filter((c) => !columnExists(res.tableId, c)), rules: makeRules(res, list, COLUMN_BITS) });
+        const colIds = res.colIds
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean);
+        entry.columns.push({
+          colIds,
+          missing: colIds.filter((c) => !columnExists(res.tableId, c)),
+          rules: makeRules(res, list, COLUMN_BITS),
+        });
       }
     }
   }
@@ -212,7 +269,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
 }
 
 const REFRESH_STEP = 'Revenez dans cette vue et cliquez sur « Relire le document ».';
-const OPEN_RULES = 'Ouvrez la page « Règles d\'accès » du document (menu de gauche, rubrique Outils).';
+const OPEN_RULES = "Ouvrez la page « Règles d'accès » du document (menu de gauche, rubrique Outils).";
 
 /** Constats sur les droits d'accès, au même format que ceux de la structure (insights.js). */
 export function accessInsights(access) {
@@ -222,11 +279,18 @@ export function accessInsights(access) {
 
   if (!access.hasRules) {
     push({
-      id: 'acl-none', severity: 'info',
-      title: 'Aucune règle d\'accès avancée dans le document',
+      id: 'acl-none',
+      severity: 'info',
+      title: "Aucune règle d'accès avancée dans le document",
       summary: 'Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.',
-      why: 'C\'est suffisant si tous les invités peuvent voir toutes les données. Sinon, les règles d\'accès permettent de restreindre une table, une colonne ou certaines lignes.',
-      steps: [OPEN_RULES, 'Si vous avez besoin de limiter les accès, cliquez sur « Activer les règles d’accès », puis confirmez après avoir lu les changements proposés.', 'Ajoutez les droits nécessaires pour une table, une colonne ou certaines lignes ; vérifiez leur effet pour les profils concernés avant de les enregistrer.', REFRESH_STEP], targets: [],
+      why: "C'est suffisant si tous les invités peuvent voir toutes les données. Sinon, les règles d'accès permettent de restreindre une table, une colonne ou certaines lignes.",
+      steps: [
+        OPEN_RULES,
+        'Si vous avez besoin de limiter les accès, cliquez sur « Activer les règles d’accès », puis confirmez après avoir lu les changements proposés.',
+        'Ajoutez les droits nécessaires pour une table, une colonne ou certaines lignes ; vérifiez leur effet pour les profils concernés avant de les enregistrer.',
+        REFRESH_STEP,
+      ],
+      targets: [],
     });
     return items;
   }
@@ -240,39 +304,57 @@ export function accessInsights(access) {
   };
   if (access.restrictsRead && (access.structure ?? editorsStructure(access)) === 'allow') {
     push({
-      id: 'acl-bypass', severity: 'blocking',
-      intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
+      id: 'acl-bypass',
+      severity: 'blocking',
+      intended:
+        'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
       title: 'Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès',
-      summary: 'Des restrictions de lecture existent via les droits d’accès, mais les éditeurs peuvent modifier la structure et écrire des formules.',
-      why: 'Une formule peut lire n\'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.',
+      summary:
+        'Des restrictions de lecture existent via les droits d’accès, mais les éditeurs peuvent modifier la structure et écrire des formules.',
+      why: "Une formule peut lire n'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.",
       steps: [
         OPEN_RULES,
-        'Dans les droits d’accès spéciaux, décochez l\'autorisation donnée aux éditeurs de modifier la structure.',
+        "Dans les droits d’accès spéciaux, décochez l'autorisation donnée aux éditeurs de modifier la structure.",
         REFRESH_STEP,
       ],
       targets: [],
     });
   }
   const denyNoMemo = [];
-  forEachRule((r, table) => { if (Object.values(r.perms).includes('deny') && !r.memo) denyNoMemo.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.who.text }); });
+  forEachRule((r, table) => {
+    if (Object.values(r.perms).includes('deny') && !r.memo)
+      denyNoMemo.push({ table: table === '*' ? 'Droits d’accès par défaut' : table, note: r.who.text });
+  });
   if (denyNoMemo.length) {
     push({
-      id: 'acl-no-memo', severity: 'improve',
+      id: 'acl-no-memo',
+      severity: 'improve',
       title: 'Message de refus de droits d’accès sans explication',
-      summary: 'Ces refus de droits d’accès ne comportent aucun message explicatif (« mémo »). La personne concernée comprend plus difficilement pourquoi une action est refusée.',
-      why: 'Un message court (« Réservé au service RH ») évite les demandes d\'aide.',
-      steps: [OPEN_RULES, 'À droite de la condition concernée, cliquez sur la petite icône de discussion (bulle de commentaire) pour ajouter un mémo.', 'Écrivez une explication courte, par exemple « Réservé au service RH », puis enregistrez les droits d’accès.', REFRESH_STEP],
+      summary:
+        'Ces refus de droits d’accès ne comportent aucun message explicatif (« mémo »). La personne concernée comprend plus difficilement pourquoi une action est refusée.',
+      why: "Un message court (« Réservé au service RH ») évite les demandes d'aide.",
+      steps: [
+        OPEN_RULES,
+        'À droite de la condition concernée, cliquez sur la petite icône de discussion (bulle de commentaire) pour ajouter un mémo.',
+        'Écrivez une explication courte, par exemple « Réservé au service RH », puis enregistrez les droits d’accès.',
+        REFRESH_STEP,
+      ],
       targets: denyNoMemo,
     });
   }
   if (access.uncovered.length && access.tables.length) {
     push({
-      id: 'acl-uncovered', severity: 'info',
+      id: 'acl-uncovered',
+      severity: 'info',
       intended: 'Tables sans donnée sensible : rien à faire.',
       title: 'Table non concernée par des règles avancées',
-      summary: 'Aucune règle d’accès avancée n’est définie directement sur ces tables. Elles suivent les droits d’accès par défaut du document et les rôles de partage.',
+      summary:
+        'Aucune règle d’accès avancée n’est définie directement sur ces tables. Elles suivent les droits d’accès par défaut du document et les rôles de partage.',
       why: 'Leurs accès dépendent des droits d’accès généraux et des rôles de partage. Une absence de règle d’accès avancée propre à la table ne signifie pas une absence de protection.',
-      steps: ['Sinon : ouvrez « Règles d\'accès » et ajoutez une règle d’accès avancée à la table (bouton « Ajouter des règles de table »).', REFRESH_STEP],
+      steps: [
+        "Sinon : ouvrez « Règles d'accès » et ajoutez une règle d’accès avancée à la table (bouton « Ajouter des règles de table »).",
+        REFRESH_STEP,
+      ],
       targets: access.uncovered.map((t) => ({ table: t })),
     });
   }
@@ -280,7 +362,3 @@ export function accessInsights(access) {
 }
 
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
-
-
-
-

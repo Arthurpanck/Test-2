@@ -20,7 +20,10 @@ async function open(fixtureName, { viewport, dark, options } = {}) {
   const fromPage = new Set(['mouse', 'keyboard', 'screenshot', 'waitForEvent', 'waitForTimeout']);
   const wrapped = new Proxy(frame, {
     get(target, key) {
-      if (fromPage.has(key)) { const v = page[key]; return typeof v === 'function' ? v.bind(page) : v; }
+      if (fromPage.has(key)) {
+        const v = page[key];
+        return typeof v === 'function' ? v.bind(page) : v;
+      }
       const v = target[key];
       return typeof v === 'function' ? v.bind(target) : v;
     },
@@ -29,19 +32,25 @@ async function open(fixtureName, { viewport, dark, options } = {}) {
 }
 
 /** Géométrie en coordonnées du monde : tables et premiers/derniers points des relations. */
-const readGeometry = (page) => page.evaluate(() => {
-  const nodes = {};
-  for (const el of document.querySelectorAll('.erd-node')) {
-    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(el.style.transform);
-    nodes[el.dataset.id] = { x: +m[1], y: +m[2], w: el.offsetWidth, h: el.offsetHeight };
-  }
-  const edges = [...document.querySelectorAll('.erd-edge')].map((g) => {
-    const d = g.querySelector('.erd-edge__line').getAttribute('d');
-    const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
-    return { d, start: [nums[0], nums[1]], end: [nums[nums.length - 2], nums[nums.length - 1]], title: g.querySelector('title').textContent };
+const readGeometry = (page) =>
+  page.evaluate(() => {
+    const nodes = {};
+    for (const el of document.querySelectorAll('.erd-node')) {
+      const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(el.style.transform);
+      nodes[el.dataset.id] = { x: +m[1], y: +m[2], w: el.offsetWidth, h: el.offsetHeight };
+    }
+    const edges = [...document.querySelectorAll('.erd-edge')].map((g) => {
+      const d = g.querySelector('.erd-edge__line').getAttribute('d');
+      const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
+      return {
+        d,
+        start: [nums[0], nums[1]],
+        end: [nums[nums.length - 2], nums[nums.length - 1]],
+        title: g.querySelector('title').textContent,
+      };
+    });
+    return { nodes, edges };
   });
-  return { nodes, edges };
-});
 
 // ---------------------------------------------------------------------------
 // 1. Schéma du document d'origine (Conversion-DBML), conversion corrigée
@@ -59,7 +68,8 @@ const readGeometry = (page) => page.evaluate(() => {
   let overlap = null;
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      const a = geo.nodes[ids[i]]; const b = geo.nodes[ids[j]];
+      const a = geo.nodes[ids[i]];
+      const b = geo.nodes[ids[j]];
       if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) overlap = `${ids[i]} / ${ids[j]}`;
     }
   }
@@ -70,7 +80,8 @@ const readGeometry = (page) => page.evaluate(() => {
   for (const e of geo.edges) {
     const [src, rest] = e.title.split('.');
     const tgt = rest.split(' → ')[1].replace(' (plusieurs)', '');
-    const s = geo.nodes[src]; const t = geo.nodes[tgt];
+    const s = geo.nodes[src];
+    const t = geo.nodes[tgt];
     const onSide = (p, n) => (Math.abs(p[0] - n.x) < 1 || Math.abs(p[0] - (n.x + n.w)) < 1) && p[1] > n.y && p[1] < n.y + n.h;
     if (onSide(e.start, s) && onSide(e.end, t)) anchored++;
   }
@@ -81,8 +92,10 @@ const readGeometry = (page) => page.evaluate(() => {
     return row.offsetTop + row.offsetHeight / 2;
   });
   const toDoc = geo.edges.filter((e) => e.title.endsWith('→ Document_a_etudier_espace_metier'));
-  check(toDoc.every((e) => Math.abs(e.end[1] - (geo.nodes.Document_a_etudier_espace_metier.y + idRowY)) < 1),
-    'les relations arrivent sur la ligne « id » de la table cible');
+  check(
+    toDoc.every((e) => Math.abs(e.end[1] - (geo.nodes.Document_a_etudier_espace_metier.y + idRowY)) < 1),
+    'les relations arrivent sur la ligne « id » de la table cible',
+  );
   await page.screenshot({ path: path.join(outDir, 'erd-01-document-origine.png') });
 
   // Survol d'une table : ses relations en évidence, le reste estompé
@@ -104,7 +117,10 @@ const readGeometry = (page) => page.evaluate(() => {
   await page.mouse.move(5, 5);
   await page.waitForTimeout(100);
   const sel = await page.evaluate(() => [...document.querySelectorAll('.erd-edge.is-active title')].map((t) => t.textContent));
-  check(sel.length === 1 && sel[0].startsWith('Suivi_projets.Document_lie'), `sélection d'une colonne : une seule relation (${sel.join(' | ')})`);
+  check(
+    sel.length === 1 && sel[0].startsWith('Suivi_projets.Document_lie'),
+    `sélection d'une colonne : une seule relation (${sel.join(' | ')})`,
+  );
   const linked = await page.locator('.erd-row.is-linked').count();
   check(linked === 2, `colonne source et clé cible surlignées (${linked})`);
   await page.keyboard.press('Escape');
@@ -121,7 +137,10 @@ const readGeometry = (page) => page.evaluate(() => {
   await page.mouse.up();
   const after = await readGeometry(page);
   const moved = { dx: after.nodes.Reunion.x - before.nodes.Reunion.x, dy: after.nodes.Reunion.y - before.nodes.Reunion.y };
-  check(Math.abs(moved.dx - 100 / k) < 3 && Math.abs(moved.dy - 60 / k) < 3, `glisser : table déplacée (${moved.dx.toFixed(0)}, ${moved.dy.toFixed(0)})`);
+  check(
+    Math.abs(moved.dx - 100 / k) < 3 && Math.abs(moved.dy - 60 / k) < 3,
+    `glisser : table déplacée (${moved.dx.toFixed(0)}, ${moved.dy.toFixed(0)})`,
+  );
   const edgeToReunion = (g) => g.edges.find((e) => e.title.includes('→ Reunion')).end;
   check(edgeToReunion(after)[0] !== edgeToReunion(before)[0], 'glisser : la relation vers la table suit');
 
@@ -146,17 +165,22 @@ const readGeometry = (page) => page.evaluate(() => {
   await page.locator('#btn-relayout').click();
   await page.waitForTimeout(400);
   const re = await readGeometry(page);
-  check(Math.abs(re.nodes.Reunion.x - before.nodes.Reunion.x) < 1 && Math.abs(re.nodes.Reunion.y - before.nodes.Reunion.y) < 1,
-    'réorganiser : disposition automatique rétablie');
+  check(
+    Math.abs(re.nodes.Reunion.x - before.nodes.Reunion.x) < 1 && Math.abs(re.nodes.Reunion.y - before.nodes.Reunion.y) < 1,
+    'réorganiser : disposition automatique rétablie',
+  );
 
   // Niveaux de détail
   await page.locator('label[for="detail-keys"]').click();
   await page.waitForTimeout(400);
   const keysRows = await page.locator('.erd-node[data-id="Suivi_projets"] .erd-row').allTextContents();
-  check(keysRows.length === 3 && keysRows[2].includes('autres colonnes'), `détail « Relations » : id, clé, résumé (${keysRows.length} lignes)`);
+  check(
+    keysRows.length === 3 && keysRows[2].includes('autres colonnes'),
+    `détail « Relations » : id, clé, résumé (${keysRows.length} lignes)`,
+  );
   await page.locator('label[for="detail-tables"]').click();
   await page.waitForTimeout(400);
-  check(await page.locator('.erd-row').count() === 0, 'détail « Tables » : en-têtes seuls');
+  check((await page.locator('.erd-row').count()) === 0, 'détail « Tables » : en-têtes seuls');
   const tablesGeo = await readGeometry(page);
   check(tablesGeo.edges.length === 6, 'détail « Tables » : relations conservées');
   await page.screenshot({ path: path.join(outDir, 'erd-03-tables.png') });
@@ -167,8 +191,11 @@ const readGeometry = (page) => page.evaluate(() => {
   const [pngDl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-png').click()]);
   await pngDl.saveAs(path.join(outDir, 'erd-export.png'));
   const pngBytes = await readFile(await pngDl.path());
-  check(pngDl.suggestedFilename().endsWith('.png') && pngBytes.slice(1, 4).toString() === 'PNG' && pngBytes.length > 20000, `export PNG (${pngDl.suggestedFilename()}, ${pngBytes.length} octets)`);
-  check(await page.locator('#btn-svg').count() === 0, 'plus de bouton SVG dans la barre d\'outils');
+  check(
+    pngDl.suggestedFilename().endsWith('.png') && pngBytes.slice(1, 4).toString() === 'PNG' && pngBytes.length > 20000,
+    `export PNG (${pngDl.suggestedFilename()}, ${pngBytes.length} octets)`,
+  );
+  check((await page.locator('#btn-svg').count()) === 0, "plus de bouton SVG dans la barre d'outils");
   // Le PNG sert encore à l'image du rapport Word : on vérifie le rendu directement.
   await page.locator('#tab-report').click();
   await page.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
@@ -190,8 +217,14 @@ const readGeometry = (page) => page.evaluate(() => {
 {
   const { context, page, errors } = await open('cas-limites.code.py', { viewport: { width: 1200, height: 760 }, dark: true });
   const ghosts = await page.locator('.erd-node--ghost').evaluateAll((els) => els.map((e) => e.dataset.id));
-  check(ghosts.includes('Choix_categories') && ghosts.includes('Textes_modeles'), `tables absentes dessinées en pointillés (${ghosts.join(', ')})`);
-  const headBg = await page.locator('.erd-node:not(.erd-node--ghost) .erd-node__head').first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  check(
+    ghosts.includes('Choix_categories') && ghosts.includes('Textes_modeles'),
+    `tables absentes dessinées en pointillés (${ghosts.join(', ')})`,
+  );
+  const headBg = await page
+    .locator('.erd-node:not(.erd-node--ghost) .erd-node__head')
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
   check(headBg !== 'rgb(0, 0, 145)', `thème sombre appliqué aux en-têtes (${headBg})`);
   await page.screenshot({ path: path.join(outDir, 'erd-04-sombre-absentes.png') });
   check(errors.length === 0, `sombre : aucune erreur console (${errors.join(' | ')})`);
@@ -202,14 +235,21 @@ const readGeometry = (page) => page.evaluate(() => {
 // 3. Grist simulé : disposition mémorisée dans les options du widget
 // ---------------------------------------------------------------------------
 {
-  const { context, page: frame, errors } = await open('document-exemple.code.py', {
+  const {
+    context,
+    page: frame,
+    errors,
+  } = await open('document-exemple.code.py', {
     options: { diagram: { detail: 'all', positions: { Reunion: [1500, 40] } } },
   });
   const page = frame;
   const g = await readGeometry(frame);
   check(g.nodes.Reunion && g.nodes.Reunion.x === 1500 && g.nodes.Reunion.y === 40, 'position mémorisée appliquée (Reunion en 1500, 40)');
   const others = Object.entries(g.nodes).filter(([id]) => id !== 'Reunion');
-  check(others.every(([, n]) => n.y > 40 + g.nodes.Reunion.h), 'nouvelles tables placées sous les tables déjà positionnées');
+  check(
+    others.every(([, n]) => n.y > 40 + g.nodes.Reunion.h),
+    'nouvelles tables placées sous les tables déjà positionnées',
+  );
 
   const head = frame.locator('.erd-node[data-id="Categories_outils"] .erd-node__head');
   const box = await head.boundingBox();
@@ -219,8 +259,10 @@ const readGeometry = (page) => page.evaluate(() => {
   await page.mouse.up();
   await page.waitForTimeout(1100);
   const opt = await frame.evaluate(() => window.__options.diagram);
-  check(opt && opt.positions && Array.isArray(opt.positions.Categories_outils) && opt.positions.Reunion[0] === 1500,
-    'déplacement enregistré dans les options du widget');
+  check(
+    opt && opt.positions && Array.isArray(opt.positions.Categories_outils) && opt.positions.Reunion[0] === 1500,
+    'déplacement enregistré dans les options du widget',
+  );
   await page.screenshot({ path: path.join(outDir, 'erd-05-grist.png') });
   check(errors.length === 0, `Grist : aucune erreur console (${errors.join(' | ')})`);
   await context.close();

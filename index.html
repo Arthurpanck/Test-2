@@ -1,226 +1,394 @@
 <!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Audit de structure · widget Grist</title>
-  <meta name="description" content="Widget Grist : schéma, tables, droits d'accès, widgets, analyse et rapport Word du document.">
-  <script>
-    // Thème appliqué avant le premier rendu pour éviter un flash ; ensuite synchronisé avec Grist.
-    document.documentElement.setAttribute('data-fr-theme',
-      window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  </script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css">
-  <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.18.0">
-  <link rel="stylesheet" href="assets/styles.css?v=3.18.0">
-  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-  <script type="module" src="assets/app.js?v=3.18.0"></script>
-</head>
-<body>
-  <div class="app">
-    <h1 class="fr-sr-only">Audit de structure du document</h1>
-    <header class="pages">
-      <div class="pages__list" role="tablist" aria-label="Pages de la vue">
-        <button class="tab fr-icon-git-merge-line" id="tab-schema" type="button" role="tab" aria-selected="true" aria-controls="tabpanel-schema" tabindex="0">Schéma</button>
-        <button class="tab fr-icon-table-line" id="tab-tables" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-tables" tabindex="-1">Tables</button>
-        <button class="tab fr-icon-lock-line" id="tab-access" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-access" tabindex="-1">Accès</button>
-        <button class="tab fr-icon-layout-grid-line" id="tab-widgets" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-widgets" tabindex="-1">Vues</button>
-        <button class="tab fr-icon-lightbulb-line" id="tab-analysis" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-analysis" tabindex="-1">Analyse<span class="tab__alert" id="analysis-count" hidden></span></button>
-        <button class="tab fr-icon-file-text-line" id="tab-report" type="button" role="tab" aria-selected="false" aria-controls="tabpanel-report" tabindex="-1">Rapport</button>
-      </div>
-      <div class="pages__status">
-        <p class="pages__meta"><span id="stats"></span><span id="read-at" aria-live="polite"></span></p>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-refresh-line" id="btn-refresh" type="button"
-          title="Relit les tables, colonnes, pages et règles d'accès du document">Relire le document</button>
-      </div>
-    </header>
-
-    <div class="app__alert" id="doc-alert"></div>
-
-    <!-- Schéma -->
-    <section class="page" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema">
-      <div class="toolbar" role="toolbar" aria-label="Outils du schéma">
-        <div class="toolbar__group">
-          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">Réduire</button>
-          <output class="toolbar__zoom" id="zoom-value">100 %</output>
-          <button class="fr-btn fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">Agrandir</button>
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line toolbar__collapse" id="btn-zoom-fit" type="button" title="Afficher tout le schéma (touche 0)">Ajuster</button>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audit de structure · widget Grist</title>
+    <meta name="description" content="Widget Grist : schéma, tables, droits d'accès, widgets, analyse et rapport Word du document." />
+    <script>
+      // Thème appliqué avant le premier rendu pour éviter un flash ; ensuite synchronisé avec Grist.
+      document.documentElement.setAttribute(
+        'data-fr-theme',
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      );
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css" />
+    <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.18.0" />
+    <link rel="stylesheet" href="assets/styles.css?v=3.18.0" />
+    <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+    <script type="module" src="assets/app.js?v=3.18.0"></script>
+  </head>
+  <body>
+    <div class="app">
+      <h1 class="fr-sr-only">Audit de structure du document</h1>
+      <header class="pages">
+        <div class="pages__list" role="tablist" aria-label="Pages de la vue">
+          <button
+            class="tab fr-icon-git-merge-line"
+            id="tab-schema"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="tabpanel-schema"
+            tabindex="0"
+          >
+            Schéma
+          </button>
+          <button
+            class="tab fr-icon-table-line"
+            id="tab-tables"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-tables"
+            tabindex="-1"
+          >
+            Tables
+          </button>
+          <button
+            class="tab fr-icon-lock-line"
+            id="tab-access"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-access"
+            tabindex="-1"
+          >
+            Accès
+          </button>
+          <button
+            class="tab fr-icon-layout-grid-line"
+            id="tab-widgets"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-widgets"
+            tabindex="-1"
+          >
+            Vues
+          </button>
+          <button
+            class="tab fr-icon-lightbulb-line"
+            id="tab-analysis"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-analysis"
+            tabindex="-1"
+          >
+            Analyse<span class="tab__alert" id="analysis-count" hidden></span>
+          </button>
+          <button
+            class="tab fr-icon-file-text-line"
+            id="tab-report"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="tabpanel-report"
+            tabindex="-1"
+          >
+            Rapport
+          </button>
         </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line toolbar__collapse" id="btn-relayout" type="button"
-          title="Recalcule la disposition automatique et oublie les positions mémorisées">Réorganiser</button>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="toolbar__group">
-          <span class="toolbar__label" aria-hidden="true">Afficher</span>
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Détail affiché</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="keys" type="radio" id="detail-keys" name="detail" checked><label class="fr-label" for="detail-keys">Relations</label></div>
-              <div class="fr-segmented__element"><input value="all" type="radio" id="detail-all" name="detail"><label class="fr-label" for="detail-all">Colonnes</label></div>
-              <div class="fr-segmented__element"><input value="tables" type="radio" id="detail-tables" name="detail"><label class="fr-label" for="detail-tables">Tables</label></div>
+        <div class="pages__status">
+          <p class="pages__meta"><span id="stats"></span><span id="read-at" aria-live="polite"></span></p>
+          <button
+            class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-refresh-line"
+            id="btn-refresh"
+            type="button"
+            title="Relit les tables, colonnes, pages et règles d'accès du document"
+          >
+            Relire le document
+          </button>
+        </div>
+      </header>
+
+      <div class="app__alert" id="doc-alert"></div>
+
+      <!-- Schéma -->
+      <section class="page" id="tabpanel-schema" role="tabpanel" aria-labelledby="tab-schema">
+        <div class="toolbar" role="toolbar" aria-label="Outils du schéma">
+          <div class="toolbar__group">
+            <button class="fr-btn fr-btn--tertiary fr-icon-zoom-out-line" id="btn-zoom-out" type="button" title="Réduire (touche -)">
+              Réduire
+            </button>
+            <output class="toolbar__zoom" id="zoom-value">100 %</output>
+            <button class="fr-btn fr-btn--tertiary fr-icon-zoom-in-line" id="btn-zoom-in" type="button" title="Agrandir (touche +)">
+              Agrandir
+            </button>
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-fullscreen-line toolbar__collapse"
+              id="btn-zoom-fit"
+              type="button"
+              title="Afficher tout le schéma (touche 0)"
+            >
+              Ajuster
+            </button>
+          </div>
+          <span class="toolbar__sep" aria-hidden="true"></span>
+          <button
+            class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line toolbar__collapse"
+            id="btn-relayout"
+            type="button"
+            title="Recalcule la disposition automatique et oublie les positions mémorisées"
+          >
+            Réorganiser
+          </button>
+          <span class="toolbar__sep" aria-hidden="true"></span>
+          <div class="toolbar__group">
+            <span class="toolbar__label" aria-hidden="true">Afficher</span>
+            <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+              <legend class="fr-segmented__legend">Détail affiché</legend>
+              <div class="fr-segmented__elements">
+                <div class="fr-segmented__element">
+                  <input value="keys" type="radio" id="detail-keys" name="detail" checked /><label class="fr-label" for="detail-keys"
+                    >Relations</label
+                  >
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="all" type="radio" id="detail-all" name="detail" /><label class="fr-label" for="detail-all">Colonnes</label>
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="tables" type="radio" id="detail-tables" name="detail" /><label class="fr-label" for="detail-tables"
+                    >Tables</label
+                  >
+                </div>
+              </div>
+            </fieldset>
+          </div>
+          <span class="toolbar__sep" aria-hidden="true"></span>
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
+            <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
+            <input
+              class="fr-input"
+              id="find-table"
+              type="search"
+              list="find-table-list"
+              placeholder="Aller à une table"
+              autocomplete="off"
+            />
+            <datalist id="find-table-list"></datalist>
+          </div>
+          <div class="links">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-table-line links__btn"
+              id="btn-kinds"
+              type="button"
+              aria-expanded="false"
+              aria-controls="kinds-menu"
+            >
+              Tables<span class="links__count" id="kinds-count">3/3</span
+              ><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="links__menu" id="kinds-menu" role="group" aria-label="Tables affichées sur le schéma" hidden>
+              <p class="links__title">Tables affichées sur le schéma</p>
+              <label class="links__opt" for="show-kind-table">
+                <span class="links__swatch links__swatch--table" aria-hidden="true"></span>
+                <span class="links__text"><strong>Tables</strong><span id="show-kind-table-sub">Tables de données</span></span>
+                <input class="links__input" type="checkbox" id="show-kind-table" checked />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
+              <label class="links__opt" for="show-kind-summary">
+                <span class="links__swatch links__swatch--summary" aria-hidden="true"></span>
+                <span class="links__text"
+                  ><strong>Tables de synthèse</strong><span id="show-kind-summary-sub">Regroupements calculés par Grist</span></span
+                >
+                <input class="links__input" type="checkbox" id="show-kind-summary" checked />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
+              <label class="links__opt" for="show-kind-acl">
+                <span class="links__swatch links__swatch--acl" aria-hidden="true"></span>
+                <span class="links__text"
+                  ><strong>Tables de droits</strong><span id="show-kind-acl-sub">Utilisées par les règles d'accès</span></span
+                >
+                <input class="links__input" type="checkbox" id="show-kind-acl" checked />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
             </div>
-          </fieldset>
-        </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="fr-input-wrap fr-icon-search-line toolbar__search">
-          <label class="fr-label fr-sr-only" for="find-table">Aller à une table</label>
-          <input class="fr-input" id="find-table" type="search" list="find-table-list" placeholder="Aller à une table" autocomplete="off">
-          <datalist id="find-table-list"></datalist>
-        </div>
-        <div class="links">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-table-line links__btn" id="btn-kinds" type="button" aria-expanded="false" aria-controls="kinds-menu">Tables<span class="links__count" id="kinds-count">3/3</span><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-          <div class="links__menu" id="kinds-menu" role="group" aria-label="Tables affichées sur le schéma" hidden>
-            <p class="links__title">Tables affichées sur le schéma</p>
-            <label class="links__opt" for="show-kind-table">
-              <span class="links__swatch links__swatch--table" aria-hidden="true"></span>
-              <span class="links__text"><strong>Tables</strong><span id="show-kind-table-sub">Tables de données</span></span>
-              <input class="links__input" type="checkbox" id="show-kind-table" checked>
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
-            <label class="links__opt" for="show-kind-summary">
-              <span class="links__swatch links__swatch--summary" aria-hidden="true"></span>
-              <span class="links__text"><strong>Tables de synthèse</strong><span id="show-kind-summary-sub">Regroupements calculés par Grist</span></span>
-              <input class="links__input" type="checkbox" id="show-kind-summary" checked>
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
-            <label class="links__opt" for="show-kind-acl">
-              <span class="links__swatch links__swatch--acl" aria-hidden="true"></span>
-              <span class="links__text"><strong>Tables de droits</strong><span id="show-kind-acl-sub">Utilisées par les règles d'accès</span></span>
-              <input class="links__input" type="checkbox" id="show-kind-acl" checked>
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
+          </div>
+          <div class="links">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-links-line links__btn"
+              id="btn-links"
+              type="button"
+              aria-expanded="false"
+              aria-controls="links-menu"
+            >
+              Liens<span class="links__count" id="links-count">2/3</span
+              ><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div class="links__menu" id="links-menu" role="group" aria-label="Liens affichés sur le schéma" hidden>
+              <p class="links__title">Liens affichés sur le schéma</p>
+              <label class="links__opt" for="show-refs">
+                <span class="links__line links__line--ref" aria-hidden="true"></span>
+                <span class="links__text"><strong>Références</strong><span id="show-refs-sub">Colonnes de type Référence</span></span>
+                <input class="links__input" type="checkbox" id="show-refs" checked />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
+              <label class="links__opt" for="show-lookups">
+                <span class="links__line links__line--lookup" aria-hidden="true"></span>
+                <span class="links__text"
+                  ><strong>Lookups</strong><span id="show-lookups-sub">lookupOne (orange) et lookupRecords (vert)</span></span
+                >
+                <input class="links__input" type="checkbox" id="show-lookups" checked />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
+              <label class="links__opt" for="show-calc">
+                <span class="links__line links__line--calc" aria-hidden="true"></span>
+                <span class="links__text"><strong>Calculs</strong><span id="show-calc-sub">Colonnes lues par les formules</span></span>
+                <input class="links__input" type="checkbox" id="show-calc" />
+                <span class="links__switch" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+          <div class="toolbar__group toolbar__end">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-file-download-line"
+              id="btn-png"
+              type="button"
+              title="Télécharger le schéma en image PNG"
+            >
+              Télécharger en PNG
+            </button>
           </div>
         </div>
-        <div class="links">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-links-line links__btn" id="btn-links" type="button" aria-expanded="false" aria-controls="links-menu">Liens<span class="links__count" id="links-count">2/3</span><svg class="links__chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-          <div class="links__menu" id="links-menu" role="group" aria-label="Liens affichés sur le schéma" hidden>
-            <p class="links__title">Liens affichés sur le schéma</p>
-            <label class="links__opt" for="show-refs">
-              <span class="links__line links__line--ref" aria-hidden="true"></span>
-              <span class="links__text"><strong>Références</strong><span id="show-refs-sub">Colonnes de type Référence</span></span>
-              <input class="links__input" type="checkbox" id="show-refs" checked>
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
-            <label class="links__opt" for="show-lookups">
-              <span class="links__line links__line--lookup" aria-hidden="true"></span>
-              <span class="links__text"><strong>Lookups</strong><span id="show-lookups-sub">lookupOne (orange) et lookupRecords (vert)</span></span>
-              <input class="links__input" type="checkbox" id="show-lookups" checked>
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
-            <label class="links__opt" for="show-calc">
-              <span class="links__line links__line--calc" aria-hidden="true"></span>
-              <span class="links__text"><strong>Calculs</strong><span id="show-calc-sub">Colonnes lues par les formules</span></span>
-              <input class="links__input" type="checkbox" id="show-calc">
-              <span class="links__switch" aria-hidden="true"></span>
-            </label>
+        <div class="page__body page__body--flush diagram" id="schema-body"></div>
+      </section>
+
+      <!-- Tables -->
+      <section class="page" id="tabpanel-tables" role="tabpanel" aria-labelledby="tab-tables" hidden>
+        <div class="toolbar" role="toolbar" aria-label="Outils des tables">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
+            <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
+            <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et colonnes" autocomplete="off" />
+          </div>
+          <span class="toolbar__sep" aria-hidden="true"></span>
+          <div class="toolbar__group">
+            <span class="toolbar__label" aria-hidden="true">Colonnes</span>
+            <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+              <legend class="fr-segmented__legend">Colonnes affichées</legend>
+              <div class="fr-segmented__elements">
+                <div class="fr-segmented__element">
+                  <input value="all" type="radio" id="cols-all" name="cols" checked /><label class="fr-label" for="cols-all">Toutes</label>
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="refs" type="radio" id="cols-refs" name="cols" /><label class="fr-label" for="cols-refs">Relations</label>
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="formulas" type="radio" id="cols-formulas" name="cols" /><label class="fr-label" for="cols-formulas"
+                    >Formules</label
+                  >
+                </div>
+              </div>
+            </fieldset>
+          </div>
+          <div class="toolbar__group toolbar__end">
+            <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-csv" type="button">
+              Exporter les tables (Excel)
+            </button>
           </div>
         </div>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-file-download-line" id="btn-png" type="button" title="Télécharger le schéma en image PNG">Télécharger en PNG</button>
-        </div>
-      </div>
-      <div class="page__body page__body--flush diagram" id="schema-body"></div>
-    </section>
+        <div class="page__body" id="tables-body"></div>
+      </section>
 
-    <!-- Tables -->
-    <section class="page" id="tabpanel-tables" role="tabpanel" aria-labelledby="tab-tables" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils des tables">
-        <div class="fr-input-wrap fr-icon-search-line toolbar__search">
-          <label class="fr-label fr-sr-only" for="filter-input">Filtrer les tables et les colonnes</label>
-          <input class="fr-input" id="filter-input" type="search" placeholder="Filtrer les tables et colonnes" autocomplete="off">
+      <!-- Accès -->
+      <section class="page" id="tabpanel-access" role="tabpanel" aria-labelledby="tab-access" hidden>
+        <div class="toolbar" role="toolbar" aria-label="Outils des droits d'accès">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search toolbar__search--wide">
+            <label class="fr-label fr-sr-only" for="access-filter">Filtrer les règles par table, colonne ou personne</label>
+            <input
+              class="fr-input"
+              id="access-filter"
+              type="search"
+              placeholder="Filtrer par table, colonne ou personne"
+              autocomplete="off"
+            />
+          </div>
+          <div class="toolbar__group toolbar__end">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse"
+              id="btn-access-csv"
+              type="button"
+            >
+              Exporter les règles (CSV)
+            </button>
+          </div>
         </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="toolbar__group">
-          <span class="toolbar__label" aria-hidden="true">Colonnes</span>
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Colonnes affichées</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="all" type="radio" id="cols-all" name="cols" checked><label class="fr-label" for="cols-all">Toutes</label></div>
-              <div class="fr-segmented__element"><input value="refs" type="radio" id="cols-refs" name="cols"><label class="fr-label" for="cols-refs">Relations</label></div>
-              <div class="fr-segmented__element"><input value="formulas" type="radio" id="cols-formulas" name="cols"><label class="fr-label" for="cols-formulas">Formules</label></div>
-            </div>
-          </fieldset>
-        </div>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-csv" type="button">Exporter les tables (Excel)</button>
-        </div>
-      </div>
-      <div class="page__body" id="tables-body"></div>
-    </section>
+        <div class="page__body" id="access-body"></div>
+      </section>
 
-    <!-- Accès -->
-    <section class="page" id="tabpanel-access" role="tabpanel" aria-labelledby="tab-access" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils des droits d'accès">
-        <div class="fr-input-wrap fr-icon-search-line toolbar__search toolbar__search--wide">
-          <label class="fr-label fr-sr-only" for="access-filter">Filtrer les règles par table, colonne ou personne</label>
-          <input class="fr-input" id="access-filter" type="search" placeholder="Filtrer par table, colonne ou personne" autocomplete="off">
+      <!-- Widgets -->
+      <section class="page" id="tabpanel-widgets" role="tabpanel" aria-labelledby="tab-widgets" hidden>
+        <div class="toolbar" role="toolbar" aria-label="Outils des vues">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
+            <label class="fr-label fr-sr-only" for="widgets-filter">Filtrer par widget, page ou table</label>
+            <input class="fr-input" id="widgets-filter" type="search" placeholder="Filtrer par widget, page ou table" autocomplete="off" />
+          </div>
+          <span class="toolbar__sep" aria-hidden="true"></span>
+          <div class="toolbar__group">
+            <span class="toolbar__label" aria-hidden="true">Afficher</span>
+            <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
+              <legend class="fr-segmented__legend">Vues affichées</legend>
+              <div class="fr-segmented__elements">
+                <div class="fr-segmented__element">
+                  <input value="all" type="radio" id="wkind-all" name="wkind" checked /><label class="fr-label" for="wkind-all">Tous</label>
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="unofficial" type="radio" id="wkind-unofficial" name="wkind" /><label class="fr-label" for="wkind-unofficial"
+                    >Non officiels</label
+                  >
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="gallery" type="radio" id="wkind-gallery" name="wkind" /><label class="fr-label" for="wkind-gallery"
+                    >Galerie</label
+                  >
+                </div>
+                <div class="fr-segmented__element">
+                  <input value="views" type="radio" id="wkind-views" name="wkind" /><label class="fr-label" for="wkind-views"
+                    >Autres vues</label
+                  >
+                </div>
+              </div>
+            </fieldset>
+          </div>
         </div>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-access-csv" type="button">Exporter les règles (CSV)</button>
-        </div>
-      </div>
-      <div class="page__body" id="access-body"></div>
-    </section>
+        <div class="page__body" id="widgets-body"></div>
+      </section>
 
-    <!-- Widgets -->
-    <section class="page" id="tabpanel-widgets" role="tabpanel" aria-labelledby="tab-widgets" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils des vues">
-        <div class="fr-input-wrap fr-icon-search-line toolbar__search">
-          <label class="fr-label fr-sr-only" for="widgets-filter">Filtrer par widget, page ou table</label>
-          <input class="fr-input" id="widgets-filter" type="search" placeholder="Filtrer par widget, page ou table" autocomplete="off">
+      <!-- Analyse -->
+      <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
+        <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
+          <div class="fr-input-wrap fr-icon-search-line toolbar__search">
+            <label class="fr-label fr-sr-only" for="analysis-filter">Rechercher un constat</label>
+            <input class="fr-input" id="analysis-filter" type="search" placeholder="Rechercher un constat" autocomplete="off" />
+          </div>
         </div>
-        <span class="toolbar__sep" aria-hidden="true"></span>
-        <div class="toolbar__group">
-          <span class="toolbar__label" aria-hidden="true">Afficher</span>
-          <fieldset class="fr-segmented fr-segmented--no-legend toolbar__segmented">
-            <legend class="fr-segmented__legend">Vues affichées</legend>
-            <div class="fr-segmented__elements">
-              <div class="fr-segmented__element"><input value="all" type="radio" id="wkind-all" name="wkind" checked><label class="fr-label" for="wkind-all">Tous</label></div>
-              <div class="fr-segmented__element"><input value="unofficial" type="radio" id="wkind-unofficial" name="wkind"><label class="fr-label" for="wkind-unofficial">Non officiels</label></div>
-              <div class="fr-segmented__element"><input value="gallery" type="radio" id="wkind-gallery" name="wkind"><label class="fr-label" for="wkind-gallery">Galerie</label></div>
-              <div class="fr-segmented__element"><input value="views" type="radio" id="wkind-views" name="wkind"><label class="fr-label" for="wkind-views">Autres vues</label></div>
-            </div>
-          </fieldset>
-        </div>
-      </div>
-      <div class="page__body" id="widgets-body"></div>
-    </section>
+        <div class="page__body" id="analysis-body"></div>
+      </section>
 
-    <!-- Analyse -->
-    <section class="page" id="tabpanel-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils de l'analyse">
-        <div class="fr-input-wrap fr-icon-search-line toolbar__search">
-          <label class="fr-label fr-sr-only" for="analysis-filter">Rechercher un constat</label>
-          <input class="fr-input" id="analysis-filter" type="search" placeholder="Rechercher un constat" autocomplete="off">
+      <!-- Rapport -->
+      <section class="page" id="tabpanel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
+        <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
+          <p class="toolbar__hint">L'aperçu reprend exactement le contenu du fichier Word.</p>
+          <div class="toolbar__group toolbar__end">
+            <button class="fr-btn fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">Télécharger le rapport Word</button>
+          </div>
         </div>
-      </div>
-      <div class="page__body" id="analysis-body"></div>
-    </section>
+        <div class="page__body report">
+          <div class="report__layout">
+            <nav class="report__panel report-index" aria-labelledby="report-panel-title">
+              <h2 class="tables-index__head report-index__head">
+                <span id="report-panel-title">Contenu du rapport</span><span class="report-index__count" id="report-count"></span>
+              </h2>
+              <ul class="report-index__list" id="report-sections"></ul>
+            </nav>
+            <div class="report__stage" id="report-body"></div>
+          </div>
+        </div>
+      </section>
+    </div>
 
-    <!-- Rapport -->
-    <section class="page" id="tabpanel-report" role="tabpanel" aria-labelledby="tab-report" hidden>
-      <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
-        <p class="toolbar__hint">L'aperçu reprend exactement le contenu du fichier Word.</p>
-        <div class="toolbar__group toolbar__end">
-          <button class="fr-btn fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">Télécharger le rapport Word</button>
-        </div>
-      </div>
-      <div class="page__body report">
-        <div class="report__layout">
-          <nav class="report__panel report-index" aria-labelledby="report-panel-title">
-            <h2 class="tables-index__head report-index__head"><span id="report-panel-title">Contenu du rapport</span><span class="report-index__count" id="report-count"></span></h2>
-            <ul class="report-index__list" id="report-sections"></ul>
-          </nav>
-          <div class="report__stage" id="report-body"></div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <p class="fr-sr-only" id="live" aria-live="polite"></p>
-</body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <p class="fr-sr-only" id="live" aria-live="polite"></p>
+  </body>
 </html>
-
-
-

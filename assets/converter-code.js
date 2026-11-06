@@ -6,7 +6,18 @@
  * code ; le widget, lui, lit les métadonnées (converter.js).
  */
 import {
-  DEFAULT_FORMULA_TYPE, PythonFormulaError, W, convertModelCorrected, getGristTypeCode, modelFromSchema, parseGristTypeExpr, pyReprStr, pyStrip, renderDbml, toOutputColumn, userViewTables,
+  DEFAULT_FORMULA_TYPE,
+  PythonFormulaError,
+  W,
+  convertModelCorrected,
+  getGristTypeCode,
+  modelFromSchema,
+  parseGristTypeExpr,
+  pyReprStr,
+  pyStrip,
+  renderDbml,
+  toOutputColumn,
+  userViewTables,
 } from './converter.js?v=3.18.0';
 import { maskPython } from './python-text.js?v=3.18.0';
 
@@ -22,7 +33,6 @@ const RE_FORMULA = new RegExp(`def (?!_default_|gristHelper_)(${W}+)`, 'u');
 // En Python, `.` capture tout sauf `\n` (y compris `\r`) : on l'écrit donc `[^\n]`.
 const RE_FORMULA_TYPE = /grist[^\n]formulaType\(grist\.([^\n]+)\)/u;
 const RE_REF_TABLE = new RegExp(`'(${W}+)'`, 'u');
-
 
 /** Portage exact de `convert_type(grist_type, formula=False)`. */
 export function convertTypeStrict(gristType, formula = false) {
@@ -87,7 +97,11 @@ export function parseGristCodeStrict(content) {
         throw new PythonFormulaError('KeyError', currentClass === null ? 'None' : pyReprStr(currentClass), i + 1);
       }
       tables.get(currentClass).push({
-        name: fieldName, type: currentFormulaType, raw: currentFormulaRaw, line: i + 1, isFormula: true,
+        name: fieldName,
+        type: currentFormulaType,
+        raw: currentFormulaRaw,
+        line: i + 1,
+        isFormula: true,
       });
       currentFormulaType = DEFAULT_FORMULA_TYPE;
       currentFormulaRaw = null;
@@ -98,8 +112,7 @@ export function parseGristCodeStrict(content) {
       const newClass = classMatch[1];
       if (newClass === '_Summary') {
         if (currentClass === null) {
-          throw new PythonFormulaError('TypeError',
-            "unsupported operand type(s) for +=: 'NoneType' and 'str'", i + 1);
+          throw new PythonFormulaError('TypeError', "unsupported operand type(s) for +=: 'NoneType' and 'str'", i + 1);
         }
         currentClass += '_Summary';
       } else {
@@ -112,7 +125,11 @@ export function parseGristCodeStrict(content) {
       const fieldName = pyStrip(line.slice(0, eq));
       const gristType = pyStrip(line.slice(eq + 1));
       tables.get(currentClass).push({
-        name: fieldName, type: convertTypeStrict(gristType), raw: gristType, line: i + 1, isFormula: false,
+        name: fieldName,
+        type: convertTypeStrict(gristType),
+        raw: gristType,
+        line: i + 1,
+        isFormula: false,
       });
     }
   }
@@ -137,9 +154,22 @@ export function convertCodeStrict(content) {
 // --- Reconstitution du corps des formules (affichage de la Vue du code) ---
 
 const TYPE_DEFAULTS = {
-  Any: 'None', Attachments: 'None', Blob: 'None', Bool: 'False', Choice: "''", ChoiceList: 'None',
-  Date: 'None', DateTime: 'None', Id: '0', Int: '0', ManualSortPos: 'inf', Numeric: '0.0',
-  PositionNumber: 'inf', Ref: '0', RefList: 'None', Text: "''",
+  Any: 'None',
+  Attachments: 'None',
+  Blob: 'None',
+  Bool: 'False',
+  Choice: "''",
+  ChoiceList: 'None',
+  Date: 'None',
+  DateTime: 'None',
+  Id: '0',
+  Int: '0',
+  ManualSortPos: 'inf',
+  Numeric: '0.0',
+  PositionNumber: 'inf',
+  Ref: '0',
+  RefList: 'None',
+  Text: "''",
 };
 
 function dedent(text) {
@@ -153,7 +183,10 @@ function dedent(text) {
     prefix = prefix.slice(0, k);
   }
   if (!prefix) return text;
-  return text.split('\n').map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : l)).join('\n');
+  return text
+    .split('\n')
+    .map((l) => (l.startsWith(prefix) ? l.slice(prefix.length) : l))
+    .join('\n');
 }
 
 /** Remplace `$col` par `rec.col` hors chaînes et commentaires. */
@@ -164,7 +197,8 @@ function replaceDollars(code) {
   return out;
 }
 
-const STATEMENT_KEYWORDS = /^(return|if|elif|else|for|while|try|except|finally|with|def|class|import|from|raise|pass|break|continue|global|nonlocal|assert|del|async|match|case|@)\b/;
+const STATEMENT_KEYWORDS =
+  /^(return|if|elif|else|for|while|try|except|finally|with|def|class|import|from|raise|pass|break|continue|global|nonlocal|assert|del|async|match|case|@)\b/;
 const ASSIGNMENT = /^[A-Za-z_][\w.]*(\s*\[[^\]]*\])*\s*(:[^=]+)?(\+|-|\*|\/|\/\/|%|\*\*|>>|<<|&|\^|\|)?=(?!=)/;
 
 /** Insère `return` devant la dernière expression, comme Grist (heuristique d'affichage). */
@@ -180,12 +214,19 @@ function insertReturn(code) {
     for (let k = 0; k < line.length; k++) {
       const c = line[k];
       if (inTriple) {
-        if (line.startsWith(inTriple, k)) { k += 2; inTriple = null; }
+        if (line.startsWith(inTriple, k)) {
+          k += 2;
+          inTriple = null;
+        }
         continue;
       }
       if (c === '#') break;
       if (c === '"' || c === "'") {
-        if (line.startsWith(c.repeat(3), k)) { inTriple = c.repeat(3); k += 2; continue; }
+        if (line.startsWith(c.repeat(3), k)) {
+          inTriple = c.repeat(3);
+          k += 2;
+          continue;
+        }
         let j = k + 1;
         while (j < line.length && line[j] !== c) j += line[j] === '\\' ? 2 : 1;
         k = j;
@@ -214,9 +255,8 @@ function makeFormulaBody(formula, colType, indent) {
 
 function makeFormulaField(col, { name, includeType = true, params = [], indent }) {
   const decl = `${indent}def ${name || col.colId}(${['rec', 'table', ...params].join(', ')}):\n`;
-  const decorator = includeType && col.type !== 'Any'
-    ? `${indent}@grist.formulaType(${getGristTypeCode(col.type, col.reverseColId)})\n`
-    : '';
+  const decorator =
+    includeType && col.type !== 'Any' ? `${indent}@grist.formulaType(${getGristTypeCode(col.type, col.reverseColId)})\n` : '';
   return '\n' + decorator + decl + makeFormulaBody(col.formula, col.type, '  ' + indent) + '\n';
 }
 
@@ -229,9 +269,10 @@ function makeField(col, indent) {
   return out + `${indent}${col.colId} = ${getGristTypeCode(col.type, col.reverseColId)}\n`;
 }
 
-export const CODE_VIEW_HEADER = 'import grist\n'
-  + 'from functions import *       # global uppercase functions\n'
-  + 'import datetime, math, re     # modules commonly needed in formulas\n';
+export const CODE_VIEW_HEADER =
+  'import grist\n' +
+  'from functions import *       # global uppercase functions\n' +
+  'import datetime, math, re     # modules commonly needed in formulas\n';
 
 /**
  * Reconstitue le texte de la « Vue du code » de Grist à partir des métadonnées
@@ -260,7 +301,9 @@ const RE_SUMMARY_CLASS = /^ {2}class _Summary:\s*(?:#.*)?$/;
 
 /** Analyse le texte de la Vue du code en tenant compte de l'indentation (mode corrigé). */
 export function parseGristCodeCorrected(content) {
-  const lines = String(content).split('\n').map((l) => l.replace(/\r$/, ''));
+  const lines = String(content)
+    .split('\n')
+    .map((l) => l.replace(/\r$/, ''));
   const requireDecorator = lines.some((l) => RE_USERTABLE.test(l));
   const tables = [];
   let table = null;
@@ -270,7 +313,10 @@ export function parseGristCodeCorrected(content) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (RE_USERTABLE.test(line)) { expectClass = true; continue; }
+    if (RE_USERTABLE.test(line)) {
+      expectClass = true;
+      continue;
+    }
     const classMatch = RE_TOP_CLASS.exec(line);
     if (classMatch && (expectClass || !requireDecorator)) {
       table = { name: classMatch[1], line: i + 1, kind: 'table', columns: [] };
@@ -295,13 +341,21 @@ export function parseGristCodeCorrected(content) {
     const member = line.slice(indent.length);
 
     let m = /^@grist\.formulaType\((.*)\)\s*(?:#.*)?$/.exec(member);
-    if (m) { pending = parseGristTypeExpr(m[1]); continue; }
+    if (m) {
+      pending = parseGristTypeExpr(m[1]);
+      continue;
+    }
 
     m = new RegExp(`^def (${ID})\\s*\\(`, 'u').exec(member);
     if (m) {
       const name = m[1];
       if (!name.startsWith('_default_') && !name.startsWith('gristHelper_')) {
-        target.columns.push({ name, line: i + 1, isFormula: true, gristType: pending || { name: 'Any', arg: null, reverse: null, raw: '' } });
+        target.columns.push({
+          name,
+          line: i + 1,
+          isFormula: true,
+          gristType: pending || { name: 'Any', arg: null, reverse: null, raw: '' },
+        });
       }
       pending = null;
       continue;
@@ -358,11 +412,14 @@ export function analyze(result, mode) {
   const { strict, corrected } = result;
 
   if (strict.error) {
-    add(mode === 'strict' ? 'error' : 'warning', 'python-error',
-      'La formule d\'origine échouerait sur ce code',
-      `Elle lèverait « ${strict.error.message} » (ligne ${strict.error.line}). `
-      + (mode === 'strict' ? 'Passez en conversion corrigée pour obtenir un résultat.' : 'La conversion corrigée n\'est pas concernée.'),
-      { line: strict.error.line });
+    add(
+      mode === 'strict' ? 'error' : 'warning',
+      'python-error',
+      "La formule d'origine échouerait sur ce code",
+      `Elle lèverait « ${strict.error.message} » (ligne ${strict.error.line}). ` +
+        (mode === 'strict' ? 'Passez en conversion corrigée pour obtenir un résultat.' : "La conversion corrigée n'est pas concernée."),
+      { line: strict.error.line },
+    );
   }
 
   // Écarts entre les deux moteurs
@@ -372,9 +429,13 @@ export function analyze(result, mode) {
     for (const st of strict.tables) {
       const ct = corrByName.get(st.name);
       if (!ct) {
-        add('warning', 'phantom-table', `Table fantôme « ${st.name} »`,
+        add(
+          'warning',
+          'phantom-table',
+          `Table fantôme « ${st.name} »`,
           `La formule d'origine crée cette table à partir de la ligne ${st.line}, qui n'est pas une déclaration de table (probablement du texte dans une formule).`,
-          { table: st.name, line: st.line });
+          { table: st.name, line: st.line },
+        );
         continue;
       }
       const ccols = new Map(ct.columns.map((c) => [c.name, c]));
@@ -382,9 +443,13 @@ export function analyze(result, mode) {
       for (const sc of st.columns) {
         const cc = ccols.get(sc.name);
         if (!cc || seen.has(sc.name)) {
-          add('warning', 'phantom-column', `Colonne fantôme « ${st.name}.${sc.name} »`,
+          add(
+            'warning',
+            'phantom-column',
+            `Colonne fantôme « ${st.name}.${sc.name} »`,
             `La ligne ${sc.line} est lue comme une colonne alors qu'elle fait partie du corps d'une formule (fonction ou affectation internes).`,
-            { table: st.name, column: sc.name, line: sc.line });
+            { table: st.name, column: sc.name, line: sc.line },
+          );
           continue;
         }
         seen.add(sc.name);
@@ -392,41 +457,64 @@ export function analyze(result, mode) {
         const gt = cc.gristType || {};
         if (cc.ref && (!sc.ref || sc.ref.table !== cc.ref.table || sc.ref.kind !== cc.ref.kind)) {
           const kw = keywordFound(sc.raw);
-          add('warning', 'lost-relation', `Relation perdue : ${st.name}.${sc.name} → ${cc.ref.table}`,
+          add(
+            'warning',
+            'lost-relation',
+            `Relation perdue : ${st.name}.${sc.name} → ${cc.ref.table}`,
             kw
               ? `La formule d'origine détecte les types par sous-chaîne : « ${sc.raw} » contient « ${kw} », la colonne devient « ${sc.dbmlType} » sans relation.`
               : `La formule d'origine produit « ${sc.dbmlType} » au lieu de « ${cc.dbmlType} ».`,
-            { table: st.name, column: sc.name, line: sc.line });
+            { table: st.name, column: sc.name, line: sc.line },
+          );
         } else if (gt.name === 'Bool') {
-          add('info', 'bool', `Booléen exporté en varchar : ${st.name}.${sc.name}`,
-            'La formule d\'origine ne connaît pas le type Bool ; la conversion corrigée utilise « boolean ».',
-            { table: st.name, column: sc.name, line: sc.line });
+          add(
+            'info',
+            'bool',
+            `Booléen exporté en varchar : ${st.name}.${sc.name}`,
+            "La formule d'origine ne connaît pas le type Bool ; la conversion corrigée utilise « boolean ».",
+            { table: st.name, column: sc.name, line: sc.line },
+          );
         } else if (gt.name === 'DateTime') {
-          add('info', 'datetime', `Date-heure exportée en date : ${st.name}.${sc.name}`,
-            'La formule d\'origine confond Date et DateTime ; la conversion corrigée utilise « timestamp ».',
-            { table: st.name, column: sc.name, line: sc.line });
+          add(
+            'info',
+            'datetime',
+            `Date-heure exportée en date : ${st.name}.${sc.name}`,
+            "La formule d'origine confond Date et DateTime ; la conversion corrigée utilise « timestamp ».",
+            { table: st.name, column: sc.name, line: sc.line },
+          );
         } else if (sc.isFormula && cc.isFormula && sc.base !== cc.base && cc.base === 'default') {
-          add('warning', 'type-leak', `Type de formule hérité à tort : ${st.name}.${sc.name}`,
+          add(
+            'warning',
+            'type-leak',
+            `Type de formule hérité à tort : ${st.name}.${sc.name}`,
             `Un décorateur @grist.formulaType destiné à une autre fonction est appliqué à cette colonne (« ${sc.dbmlType} »).`,
-            { table: st.name, column: sc.name, line: sc.line });
+            { table: st.name, column: sc.name, line: sc.line },
+          );
         } else {
           const kw = keywordFound(sc.raw);
-          add('warning', 'wrong-type', `Type mal détecté : ${st.name}.${sc.name}`,
-            `Formule d'origine : « ${sc.dbmlType} », attendu : « ${cc.dbmlType} »`
-            + (kw ? ` (le texte « ${sc.raw} » contient « ${kw} »).` : '.'),
-            { table: st.name, column: sc.name, line: sc.line });
+          add(
+            'warning',
+            'wrong-type',
+            `Type mal détecté : ${st.name}.${sc.name}`,
+            `Formule d'origine : « ${sc.dbmlType} », attendu : « ${cc.dbmlType} »` +
+              (kw ? ` (le texte « ${sc.raw} » contient « ${kw} »).` : '.'),
+            { table: st.name, column: sc.name, line: sc.line },
+          );
         }
       }
       for (const cc of ct.columns) {
         if (!st.columns.some((c) => c.name === cc.name)) {
-          add('warning', 'missing-column', `Colonne omise : ${st.name}.${cc.name}`,
-            'La formule d\'origine ne produit pas cette colonne.', { table: st.name, column: cc.name, line: cc.line });
+          add('warning', 'missing-column', `Colonne omise : ${st.name}.${cc.name}`, "La formule d'origine ne produit pas cette colonne.", {
+            table: st.name,
+            column: cc.name,
+            line: cc.line,
+          });
         }
       }
     }
     for (const ct of corrected.tables) {
       if (!strictByName.has(ct.name)) {
-        add('warning', 'missing-table', `Table omise : ${ct.name}`, 'La formule d\'origine ne produit pas cette table.', { table: ct.name });
+        add('warning', 'missing-table', `Table omise : ${ct.name}`, "La formule d'origine ne produit pas cette table.", { table: ct.name });
       }
     }
   }
@@ -435,41 +523,71 @@ export function analyze(result, mode) {
   const shown = mode === 'strict' ? strict : corrected;
   const tableNames = new Set(shown.tables.map((t) => t.name));
   if (!shown.tables.length && !(mode === 'strict' && strict.error)) {
-    add('warning', 'empty', 'Aucune table détectée',
-      'Vérifiez que le texte collé provient bien de la « Vue du code » de Grist (il commence par « import grist »).');
+    add(
+      'warning',
+      'empty',
+      'Aucune table détectée',
+      'Vérifiez que le texte collé provient bien de la « Vue du code » de Grist (il commence par « import grist »).',
+    );
   }
   for (const t of shown.tables) {
     if (!DBML_IDENTIFIER.test(t.name)) {
-      add('error', 'bad-table-name', `Nom de table invalide en DBML : « ${t.name} »`, 'Les outils DBML refuseront ce nom.', { table: t.name, line: t.line });
+      add('error', 'bad-table-name', `Nom de table invalide en DBML : « ${t.name} »`, 'Les outils DBML refuseront ce nom.', {
+        table: t.name,
+        line: t.line,
+      });
     }
     const names = new Set();
     for (const c of t.columns) {
       if (!DBML_IDENTIFIER.test(c.name)) {
-        add('error', 'bad-column-name', `Nom de colonne invalide en DBML : « ${t.name}.${c.name} »`,
-          'Les outils DBML refuseront cette ligne.', { table: t.name, column: c.name, line: c.line });
+        add(
+          'error',
+          'bad-column-name',
+          `Nom de colonne invalide en DBML : « ${t.name}.${c.name} »`,
+          'Les outils DBML refuseront cette ligne.',
+          { table: t.name, column: c.name, line: c.line },
+        );
       }
       if (names.has(c.name) || c.name === 'id') {
-        add('error', 'duplicate-column', `Colonne en double : « ${t.name}.${c.name} »`,
-          'Une table DBML ne peut pas déclarer deux fois la même colonne.', { table: t.name, column: c.name, line: c.line });
+        add(
+          'error',
+          'duplicate-column',
+          `Colonne en double : « ${t.name}.${c.name} »`,
+          'Une table DBML ne peut pas déclarer deux fois la même colonne.',
+          { table: t.name, column: c.name, line: c.line },
+        );
       }
       names.add(c.name);
       if (c.ref && !tableNames.has(c.ref.table)) {
-        add('error', 'unknown-ref', `Relation vers une table absente : ${t.name}.${c.name} → ${c.ref.table}`,
-          'La table cible n\'existe pas dans le schéma : dbdiagram.io et les autres outils DBML refuseront l\'import.',
-          { table: t.name, column: c.name, line: c.line });
+        add(
+          'error',
+          'unknown-ref',
+          `Relation vers une table absente : ${t.name}.${c.name} → ${c.ref.table}`,
+          "La table cible n'existe pas dans le schéma : dbdiagram.io et les autres outils DBML refuseront l'import.",
+          { table: t.name, column: c.name, line: c.line },
+        );
       }
     }
   }
   const summaries = shown.tables.filter((t) => t.kind === 'summary').length;
   if (summaries) {
-    add('info', 'summary', `${summaries} table${summaries > 1 ? 's' : ''} de synthèse`,
-      'Les colonnes de formule des tables de synthèse sont regroupées dans une table « <Source>_Summary », comme dans la Vue du code.');
+    add(
+      'info',
+      'summary',
+      `${summaries} table${summaries > 1 ? 's' : ''} de synthèse`,
+      'Les colonnes de formule des tables de synthèse sont regroupées dans une table « <Source>_Summary », comme dans la Vue du code.',
+    );
   }
-  const reverse = shown.tables.flatMap((t) => t.columns)
+  const reverse = shown.tables
+    .flatMap((t) => t.columns)
     .filter((c) => (c.gristType && c.gristType.reverse) || (c.raw && c.raw.includes('reverse_of='))).length;
   if (reverse) {
-    add('info', 'two-way', `${reverse} colonne${reverse > 1 ? 's' : ''} de référence bidirectionnelle`,
-      'Chaque côté d\'une référence bidirectionnelle produit sa propre relation : elles apparaissent en double sur le schéma.');
+    add(
+      'info',
+      'two-way',
+      `${reverse} colonne${reverse > 1 ? 's' : ''} de référence bidirectionnelle`,
+      "Chaque côté d'une référence bidirectionnelle produit sa propre relation : elles apparaissent en double sur le schéma.",
+    );
   }
   return findings;
 }

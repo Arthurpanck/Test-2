@@ -18,18 +18,44 @@ export const WIDGET_TYPES = {
   form: 'Formulaire',
 };
 
-const CHART_TYPES = { bar: 'barres', line: 'courbes', pie: 'secteurs', area: 'aires', scatter: 'nuage de points', kaplan_meier: 'Kaplan-Meier', donut: 'anneau' };
+const CHART_TYPES = {
+  bar: 'barres',
+  line: 'courbes',
+  pie: 'secteurs',
+  area: 'aires',
+  scatter: 'nuage de points',
+  kaplan_meier: 'Kaplan-Meier',
+  donut: 'anneau',
+};
 
 /** Noms français des vues de la galerie Grist (repli : nom anglais de la galerie). */
 const GALLERY_NAMES = {
-  'Action button': 'Bouton d\'action', Calendar: 'Calendrier', 'Copy to clipboard': 'Copier dans le presse-papiers',
-  'Custom widget builder': 'Constructeur de vue', 'Drop-down Widget': 'Liste déroulante', 'Dropbox embedder': 'Fichiers Dropbox',
-  Flashcards: 'Cartes mémoire', 'Inspect record': 'Inspecter la fiche', 'Inspect table': 'Inspecter la table',
-  'Inspect options': 'Inspecter les options', 'Inspect API': 'Découvrir l\'API', Invoices: 'Factures', Map: 'Carte',
-  Markdown: 'Markdown', Notepad: 'Bloc-notes', 'Pivot table': 'Tableau croisé dynamique', 'Print labels': 'Étiquettes à imprimer',
-  'Purchase orders': 'Bons de commande', 'QR code': 'Code QR', 'HTML viewer': 'Affichage HTML', 'Grist video player': 'Lecteur vidéo',
-  'Image viewer': 'Visionneuse d\'images', 'JupyterLite notebook': 'Notebook JupyterLite', 'Advanced charts': 'Graphiques avancés',
-  'Simple table filter': 'Filtre simple', 'Vibe View': 'Vibe View',
+  'Action button': "Bouton d'action",
+  Calendar: 'Calendrier',
+  'Copy to clipboard': 'Copier dans le presse-papiers',
+  'Custom widget builder': 'Constructeur de vue',
+  'Drop-down Widget': 'Liste déroulante',
+  'Dropbox embedder': 'Fichiers Dropbox',
+  Flashcards: 'Cartes mémoire',
+  'Inspect record': 'Inspecter la fiche',
+  'Inspect table': 'Inspecter la table',
+  'Inspect options': 'Inspecter les options',
+  'Inspect API': "Découvrir l'API",
+  Invoices: 'Factures',
+  Map: 'Carte',
+  Markdown: 'Markdown',
+  Notepad: 'Bloc-notes',
+  'Pivot table': 'Tableau croisé dynamique',
+  'Print labels': 'Étiquettes à imprimer',
+  'Purchase orders': 'Bons de commande',
+  'QR code': 'Code QR',
+  'HTML viewer': 'Affichage HTML',
+  'Grist video player': 'Lecteur vidéo',
+  'Image viewer': "Visionneuse d'images",
+  'JupyterLite notebook': 'Notebook JupyterLite',
+  'Advanced charts': 'Graphiques avancés',
+  'Simple table filter': 'Filtre simple',
+  'Vibe View': 'Vibe View',
 };
 
 export const ACCESS_LABELS = { full: 'Accès complet au document', 'read table': 'Lecture de la table sélectionnée', none: 'Aucun accès' };
@@ -41,11 +67,25 @@ export function columnLines(c) {
   ];
 }
 
-export const ORIGIN_LABELS = { gallery: 'Galerie Grist', external: 'Site externe', document: 'Code dans le document', self: 'Cette vue d\'audit' };
+export const ORIGIN_LABELS = {
+  gallery: 'Galerie Grist',
+  external: 'Site externe',
+  document: 'Code dans le document',
+  self: "Cette vue d'audit",
+};
 
-
-const hostOf = (url) => { try { return url ? new URL(url).host : ''; } catch { return ''; } };
-const bareUrl = (url) => String(url || '').split(/[?#]/)[0].replace(/\/index\.html$/, '/').replace(/\/+$/, '');
+const hostOf = (url) => {
+  try {
+    return url ? new URL(url).host : '';
+  } catch {
+    return '';
+  }
+};
+const bareUrl = (url) =>
+  String(url || '')
+    .split(/[?#]/)[0]
+    .replace(/\/index\.html$/, '/')
+    .replace(/\/+$/, '');
 
 /** Vue personnalisée : origine, nom, auteur, accès, colonnes associées. */
 function customInfo(section, colName, selfUrl) {
@@ -57,15 +97,27 @@ function customInfo(section, colName, selfUrl) {
     .filter(([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && !v.length))
     .map(([name, v]) => ({ name, column: (Array.isArray(v) ? v : [v]).map((x) => colName(x) || String(x)).join(', ') }));
   const mapped = new Set(mapping.map((m) => m.name));
-  const declared = Array.isArray(def?.columns) ? def.columns.map((c) => (typeof c === 'string' ? { name: c } : c)).filter((c) => c && c.name) : [];
+  const declared = Array.isArray(def?.columns)
+    ? def.columns.map((c) => (typeof c === 'string' ? { name: c } : c)).filter((c) => c && c.name)
+    : [];
   const titles = new Map(declared.map((c) => [c.name, c.title || c.name]));
   for (const m of mapping) m.title = titles.get(m.name) || m.name;
   const missingColumns = declared.filter((c) => !c.optional && !mapped.has(c.name)).map((c) => c.title || c.name);
 
   if (section.parentKey === 'creator') {
     const html = typeof o.html === 'string' ? o.html : '';
-    return { origin: 'document', name: 'Vue créée dans Grist', author: '', maintained: null, url: '', host: '', access, mapping, missingColumns,
-      codeLines: html ? html.split('\n').length : 0 };
+    return {
+      origin: 'document',
+      name: 'Vue créée dans Grist',
+      author: '',
+      maintained: null,
+      url: '',
+      host: '',
+      access,
+      mapping,
+      missingColumns,
+      codeLines: html ? html.split('\n').length : 0,
+    };
   }
   const url = cv.url || def?.url || '';
   if (!url && !cv.widgetId) return null;
@@ -73,7 +125,7 @@ function customInfo(section, colName, selfUrl) {
   const fromGallery = Boolean(cv.widgetId);
   return {
     origin: isSelf ? 'self' : fromGallery ? 'gallery' : 'external',
-    name: fromGallery ? (GALLERY_NAMES[def?.name] || def?.name || cv.widgetId) : isSelf ? 'Audit de structure' : '',
+    name: fromGallery ? GALLERY_NAMES[def?.name] || def?.name || cv.widgetId : isSelf ? 'Audit de structure' : '',
     author: def?.authors?.[0]?.name || '',
     maintained: fromGallery ? Boolean(def?.isGristLabsMaintained) : null,
     widgetId: cv.widgetId || '',
@@ -100,34 +152,44 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
 
   const result = [];
   const shown = new Set();
-  for (const p of columnarToRows(pages).slice().sort((a, b) => (a.pagePos ?? 0) - (b.pagePos ?? 0))) {
+  for (const p of columnarToRows(pages)
+    .slice()
+    .sort((a, b) => (a.pagePos ?? 0) - (b.pagePos ?? 0))) {
     const v = viewById.get(p.viewRef);
     if (!v) continue;
     const pageName = v.name || '';
-    const widgets = secRows.filter((s) => s.parentId === v.id).map((s) => {
-      const table = tableName(s.tableRef);
-      if (table) shown.add(table);
-      const src = secById.get(s.linkSrcSectionRef);
-      const type = s.parentKey || 'record';
-      const custom = type === 'custom' || type === 'creator' ? customInfo(s, colName, selfUrl) : null;
-      return {
-        id: s.id,
-        type,
-        page: pageName,
-        typeLabel: custom && custom.origin !== 'gallery' ? 'Vue non officielle' : (WIDGET_TYPES[type] || type || 'Vue') + (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
-        title: s.title || '',
-        table,
-        summary: Boolean(tableById.get(s.tableRef)?.summarySourceTable),
-        linkedTo: src ? sectionLabel(src) : '',
-        custom,
-        description: s.description || '',
-      };
-    });
+    const widgets = secRows
+      .filter((s) => s.parentId === v.id)
+      .map((s) => {
+        const table = tableName(s.tableRef);
+        if (table) shown.add(table);
+        const src = secById.get(s.linkSrcSectionRef);
+        const type = s.parentKey || 'record';
+        const custom = type === 'custom' || type === 'creator' ? customInfo(s, colName, selfUrl) : null;
+        return {
+          id: s.id,
+          type,
+          page: pageName,
+          typeLabel:
+            custom && custom.origin !== 'gallery'
+              ? 'Vue non officielle'
+              : (WIDGET_TYPES[type] || type || 'Vue') +
+                (type === 'chart' && CHART_TYPES[s.chartType] ? ` (${CHART_TYPES[s.chartType]})` : ''),
+          title: s.title || '',
+          table,
+          summary: Boolean(tableById.get(s.tableRef)?.summarySourceTable),
+          linkedTo: src ? sectionLabel(src) : '',
+          custom,
+          description: s.description || '',
+        };
+      });
     result.push({ id: v.id, name: pageName, indentation: Number(p.indentation) || 0, widgets });
   }
   const all = result.flatMap((p) => p.widgets);
   const notable = all.filter((w) => w.type !== 'record');
-  const userTables = [...tableById.values()].filter((t) => t.tableId && !t.tableId.startsWith('_grist_') && !t.summarySourceTable).map((t) => t.tableId);
+  const userTables = [...tableById.values()]
+    .filter((t) => t.tableId && !t.tableId.startsWith('_grist_') && !t.summarySourceTable)
+    .map((t) => t.tableId);
   return {
     pages: result,
     widgetCount: all.length,
@@ -136,7 +198,9 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
     unofficial: notable.filter((w) => w.custom && w.custom.origin !== 'gallery'),
     gallery: notable.filter((w) => w.custom && w.custom.origin === 'gallery'),
     views: notable.filter((w) => !w.custom),
-    tableOnlyPages: result.filter((p) => p.widgets.length && p.widgets.every((w) => w.type === 'record')).map((p) => p.name || '(sans nom)'),
+    tableOnlyPages: result
+      .filter((p) => p.widgets.length && p.widgets.every((w) => w.type === 'record'))
+      .map((p) => p.name || '(sans nom)'),
     tablesWithoutPage: userTables.filter((t) => !shown.has(t)).sort((a, b) => a.localeCompare(b, 'fr')),
   };
 }
@@ -144,7 +208,8 @@ export function buildPages({ pages = [], views = [], sections = [], tables = [],
 /** Phrase courte décrivant l'origine d'une vue personnalisée. */
 export function originText(c) {
   if (!c) return '';
-  if (c.origin === 'gallery') return `${ORIGIN_LABELS.gallery} — ${c.name}${c.author ? ` (${c.author}${c.maintained ? '' : ', hors Grist Labs'})` : ''}`;
+  if (c.origin === 'gallery')
+    return `${ORIGIN_LABELS.gallery} — ${c.name}${c.author ? ` (${c.author}${c.maintained ? '' : ', hors Grist Labs'})` : ''}`;
   if (c.origin === 'external') return `${ORIGIN_LABELS.external} — ${c.host || c.url}`;
   if (c.origin === 'document') return `${ORIGIN_LABELS.document}${c.codeLines ? ` (${c.codeLines} lignes)` : ''}`;
   return `${ORIGIN_LABELS.self} — ${c.host}`;
@@ -157,8 +222,15 @@ export function typeCounts(model) {
   return [...counts.entries()].map(([label, n]) => `${n} ${n > 1 ? pluralLabel(label) : label.toLowerCase()}`).join(', ');
 }
 function pluralLabel(label) {
-  return { Fiche: 'fiches', 'Liste de fiches': 'listes de fiches', 'Vue personnalisée': 'vues personnalisées', 'Vue non officielle': 'vues non officielles', Formulaire: 'formulaires' }[label]
-    || (label.startsWith('Graphique') ? label.replace('Graphique', 'graphiques') : label.toLowerCase());
+  return (
+    {
+      Fiche: 'fiches',
+      'Liste de fiches': 'listes de fiches',
+      'Vue personnalisée': 'vues personnalisées',
+      'Vue non officielle': 'vues non officielles',
+      Formulaire: 'formulaires',
+    }[label] || (label.startsWith('Graphique') ? label.replace('Graphique', 'graphiques') : label.toLowerCase())
+  );
 }
 
 const DEFAULT_PAGE = /^(New page|Nouvelle page|Page sans titre|Untitled page|Page \d+)$/i;
@@ -173,11 +245,15 @@ export function pageInsights(model) {
   const unmapped = model.custom.filter((w) => w.custom?.missingColumns.length);
   if (unmapped.length) {
     push({
-      id: 'widget-unmapped', severity: 'blocking',
+      id: 'widget-unmapped',
+      severity: 'blocking',
       title: unmapped.length > 1 ? `${unmapped.length} vues personnalisées sans leurs colonnes` : 'Une vue personnalisée sans ses colonnes',
       summary: 'Ces vues attendent qu’on leur indique quelles colonnes utiliser : tant que ce n’est pas fait, elles n’affichent rien.',
-      why: 'Les personnes qui ouvrent la page voient une vue vide ou un message d\'erreur.',
-      steps: ['Sélectionnez la vue, panneau de droite ▸ les paramètres de la vue, et choisissez une colonne pour chaque champ demandé.', REFRESH_STEP],
+      why: "Les personnes qui ouvrent la page voient une vue vide ou un message d'erreur.",
+      steps: [
+        'Sélectionnez la vue, panneau de droite ▸ les paramètres de la vue, et choisissez une colonne pour chaque champ demandé.',
+        REFRESH_STEP,
+      ],
       targets: unmapped.map((w) => ({ table: w.page, note: `${widgetName(w)} — à associer : ${w.custom.missingColumns.join(', ')}` })),
     });
   }
@@ -186,25 +262,42 @@ export function pageInsights(model) {
     const name = String(p.name || '').trim();
     const sameTable = p.widgets.find((w) => w.table && name && pageNameKey(name) === pageNameKey(w.table));
     if (!DEFAULT_PAGE.test(name) && name && !sameTable) return [];
-    return [{ table: name || '(sans nom)', note: sameTable ? `Même nom que la table « ${sameTable.table} » ; préciser l’usage de cette page` : 'Nom vide ou laissé par défaut' }];
+    return [
+      {
+        table: name || '(sans nom)',
+        note: sameTable ? `Même nom que la table « ${sameTable.table} » ; préciser l’usage de cette page` : 'Nom vide ou laissé par défaut',
+      },
+    ];
   });
   if (defaults.length) {
     push({
-      id: 'page-default-name', severity: 'improve',
-      title: defaults.length > 1 ? `${defaults.length} pages dont le nom ne précise pas l’usage` : 'Une page dont le nom ne précise pas l’usage',
-      summary: 'Ces pages portent un nom par défaut ou le même nom que leur table. Leur nom ne précise pas ce que la personne vient y faire.',
+      id: 'page-default-name',
+      severity: 'improve',
+      title:
+        defaults.length > 1 ? `${defaults.length} pages dont le nom ne précise pas l’usage` : 'Une page dont le nom ne précise pas l’usage',
+      summary:
+        'Ces pages portent un nom par défaut ou le même nom que leur table. Leur nom ne précise pas ce que la personne vient y faire.',
       why: 'Une table stocke des données ; une page organise un usage. Un nom comme « Traiter les demandes » ou « Suivre les paiements » aide à trouver la bonne action dans le menu.',
-      steps: ['Repérez l’usage principal de la page : saisir une demande, traiter les dossiers ou suivre les paiements.', 'Dans le menu de gauche, survolez la page, ouvrez son menu « ⋯ » et choisissez « Renommer ».', 'Donnez un nom qui indique cet usage. Plusieurs pages peuvent utiliser la même table avec des vues adaptées, sans copier ses données.', REFRESH_STEP],
+      steps: [
+        'Repérez l’usage principal de la page : saisir une demande, traiter les dossiers ou suivre les paiements.',
+        'Dans le menu de gauche, survolez la page, ouvrez son menu « ⋯ » et choisissez « Renommer ».',
+        'Donnez un nom qui indique cet usage. Plusieurs pages peuvent utiliser la même table avec des vues adaptées, sans copier ses données.',
+        REFRESH_STEP,
+      ],
       targets: defaults,
     });
   }
   if (model.tablesWithoutPage.length) {
     push({
-      id: 'table-without-page', severity: 'choice',
-      title: model.tablesWithoutPage.length > 1 ? `${model.tablesWithoutPage.length} tables affichées sur aucune page` : 'Une table affichée sur aucune page',
-      summary: 'Ces tables n\'apparaissent dans aucune vue : on ne les voit que dans « Données brutes ».',
+      id: 'table-without-page',
+      severity: 'choice',
+      title:
+        model.tablesWithoutPage.length > 1
+          ? `${model.tablesWithoutPage.length} tables affichées sur aucune page`
+          : 'Une table affichée sur aucune page',
+      summary: "Ces tables n'apparaissent dans aucune vue : on ne les voit que dans « Données brutes ».",
       why: 'Les personnes qui utilisent le document risquent de ne jamais les trouver.',
-      intended: 'Table technique ou de paramètres, volontairement à l\'écart : rien à faire.',
+      intended: "Table technique ou de paramètres, volontairement à l'écart : rien à faire.",
       steps: ['Sinon : « Ajouter » ▸ « Ajouter une page » (ou « Ajouter une vue à la page ») et choisissez la table.', REFRESH_STEP],
       targets: model.tablesWithoutPage.map((t) => ({ table: t })),
     });
@@ -212,9 +305,11 @@ export function pageInsights(model) {
   const inDoc = model.custom.filter((w) => w.custom?.origin === 'document');
   if (inDoc.length) {
     push({
-      id: 'widget-in-document', severity: 'info',
+      id: 'widget-in-document',
+      severity: 'info',
       title: inDoc.length > 1 ? `${inDoc.length} vues dont le code est dans le document` : 'Une vue dont le code est dans le document',
-      summary: 'Ces vues ont été créées dans Grist (« Créer le vôtre ») : leur code est enregistré dans le document et le suit quand on le copie.',
+      summary:
+        'Ces vues ont été créées dans Grist (« Créer le vôtre ») : leur code est enregistré dans le document et le suit quand on le copie.',
       why: 'Toute personne qui peut modifier la structure peut modifier ce code.',
       steps: [],
       targets: inDoc.map((w) => ({ table: w.page, note: widgetName(w) })),
@@ -222,7 +317,3 @@ export function pageInsights(model) {
   }
   return items;
 }
-
-
-
-

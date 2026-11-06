@@ -8,9 +8,7 @@
  * - Survol ou sélection d'une table ou d'une colonne : ses relations sont mises en évidence.
  * - Export SVG (et PNG pour le rapport Word).
  */
-import {
-  edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph,
-} from './erd-geometry.js?v=3.18.0';
+import { edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph } from './erd-geometry.js?v=3.18.0';
 import { readTheme } from './theme.js?v=3.18.0';
 import { esc, plural } from './util.js?v=3.18.0';
 import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.18.0';
@@ -27,7 +25,8 @@ const MAX_ZOOM = 2.5;
 // Icônes (24 × 24). Le maillon est l'icône « links-line » du DSFR (Remix Icon, Apache-2.0).
 const ICON_KEY = 'M7 7a5 5 0 1 1 0 10a5 5 0 1 1 0-10ZM7 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5ZM11 11h10v2h-1.5v3h-2v-3h-1v2h-2v-2H11Z';
 const ICON_LOCK = 'M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h8V8a4 4 0 1 0-8 0v2Z';
-const ICON_LINK = 'm12.89 7.939 1.414 1.415a7 7 0 0 1 0 9.9l-.354.353a7 7 0 0 1-9.9-9.9l1.415 1.415a5 5 0 1 0 7.071 7.07l.354-.353a5 5 0 0 0 0-7.07l-1.415-1.415L12.89 7.94v-.001Zm6.717 6.01-1.414-1.413a5 5 0 1 0-7.07-7.071l-.355.354a5 5 0 0 0 0 7.07l1.415 1.415-1.415 1.414-1.414-1.414a7 7 0 0 1 0-9.9l.354-.353a7 7 0 1 1 9.9 9.9v-.001Z';
+const ICON_LINK =
+  'm12.89 7.939 1.414 1.415a7 7 0 0 1 0 9.9l-.354.353a7 7 0 0 1-9.9-9.9l1.415 1.415a5 5 0 1 0 7.071 7.07l.354-.353a5 5 0 0 0 0-7.07l-1.415-1.415L12.89 7.94v-.001Zm6.717 6.01-1.414-1.413a5 5 0 1 0-7.07-7.071l-.355.354a5 5 0 0 0 0 7.07l1.415 1.415-1.415 1.414-1.414-1.414a7 7 0 0 1 0-9.9l.354-.353a7 7 0 1 1 9.9 9.9v-.001Z';
 
 const icon = (d, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
 
@@ -44,8 +43,12 @@ function loadScript(url) {
 
 function withTimeout(promise, ms, message) {
   let timer;
-  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); })])
-    .finally(() => clearTimeout(timer));
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 let elkPromise = null;
@@ -62,8 +65,11 @@ export function getElk() {
         const source = `importScripts(${JSON.stringify(ELK_WORKER_URL)});`;
         const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
         const elk = new window.ELK({ workerUrl: ELK_WORKER_URL, workerFactory: () => new Worker(blobUrl) });
-        await withTimeout(elk.layout({ id: 'test', children: [{ id: 'a', width: 10, height: 10 }], edges: [] }),
-          LAYOUT_TIMEOUT, 'le moteur de disposition ne répond pas');
+        await withTimeout(
+          elk.layout({ id: 'test', children: [{ id: 'a', width: 10, height: 10 }], edges: [] }),
+          LAYOUT_TIMEOUT,
+          'le moteur de disposition ne répond pas',
+        );
         elk.mode = 'worker';
         return elk;
       } catch (err) {
@@ -73,7 +79,10 @@ export function getElk() {
         elk.mode = 'main';
         return elk;
       }
-    })().catch((err) => { elkPromise = null; throw err; });
+    })().catch((err) => {
+      elkPromise = null;
+      throw err;
+    });
   }
   return elkPromise;
 }
@@ -81,9 +90,15 @@ export function getElk() {
 /** Rangement simple en étagères, si ELK n'est pas disponible. */
 function shelfLayout(nodes, maxWidth = 1400, gap = 48) {
   const pos = new Map();
-  let x = gap; let y = gap; let rowH = 0;
+  let x = gap;
+  let y = gap;
+  let rowH = 0;
   for (const n of nodes) {
-    if (x > gap && x + n.w > maxWidth) { x = gap; y += rowH + gap; rowH = 0; }
+    if (x > gap && x + n.w > maxWidth) {
+      x = gap;
+      y += rowH + gap;
+      rowH = 0;
+    }
     pos.set(n.id, { x, y });
     x += n.w + gap;
     rowH = Math.max(rowH, n.h);
@@ -100,26 +115,45 @@ function shelfLayout(nodes, maxWidth = 1400, gap = 48) {
 const rectOf = (n) => ({ x: n.x, y: n.y, w: n.w, h: n.h });
 const FORMULA_LINKS = {
   lookups: {
-    css: 'erd-lookup', rootClass: 'erd--lookups', dataKey: 'lookup',
+    css: 'erd-lookup',
+    rootClass: 'erd--lookups',
+    dataKey: 'lookup',
     modifier: (l) => ` erd-lookup--${l.kind}`,
-    title: (l) => `${l.source}.${l.column} ← ${l.target}${l.targetColumn ? `.${l.targetColumn}` : ''} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'}${l.via === 'key' ? ', critère' : l.via === 'read' ? ', donnée lue' : ''})`,
+    title: (l) =>
+      `${l.source}.${l.column} ← ${l.target}${l.targetColumn ? `.${l.targetColumn}` : ''} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'}${l.via === 'key' ? ', critère' : l.via === 'read' ? ', donnée lue' : ''})`,
     /** Plusieurs lookups entre deux mêmes tables : décalés pour rester distincts. */
-    shifts: (group) => group.forEach((l, i) => { l.shift = 14 + i * 8; }),
-    geometry: (v, l, s, t) => lookupGeometry(rectOf(s), v.anchorY(s, l.column), rectOf(t), v.anchorY(t, l.targetColumn || '\u0000'), { shift: l.shift }),
+    shifts: (group) =>
+      group.forEach((l, i) => {
+        l.shift = 14 + i * 8;
+      }),
+    geometry: (v, l, s, t) =>
+      lookupGeometry(rectOf(s), v.anchorY(s, l.column), rectOf(t), v.anchorY(t, l.targetColumn || '\u0000'), { shift: l.shift }),
     /** La colonne survolée est celle de la formule. */
     touches: (l, f) => l.source === f.table && l.column === f.column,
     svg: (l, c) => (l.kind === 'one' ? { color: c.lookupOne, dash: '7 4' } : { color: c.lookupRecords, dash: '2 3' }),
   },
   calc: {
-    css: 'erd-calc', rootClass: 'erd--calc', dataKey: 'calc',
+    css: 'erd-calc',
+    rootClass: 'erd--calc',
+    dataKey: 'calc',
     modifier: () => '',
-    title: (l) => `${l.source}.${l.column} est calculée à partir de ${l.target}.${l.targetColumn} (${{ same: 'même table', ref: 'par une référence' }[l.via] || ''}${l.trigger ? ', formule d\'initialisation' : ''})`,
+    title: (l) =>
+      `${l.source}.${l.column} est calculée à partir de ${l.target}.${l.targetColumn} (${{ same: 'même table', ref: 'par une référence' }[l.via] || ''}${l.trigger ? ", formule d'initialisation" : ''})`,
     /** Boucles d'une même table : les plus courtes à l'intérieur ; liens entre deux tables : décalés. */
     shifts: (group, v) => {
-      if (group[0].source !== group[0].target) { group.forEach((l, i) => { l.shift = 30 + i * 8; }); return; }
+      if (group[0].source !== group[0].target) {
+        group.forEach((l, i) => {
+          l.shift = 30 + i * 8;
+        });
+        return;
+      }
       const rows = v.nodes.get(group[0].source)?.rowY;
       const span = (l) => Math.abs((rows?.get(l.column) ?? 0) - (rows?.get(l.targetColumn) ?? 0));
-      [...group].sort((a, b) => span(a) - span(b)).forEach((l, i) => { l.shift = i * 7; });
+      [...group]
+        .sort((a, b) => span(a) - span(b))
+        .forEach((l, i) => {
+          l.shift = i * 7;
+        });
     },
     geometry: (v, l, s, t) => {
       const sy = v.anchorY(s, l.column);
@@ -244,7 +278,14 @@ export class ErdViewer {
       id: t.name,
       kind: t.kind === 'summary' ? 'summary' : acl.has(t.name) ? 'acl' : 'table',
       ghost: false,
-      columns: t.columns.map((c) => ({ name: c.name, base: c.base, type: columnTypeLabel(c), isFormula: c.isFormula, ref: c.ref, label: c.label })),
+      columns: t.columns.map((c) => ({
+        name: c.name,
+        base: c.base,
+        type: columnTypeLabel(c),
+        isFormula: c.isFormula,
+        ref: c.ref,
+        label: c.label,
+      })),
     }));
     const edges = [];
     for (const t of tables) {
@@ -265,7 +306,10 @@ export class ErdViewer {
       if (!pairs.has(key)) pairs.set(key, []);
       pairs.get(key).push(e);
     }
-    for (const group of pairs.values()) group.forEach((e, i) => { e.shift = (i - (group.length - 1) / 2) * 10; });
+    for (const group of pairs.values())
+      group.forEach((e, i) => {
+        e.shift = (i - (group.length - 1) / 2) * 10;
+      });
 
     this.model = model;
     this.edges = edges;
@@ -310,33 +354,52 @@ export class ErdViewer {
   }
 
   renderNodes() {
-    const html = this.model.map((n) => {
-      const cols = this.visibleColumns(n);
-      const hidden = n.columns.length - cols.length;
-      const rows = n.ghost ? '' : [
-        this.detail === 'tables' ? '' : `<li class="erd-row erd-row--pk" data-col="id">${icon(ICON_KEY, 'erd-row__icon')}<span class="erd-row__name">id</span><span class="erd-row__type">${ID_TYPE_LABEL}</span></li>`,
-        ...cols.map((c) => {
-          const cls = ['erd-row', c.ref ? 'erd-row--fk' : '', c.isFormula ? 'erd-row--formula' : ''].filter(Boolean).join(' ');
-          const lead = c.ref ? icon(ICON_LINK, 'erd-row__icon') : c.isFormula ? '<span class="erd-row__icon erd-row__fx" aria-hidden="true">ƒ</span>' : '<span class="erd-row__icon"></span>';
-          const title = [
-            `${c.name}${c.label && c.label !== c.name ? ` (${c.label})` : ''} : ${c.type}${c.isFormula ? ', formule' : ''}`,
-            c.ref ? `${c.ref.kind === '<>' ? 'plusieurs' : 'une'} ligne${c.ref.kind === '<>' ? 's' : ''} de ${c.ref.table}` : '',
-          ].filter(Boolean).join(' – ');
-          return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.type)}</span></li>`;
-        }),
-        hidden && this.detail === 'keys' ? `<li class="erd-row erd-row--more">${esc(plural(hidden, 'autre colonne', 'autres colonnes'))}</li>` : '',
-      ].join('');
-      const badge = n.ghost ? '<span class="erd-node__badge">absente</span>' : n.kind === 'summary' ? '<span class="erd-node__badge">synthèse</span>'
-        : n.kind === 'acl' ? `<span class="erd-node__lock" title="Table de droits : utilisée par les règles d'accès pour reconnaître la personne">${icon(ICON_LOCK, 'erd-node__lock-icon')}</span>` : '';
-      const label = n.ghost
-        ? `Table ${n.id}, absente du schéma`
-        : `Table ${n.id}${n.kind === 'summary' ? ' (synthèse)' : n.kind === 'acl' ? ' (table de droits)' : ''}, ${plural(n.columns.length + 1, 'colonne', 'colonnes')}`;
-      return `<div class="erd-node${n.kind === 'summary' ? ' erd-node--summary' : n.kind === 'acl' ? ' erd-node--acl' : ''}${n.ghost ? ' erd-node--ghost' : ''}" data-id="${esc(n.id)}"
+    const html = this.model
+      .map((n) => {
+        const cols = this.visibleColumns(n);
+        const hidden = n.columns.length - cols.length;
+        const rows = n.ghost
+          ? ''
+          : [
+              this.detail === 'tables'
+                ? ''
+                : `<li class="erd-row erd-row--pk" data-col="id">${icon(ICON_KEY, 'erd-row__icon')}<span class="erd-row__name">id</span><span class="erd-row__type">${ID_TYPE_LABEL}</span></li>`,
+              ...cols.map((c) => {
+                const cls = ['erd-row', c.ref ? 'erd-row--fk' : '', c.isFormula ? 'erd-row--formula' : ''].filter(Boolean).join(' ');
+                const lead = c.ref
+                  ? icon(ICON_LINK, 'erd-row__icon')
+                  : c.isFormula
+                    ? '<span class="erd-row__icon erd-row__fx" aria-hidden="true">ƒ</span>'
+                    : '<span class="erd-row__icon"></span>';
+                const title = [
+                  `${c.name}${c.label && c.label !== c.name ? ` (${c.label})` : ''} : ${c.type}${c.isFormula ? ', formule' : ''}`,
+                  c.ref ? `${c.ref.kind === '<>' ? 'plusieurs' : 'une'} ligne${c.ref.kind === '<>' ? 's' : ''} de ${c.ref.table}` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' – ');
+                return `<li class="${cls}" data-col="${esc(c.name)}" title="${esc(title)}">${lead}<span class="erd-row__name">${esc(c.name)}</span><span class="erd-row__type">${esc(c.type)}</span></li>`;
+              }),
+              hidden && this.detail === 'keys'
+                ? `<li class="erd-row erd-row--more">${esc(plural(hidden, 'autre colonne', 'autres colonnes'))}</li>`
+                : '',
+            ].join('');
+        const badge = n.ghost
+          ? '<span class="erd-node__badge">absente</span>'
+          : n.kind === 'summary'
+            ? '<span class="erd-node__badge">synthèse</span>'
+            : n.kind === 'acl'
+              ? `<span class="erd-node__lock" title="Table de droits : utilisée par les règles d'accès pour reconnaître la personne">${icon(ICON_LOCK, 'erd-node__lock-icon')}</span>`
+              : '';
+        const label = n.ghost
+          ? `Table ${n.id}, absente du schéma`
+          : `Table ${n.id}${n.kind === 'summary' ? ' (synthèse)' : n.kind === 'acl' ? ' (table de droits)' : ''}, ${plural(n.columns.length + 1, 'colonne', 'colonnes')}`;
+        return `<div class="erd-node${n.kind === 'summary' ? ' erd-node--summary' : n.kind === 'acl' ? ' erd-node--acl' : ''}${n.ghost ? ' erd-node--ghost' : ''}" data-id="${esc(n.id)}"
           tabindex="0" role="group" aria-label="${esc(label)}">
         <div class="erd-node__head"><span class="erd-node__name">${esc(n.id)}</span>${badge}</div>
         ${rows ? `<ul class="erd-node__rows">${rows}</ul>` : ''}
       </div>`;
-    }).join('');
+      })
+      .join('');
     this.nodeLayer.innerHTML = html;
     this.nodes.clear();
     for (const el of this.nodeLayer.children) {
@@ -347,21 +410,31 @@ export class ErdViewer {
       this.nodes.set(n.id, { ...n, el, x: p.x, y: p.y });
     }
     this.measure();
-    this.edgeLayer.innerHTML = this.edges.map((e, i) => `
+    this.edgeLayer.innerHTML = this.edges
+      .map(
+        (e, i) => `
       <g class="erd-edge${e.kind === '<>' ? ' erd-edge--many' : ''}" data-edge="${i}">
         <path class="erd-edge__hit"><title>${esc(`${e.source}.${e.column} → ${e.target}${e.kind === '<>' ? ' (plusieurs)' : ''}`)}</title></path>
         <path class="erd-edge__line"/>
         <path class="erd-edge__mark"/>
-      </g>`).join('');
-    this.edges.forEach((e, i) => { e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`); });
+      </g>`,
+      )
+      .join('');
+    this.edges.forEach((e, i) => {
+      e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`);
+    });
     for (const k of LINK_FAMILIES) this.renderLinks(k);
   }
 
   /** Lookups (lookupOne, lookupRecords) trouvés dans les formules : de la colonne de formule vers la colonne cherchée. */
-  setLookups(lookups, show = this.links.lookups.show) { return this.setLinks('lookups', lookups, show); }
+  setLookups(lookups, show = this.links.lookups.show) {
+    return this.setLinks('lookups', lookups, show);
+  }
 
   /** Calculs : de la colonne calculée vers chaque colonne que sa formule lit. */
-  setCalc(calc, show = this.links.calc.show) { return this.setLinks('calc', calc, show); }
+  setCalc(calc, show = this.links.calc.show) {
+    return this.setLinks('calc', calc, show);
+  }
 
   /**
    * Enregistre une famille de liens de formule et l'affiche ou la masque. Ces liens ne comptent pas
@@ -401,13 +474,22 @@ export class ErdViewer {
         groups.get(key).push(l);
       }
       for (const group of groups.values()) f.shifts(group, this);
-      this.edgeLayer.insertAdjacentHTML('beforeend', list.map((l, i) => `
+      this.edgeLayer.insertAdjacentHTML(
+        'beforeend',
+        list
+          .map(
+            (l, i) => `
       <g class="${f.css}${f.modifier(l)}" data-${f.dataKey}="${i}">
         <path class="${f.css}__hit"><title>${esc(f.title(l))}</title></path>
         <path class="${f.css}__line"/>
         <path class="${f.css}__arrow"/>
-      </g>`).join(''));
-      list.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-${f.dataKey}="${i}"]`); });
+      </g>`,
+          )
+          .join(''),
+      );
+      list.forEach((l, i) => {
+        l.el = this.edgeLayer.querySelector(`[data-${f.dataKey}="${i}"]`);
+      });
     }
     this.applyKinds();
   }
@@ -422,8 +504,14 @@ export class ErdViewer {
 
   /** Masque les tables des types décochés, et tous les liens qui les touchent. */
   applyKinds() {
-    const off = (id) => { const n = this.nodes.get(id); return Boolean(n) && !this.visibleKinds.has(n.kind); };
-    for (const n of this.nodes.values()) { n.filtered = off(n.id); n.el.classList.toggle('is-filtered', n.filtered); }
+    const off = (id) => {
+      const n = this.nodes.get(id);
+      return Boolean(n) && !this.visibleKinds.has(n.kind);
+    };
+    for (const n of this.nodes.values()) {
+      n.filtered = off(n.id);
+      n.el.classList.toggle('is-filtered', n.filtered);
+    }
     for (const l of [...this.edges, ...LINK_FAMILIES.flatMap((k) => this.links[k].list)]) {
       l.filtered = off(l.source) || off(l.target);
       l.el?.classList.toggle('is-filtered', l.filtered);
@@ -456,10 +544,16 @@ export class ErdViewer {
   watchFonts() {
     if (!document.fonts?.ready) return;
     document.fonts.ready.then(() => {
-      if (this.nodes.size && this.measure()) { this.drawEdges(); this.updateMinimap(); }
+      if (this.nodes.size && this.measure()) {
+        this.drawEdges();
+        this.updateMinimap();
+      }
     });
     document.fonts.addEventListener?.('loadingdone', () => {
-      if (this.nodes.size && this.measure()) { this.drawEdges(); this.updateMinimap(); }
+      if (this.nodes.size && this.measure()) {
+        this.drawEdges();
+        this.updateMinimap();
+      }
     });
   }
 
@@ -492,7 +586,12 @@ export class ErdViewer {
         const vw = this.viewport.clientWidth || 1200;
         const vh = this.viewport.clientHeight || 700;
         const graph = buildElkGraph(
-          list.map((n) => ({ id: n.id, w: n.w, h: n.h, ports: { id: n.rowY.get('id') ?? n.headY, ...Object.fromEntries([...n.rowY].filter(([k]) => k !== 'id')) } })),
+          list.map((n) => ({
+            id: n.id,
+            w: n.w,
+            h: n.h,
+            ports: { id: n.rowY.get('id') ?? n.headY, ...Object.fromEntries([...n.rowY].filter(([k]) => k !== 'id')) },
+          })),
           this.edges,
           { aspectRatio: this.aspectRatio || Math.max(1, Math.min(3, vw / vh)) },
         );
@@ -533,7 +632,10 @@ export class ErdViewer {
       n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
     }
     this.drawEdges();
-    if (refit) { this.fit(); this.fitted = true; } else this.updateMinimap();
+    if (refit) {
+      this.fit();
+      this.fitted = true;
+    } else this.updateMinimap();
     this.applyHighlight();
   }
 
@@ -555,9 +657,12 @@ export class ErdViewer {
       const t = this.nodes.get(e.target);
       if (!s || !t || !e.el) continue;
       const g = edgeGeometry(
-        { x: s.x, y: s.y, w: s.w, h: s.h }, this.anchorY(s, e.column),
-        { x: t.x, y: t.y, w: t.w, h: t.h }, this.anchorY(t, 'id'),
-        e.kind, { shift: e.shift },
+        { x: s.x, y: s.y, w: s.w, h: s.h },
+        this.anchorY(s, e.column),
+        { x: t.x, y: t.y, w: t.w, h: t.h },
+        this.anchorY(t, 'id'),
+        e.kind,
+        { shift: e.shift },
       );
       e.geometry = g;
       const [hit, line, mark] = e.el.querySelectorAll('path');
@@ -638,14 +743,22 @@ export class ErdViewer {
   }
 
   updateMinimap() {
-    if (!this.nodes.size) { this.minimap.innerHTML = ''; return; }
+    if (!this.nodes.size) {
+      this.minimap.innerHTML = '';
+      return;
+    }
     const b = this.bounds();
     const pad = 40;
     const vb = { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad };
     const { x, y, k } = this.view;
     const vw = this.viewport.clientWidth / k;
     const vh = this.viewport.clientHeight / k;
-    const rects = this.shownNodes().map((n) => `<rect class="${n.kind === 'summary' ? 'is-summary' : ''}${n.ghost ? ' is-ghost' : ''}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="4"/>`).join('');
+    const rects = this.shownNodes()
+      .map(
+        (n) =>
+          `<rect class="${n.kind === 'summary' ? 'is-summary' : ''}${n.ghost ? ' is-ghost' : ''}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="4"/>`,
+      )
+      .join('');
     this.minimap.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
     this.minimap.innerHTML = `${rects}<rect class="erd__minimap-view" x="${-x / k}" y="${-y / k}" width="${vw}" height="${vh}" vector-effect="non-scaling-stroke"/>`;
     // La mini-carte n'a d'intérêt que si le schéma déborde de la vue.
@@ -676,7 +789,8 @@ export class ErdViewer {
       e.el?.classList.toggle('is-active', on);
       if (on) {
         active.push(e);
-        related.add(e.source); related.add(e.target);
+        related.add(e.source);
+        related.add(e.target);
         linkedRows.add(`${e.source}\u0000${e.column}`);
         linkedRows.add(`${e.target}\u0000id`);
       }
@@ -691,7 +805,8 @@ export class ErdViewer {
         else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
         l.el?.classList.toggle('is-active', on);
         if (on) {
-          related.add(l.source); related.add(l.target);
+          related.add(l.source);
+          related.add(l.target);
           linkedRows.add(`${l.source}\u0000${l.column}`);
           if (l.targetColumn) linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
           active.push(l);
@@ -720,12 +835,21 @@ export class ErdViewer {
 
     this.root.addEventListener('pointerdown', (ev) => {
       if (ev.button !== 0) return;
-      if (ev.target.closest('.erd__minimap')) { this.minimapNavigate(ev); drag = { type: 'minimap' }; vp().setPointerCapture(ev.pointerId); return; }
+      if (ev.target.closest('.erd__minimap')) {
+        this.minimapNavigate(ev);
+        drag = { type: 'minimap' };
+        vp().setPointerCapture(ev.pointerId);
+        return;
+      }
       if (!ev.target.closest('.erd__viewport')) return;
       const nodeEl = ev.target.closest('.erd-node');
       const node = nodeEl && this.nodes.get(nodeEl.dataset.id);
       drag = {
-        type: node ? 'node' : 'pan', node, startX: ev.clientX, startY: ev.clientY, moved: false,
+        type: node ? 'node' : 'pan',
+        node,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        moved: false,
         origin: node ? { x: node.x, y: node.y } : { x: this.view.x, y: this.view.y },
         rowCol: ev.target.closest('.erd-row[data-col]')?.dataset.col,
       };
@@ -735,7 +859,10 @@ export class ErdViewer {
 
     this.root.addEventListener('pointermove', (ev) => {
       if (!drag) return;
-      if (drag.type === 'minimap') { this.minimapNavigate(ev); return; }
+      if (drag.type === 'minimap') {
+        this.minimapNavigate(ev);
+        return;
+      }
       const dx = ev.clientX - drag.startX;
       const dy = ev.clientY - drag.startY;
       if (!drag.moved && Math.hypot(dx, dy) < 4) return;
@@ -777,12 +904,16 @@ export class ErdViewer {
     this.root.addEventListener('pointerup', end);
     this.root.addEventListener('pointercancel', end);
 
-    this.viewport.addEventListener('wheel', (ev) => {
-      ev.preventDefault();
-      const r = this.viewport.getBoundingClientRect();
-      const factor = Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015));
-      this.zoomAt(factor, ev.clientX - r.left, ev.clientY - r.top);
-    }, { passive: false });
+    this.viewport.addEventListener(
+      'wheel',
+      (ev) => {
+        ev.preventDefault();
+        const r = this.viewport.getBoundingClientRect();
+        const factor = Math.exp(-ev.deltaY * (ev.ctrlKey ? 0.01 : 0.0015));
+        this.zoomAt(factor, ev.clientX - r.left, ev.clientY - r.top);
+      },
+      { passive: false },
+    );
 
     // Survol : table, colonne ou relation
     this.root.addEventListener('pointerover', (ev) => {
@@ -799,9 +930,15 @@ export class ErdViewer {
         const row = ev.target.closest('.erd-row--fk, .erd-row--formula');
         next = row ? { table: nodeEl.dataset.id, column: row.dataset.col } : { table: nodeEl.dataset.id };
       }
-      if (JSON.stringify(next) !== JSON.stringify(this.hover)) { this.hover = next; this.applyHighlight(); }
+      if (JSON.stringify(next) !== JSON.stringify(this.hover)) {
+        this.hover = next;
+        this.applyHighlight();
+      }
     });
-    this.root.addEventListener('pointerleave', () => { this.hover = null; this.applyHighlight(); });
+    this.root.addEventListener('pointerleave', () => {
+      this.hover = null;
+      this.applyHighlight();
+    });
 
     // Clavier
     this.root.addEventListener('keydown', (ev) => {
@@ -827,16 +964,30 @@ export class ErdViewer {
         ev.preventDefault();
         this.view = { ...this.view, x: this.view.x - arrows[ev.key][0] * 48, y: this.view.y - arrows[ev.key][1] * 48 };
         this.applyView();
-      } else if (ev.key === '+' || ev.key === '=') { ev.preventDefault(); this.zoomAt(1.2); }
-      else if (ev.key === '-') { ev.preventDefault(); this.zoomAt(1 / 1.2); }
-      else if (ev.key === '0') { ev.preventDefault(); this.fit(); }
-      else if (ev.key === 'Escape') { this.select(null); }
+      } else if (ev.key === '+' || ev.key === '=') {
+        ev.preventDefault();
+        this.zoomAt(1.2);
+      } else if (ev.key === '-') {
+        ev.preventDefault();
+        this.zoomAt(1 / 1.2);
+      } else if (ev.key === '0') {
+        ev.preventDefault();
+        this.fit();
+      } else if (ev.key === 'Escape') {
+        this.select(null);
+      }
     });
     this.root.addEventListener('focusin', (ev) => {
       const nodeEl = ev.target.closest?.('.erd-node');
-      if (nodeEl) { this.hover = { table: nodeEl.dataset.id }; this.applyHighlight(); }
+      if (nodeEl) {
+        this.hover = { table: nodeEl.dataset.id };
+        this.applyHighlight();
+      }
     });
-    this.root.addEventListener('focusout', () => { this.hover = null; this.applyHighlight(); });
+    this.root.addEventListener('focusout', () => {
+      this.hover = null;
+      this.applyHighlight();
+    });
   }
 
   minimapNavigate(ev) {
@@ -863,9 +1014,22 @@ export class ErdViewer {
     // Couleurs des documents (theme.js), identiques à celles du rapport Word, quel que soit le thème affiché.
     const t = readTheme();
     const c = {
-      bg: t.background, border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
-      ghost: t.subtle, text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: t.line, key: t.key,
-      lookupOne: t.lookupOne, lookupRecords: t.lookupRecords, acl: t.acl, calc: t.calc,
+      bg: t.background,
+      border: t.border,
+      head: t.primary,
+      headText: t.onPrimary,
+      summary: t.summary,
+      ghost: t.subtle,
+      text: t.text,
+      mention: t.muted,
+      type: t.type,
+      formula: t.formula,
+      line: t.line,
+      key: t.key,
+      lookupOne: t.lookupOne,
+      lookupRecords: t.lookupRecords,
+      acl: t.acl,
+      calc: t.calc,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
     const parts = [];
@@ -879,7 +1043,9 @@ export class ErdViewer {
       for (const l of this.links[name].show ? this.links[name].list : []) {
         if (!l.geometry || l.filtered) continue;
         const { color, dash } = FORMULA_LINKS[name].svg(l, c);
-        parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-dasharray="${dash}" stroke-linecap="round"/>`);
+        parts.push(
+          `<path d="${l.geometry.path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-dasharray="${dash}" stroke-linecap="round"/>`,
+        );
         parts.push(`<path d="${l.geometry.arrow}" fill="${color}"/>`);
       }
     }
@@ -888,9 +1054,13 @@ export class ErdViewer {
       const headFill = n.ghost ? c.ghost : n.kind === 'summary' ? c.summary : n.kind === 'acl' ? c.acl : c.head;
       const headColor = n.ghost ? c.mention : c.headText;
       parts.push(`<g transform="translate(${n.x},${n.y})">`);
-      parts.push(`<rect width="${n.w}" height="${n.h}" rx="4" fill="${c.bg}" stroke="${c.border}"${n.ghost ? ' stroke-dasharray="4 3"' : ''}/>`);
+      parts.push(
+        `<rect width="${n.w}" height="${n.h}" rx="4" fill="${c.bg}" stroke="${c.border}"${n.ghost ? ' stroke-dasharray="4 3"' : ''}/>`,
+      );
       parts.push(`<path d="M0 4a4 4 0 0 1 4-4h${n.w - 8}a4 4 0 0 1 4 4v${headH - 4}H0Z" fill="${headFill}"/>`);
-      parts.push(`<text x="12" y="${headH / 2}" dominant-baseline="central" font-family="${font}" font-size="14" font-weight="700" fill="${headColor}">${esc(n.id)}</text>`);
+      parts.push(
+        `<text x="12" y="${headH / 2}" dominant-baseline="central" font-family="${font}" font-size="14" font-weight="700" fill="${headColor}">${esc(n.id)}</text>`,
+      );
       for (const row of n.el.querySelectorAll('.erd-row')) {
         const y = row.offsetTop + row.offsetHeight / 2;
         const name = row.querySelector('.erd-row__name')?.textContent ?? row.textContent;
@@ -899,10 +1069,21 @@ export class ErdViewer {
         const isFk = row.classList.contains('erd-row--fk');
         const isFx = row.classList.contains('erd-row--formula');
         parts.push(`<line x1="0" x2="${n.w}" y1="${row.offsetTop}" y2="${row.offsetTop}" stroke="${c.ghost}"/>`);
-        if (isPk || isFk) parts.push(`<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? c.key : c.head}"/>`);
-        if (isFx && !isFk) parts.push(`<text x="17" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="${c.formula}">ƒ</text>`);
-        parts.push(`<text x="30" y="${y}" dominant-baseline="central" font-family="${font}" font-size="13" font-weight="${isPk ? 700 : 400}" fill="${row.classList.contains('erd-row--more') ? c.mention : c.text}">${esc(name)}</text>`);
-        if (type) parts.push(`<text x="${n.w - 10}" y="${y}" dominant-baseline="central" text-anchor="end" font-family="${font}" font-size="11.5" fill="${isFx ? c.formula : c.type}">${esc(type)}</text>`);
+        if (isPk || isFk)
+          parts.push(
+            `<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? c.key : c.head}"/>`,
+          );
+        if (isFx && !isFk)
+          parts.push(
+            `<text x="17" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="${c.formula}">ƒ</text>`,
+          );
+        parts.push(
+          `<text x="30" y="${y}" dominant-baseline="central" font-family="${font}" font-size="13" font-weight="${isPk ? 700 : 400}" fill="${row.classList.contains('erd-row--more') ? c.mention : c.text}">${esc(name)}</text>`,
+        );
+        if (type)
+          parts.push(
+            `<text x="${n.w - 10}" y="${y}" dominant-baseline="central" text-anchor="end" font-family="${font}" font-size="11.5" fill="${isFx ? c.formula : c.type}">${esc(type)}</text>`,
+          );
       }
       parts.push('</g>');
     }
@@ -917,7 +1098,11 @@ export class ErdViewer {
     const img = new Image();
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
     try {
-      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url; });
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
       const canvas = document.createElement('canvas');
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
@@ -935,7 +1120,3 @@ export class ErdViewer {
     this.root.innerHTML = '';
   }
 }
-
-
-
-

@@ -24,7 +24,7 @@ export const GRIST_TYPE_LABELS = {
 /** Libellé français du type d'une colonne de sortie du convertisseur. */
 export function columnTypeLabel(col) {
   if (!col) return '';
-  const name = col.gristType ? col.gristType.name : (col.base === 'default' ? 'Any' : null);
+  const name = col.gristType ? col.gristType.name : col.base === 'default' ? 'Any' : null;
   if (name && GRIST_TYPE_LABELS[name]) return GRIST_TYPE_LABELS[name];
   return name || col.base || '';
 }
@@ -46,12 +46,18 @@ const TRIGGER_WHEN = {
 export function detailLines(col, { includeLabel = true } = {}) {
   const d = col.details;
   const out = [];
-  if (col.empty) out.push({ label: 'Colonne vide', text: 'ni type ni formule pour l\'instant' });
+  if (col.empty) out.push({ label: 'Colonne vide', text: "ni type ni formule pour l'instant" });
   if (!d) return out;
   if (includeLabel && d.label && d.label !== col.name) out.push({ label: 'Libellé', text: d.label });
   if (d.trigger) {
-    out.push({ label: 'Formule d\'initialisation', text: d.formula, mono: true });
-    out.push({ label: 'Appliquée', text: d.trigger.when === 'deps' ? `aux nouvelles lignes et quand ${d.trigger.deps.length > 1 ? 'ces colonnes changent' : 'cette colonne change'} : ${d.trigger.deps.join(', ')}` : TRIGGER_WHEN[d.trigger.when] });
+    out.push({ label: "Formule d'initialisation", text: d.formula, mono: true });
+    out.push({
+      label: 'Appliquée',
+      text:
+        d.trigger.when === 'deps'
+          ? `aux nouvelles lignes et quand ${d.trigger.deps.length > 1 ? 'ces colonnes changent' : 'cette colonne change'} : ${d.trigger.deps.join(', ')}`
+          : TRIGGER_WHEN[d.trigger.when],
+    });
   } else if (d.formula) {
     out.push({ label: 'Formule', text: d.formula, mono: true });
   }

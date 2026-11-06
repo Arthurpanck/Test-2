@@ -18,7 +18,10 @@ const NOT_COLUMNS = new Set(['order_by', 'sort_by']);
 /** Noms des arguments nommés de premier niveau : « a=1, b=$x » → [a, b]. */
 function argumentNames(args) {
   const names = [];
-  for (const p of splitTopLevel(args)) { const m = /^\s*([A-Za-z_]\w*)\s*=(?!=)/.exec(p); if (m && !NOT_COLUMNS.has(m[1])) names.push(m[1]); }
+  for (const p of splitTopLevel(args)) {
+    const m = /^\s*([A-Za-z_]\w*)\s*=(?!=)/.exec(p);
+    if (m && !NOT_COLUMNS.has(m[1])) names.push(m[1]);
+  }
   return names;
 }
 
@@ -72,5 +75,3 @@ export function findLookups(tables, schema = null) {
   }
   return out;
 }
-
-

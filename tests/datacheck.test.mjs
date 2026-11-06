@@ -30,13 +30,24 @@ test('profil des valeurs : nombres, dates, oui/non, listes', () => {
   assert.deepEqual([...l.items].sort(), ['Laurent', 'Martin']);
 });
 
-test('les anciens liens manuels ne sont plus analysés', () => { assert.equal(item(load().ins, 'text-ref'), undefined); });
+test('les anciens liens manuels ne sont plus analysés', () => {
+  assert.equal(item(load().ins, 'text-ref'), undefined);
+});
 
 test('mal structuré : nombres, dates, oui/non en texte, choix répétés, valeurs hors liste', () => {
   const { ins } = load();
-  const typed = {targets:['typed-as-text','boolean-as-text','date-as-text'].flatMap(id=>item(ins,id)?.targets||[])};
-  for (const [t, c] of [['Commandes', 'Quantite'], ['Commandes', 'Prix_unitaire'], ['Commandes', 'Date_commande'], ['Clients', 'Date_inscription'],
-    ['Clients', 'Actif'], ['Factures', 'Payee'], ['Evenements', 'Budget'], ['Taches', 'Fait'], ['Adherents', 'Montant_cotisation']]) {
+  const typed = { targets: ['typed-as-text', 'boolean-as-text', 'date-as-text'].flatMap((id) => item(ins, id)?.targets || []) };
+  for (const [t, c] of [
+    ['Commandes', 'Quantite'],
+    ['Commandes', 'Prix_unitaire'],
+    ['Commandes', 'Date_commande'],
+    ['Clients', 'Date_inscription'],
+    ['Clients', 'Actif'],
+    ['Factures', 'Payee'],
+    ['Evenements', 'Budget'],
+    ['Taches', 'Fait'],
+    ['Adherents', 'Montant_cotisation'],
+  ]) {
     assert.ok(has(typed, t, c), `${t}.${c}`);
   }
   const choice = item(ins, 'text-choice');
@@ -49,30 +60,33 @@ test('mal structuré : noms par défaut, doublons, copie non protégée, tables 
   const { ins } = load();
   const def = item(ins, 'default-name');
   assert.ok(has(def, 'Table2', 'A') && has(def, 'Feuille1', 'Colonne1'));
-  assert.ok(def.targets.every(t=>t.column), 'seuls les noms de colonnes sont contrôlés');
+  assert.ok(
+    def.targets.every((t) => t.column),
+    'seuls les noms de colonnes sont contrôlés',
+  );
   assert.ok(!has(def, 'Table1', 'A'), 'colonnes vides : signalées une seule fois (colonnes jamais utilisées)');
   const leak = item(ins, 'acl-copy-leak');
-  assert.equal(leak,undefined,'le constat de copie et d’accès est retiré');
+  assert.equal(leak, undefined, 'le constat de copie et d’accès est retiré');
   const dup = item(ins, 'duplicate-table');
-  assert.equal(dup,undefined);
+  assert.equal(dup, undefined);
   assert.ok(has(item(ins, 'empty-table'), 'Export_2023') && has(item(ins, 'empty-table'), 'Test'));
   assert.ok(has(item(ins, 'never-filled'), 'Commandes', 'Remise'));
   assert.ok(has(item(ins, 'wide-table'), 'Personnel'));
-  for(const id of ['empty-table','never-filled'])assert.equal(item(ins,id).severity,'blocking');
+  for (const id of ['empty-table', 'never-filled']) assert.equal(item(ins, id).severity, 'blocking');
   for (const id of ['wide-table', 'isolated']) assert.equal(item(ins, id).severity, 'choice', id);
 });
 
-test('mal structuré : droits d\'accès en désordre', () => {
+test("mal structuré : droits d'accès en désordre", () => {
   const { ins } = load();
-  assert.equal(item(ins, 'acl-unknown-attribute'),undefined);
+  assert.equal(item(ins, 'acl-unknown-attribute'), undefined);
   assert.ok(item(ins, 'acl-bypass'));
-  assert.equal(item(ins, 'acl-full-copies'),undefined);
-  assert.equal(item(ins,'acl-attr-mismatch'),undefined);
-  assert.equal(item(ins, 'acl-attr-unused'),undefined);
+  assert.equal(item(ins, 'acl-full-copies'), undefined);
+  assert.equal(item(ins, 'acl-attr-mismatch'), undefined);
+  assert.equal(item(ins, 'acl-attr-unused'), undefined);
   assert.equal(ins.verdict.level, 'blocking');
 });
 
-test('« C\'est voulu » : un choix confirmé sort des comptes et reste listé à part', () => {
+test("« C'est voulu » : un choix confirmé sort des comptes et reste listé à part", () => {
   const { out, access, profiles, ins } = load();
   const wide = item(ins, 'wide-table');
   const again = buildInsights(out.tables, access, { profiles, accepted: new Set([insightKey(wide)]) });
@@ -81,7 +95,7 @@ test('« C\'est voulu » : un choix confirmé sort des comptes et reste listé �
   assert.equal(again.counts.choice, ins.counts.choice - 1);
 });
 
-test('aucun texte d\'analyse ne parle du DBML', () => {
+test("aucun texte d'analyse ne parle du DBML", () => {
   const { ins } = load();
   for (const it of [...ins.items, { title: ins.verdict.title, summary: ins.verdict.text, why: '', steps: [] }]) {
     assert.ok(!/DBML/i.test([it.title, it.summary, it.why, it.intended || '', ...it.steps].join(' ')), it.title);
@@ -95,13 +109,14 @@ test('vu par le propriétaire : tables entièrement masquées (nom effacé par G
   const tables = m.tables.map((t) => (hiddenIds.has(t.id) ? { ...t, tableId: '' } : t));
   const cols = m.cols.map((c) => (hiddenIds.has(c.parentId) ? { ...c, colId: '' } : c));
   const records = { ...m.records };
-  delete records.Personnel; delete records.Factures;
+  delete records.Personnel;
+  delete records.Factures;
   const schema = schemaFromMetadata(tables, cols);
   assert.ok(!schema.has(''), 'aucune table sans nom');
   const out = convertAll({ schema }).corrected;
   const access = buildAccess({ resources: m.aclResources, rules: m.aclRules, schema });
   const ins = buildInsights(out.tables, access, { profiles: profileTables(records) });
   assert.ok(!item(ins, 'bad-name'), 'pas de faux « identifiant invalide »');
-  assert.equal(item(ins, 'acl-hidden'),undefined, 'constat de visibilité retiré');
-  assert.equal(item(ins,'acl-copy-leak'),undefined,'aucune alerte de copie même si la table source est masquée');
+  assert.equal(item(ins, 'acl-hidden'), undefined, 'constat de visibilité retiré');
+  assert.equal(item(ins, 'acl-copy-leak'), undefined, 'aucune alerte de copie même si la table source est masquée');
 });

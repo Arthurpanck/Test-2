@@ -21,7 +21,10 @@ export function metadataFromModel(model) {
     tableRef.set(t.name, tref);
     t.columns.forEach((c, i) => {
       cref++;
-      cols.id.push(cref); cols.parentId.push(tref); cols.parentPos.push(i + 1); cols.colId.push(c.name);
+      cols.id.push(cref);
+      cols.parentId.push(tref);
+      cols.parentPos.push(i + 1);
+      cols.colId.push(c.name);
       cols.type.push(c.gristType.name === 'Any' && c.isFormula ? 'Any' : toColType(c.gristType));
       cols.isFormula.push(c.isFormula);
       cols.formula.push(isSummary && c.name === 'group' ? 'table.getSummarySourceGroup(rec)' : '');

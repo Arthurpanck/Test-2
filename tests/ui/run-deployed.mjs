@@ -20,34 +20,61 @@ const meta = JSON.parse(await readFile(path.join(root, 'tests/fixtures', metaFil
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'content-type': 'text/html' });
-  res.end(`<!doctype html><html><body style="margin:0"><iframe src="${widgetUrl}" style="border:0;width:100vw;height:100vh"></iframe></body></html>`);
+  res.end(
+    `<!doctype html><html><body style="margin:0"><iframe src="${widgetUrl}" style="border:0;width:100vw;height:100vh"></iframe></body></html>`,
+  );
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const args = process.env.HTTPS_PROXY ? [`--proxy-server=${process.env.HTTPS_PROXY}`, '--proxy-bypass-list=127.0.0.1;localhost'] : [];
 const browser = await chromium.launch({ args });
 const failures = [];
-const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${cond ? '✓' : '✗'} ${msg}`); };
+const check = (cond, msg) => {
+  if (!cond) failures.push(msg);
+  console.log(`${cond ? '✓' : '✗'} ${msg}`);
+};
 
 const context = await browser.newContext({ viewport: { width: 1512, height: 793 } });
-await context.route('https://docs.getgrist.com/grist-plugin-api.js', (route) => route.fulfill({ contentType: 'text/javascript', body: '' }));
-await context.addInitScript(({ m }) => {
-  if (window.self === window.top) return;
-  window.__options = {};
-  const handlers = { options: [], record: [], records: [] };
-  window.grist = {
-    ready(opts) { window.__ready = opts; setTimeout(() => { handlers.options.forEach((cb) => cb(null, {})); handlers.record.forEach((cb) => cb(null, null)); }, 30); },
-    onOptions(cb) { handlers.options.push(cb); },
-    onRecord(cb) { handlers.record.push(cb); },
-    onRecords(cb) { handlers.records.push(cb); },
-    setOption(k, v) { window.__options[k] = v; return Promise.resolve(); },
-    docApi: { fetchTable: async (t) => (t === '_grist_Tables' ? m.tables : m.columns) },
-    selectedTable: { update: async () => {} },
-  };
-}, { m: meta });
+await context.route('https://docs.getgrist.com/grist-plugin-api.js', (route) =>
+  route.fulfill({ contentType: 'text/javascript', body: '' }),
+);
+await context.addInitScript(
+  ({ m }) => {
+    if (window.self === window.top) return;
+    window.__options = {};
+    const handlers = { options: [], record: [], records: [] };
+    window.grist = {
+      ready(opts) {
+        window.__ready = opts;
+        setTimeout(() => {
+          handlers.options.forEach((cb) => cb(null, {}));
+          handlers.record.forEach((cb) => cb(null, null));
+        }, 30);
+      },
+      onOptions(cb) {
+        handlers.options.push(cb);
+      },
+      onRecord(cb) {
+        handlers.record.push(cb);
+      },
+      onRecords(cb) {
+        handlers.records.push(cb);
+      },
+      setOption(k, v) {
+        window.__options[k] = v;
+        return Promise.resolve();
+      },
+      docApi: { fetchTable: async (t) => (t === '_grist_Tables' ? m.tables : m.columns) },
+      selectedTable: { update: async () => {} },
+    };
+  },
+  { m: meta },
+);
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+page.on('console', (msg) => {
+  if (msg.type() === 'error') errors.push(msg.text());
+});
 await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'networkidle' });
 const frame = page.frames().find((f) => f.url().startsWith(widgetUrl.split('?')[0]));
 check(Boolean(frame), `widget chargé depuis ${widgetUrl}`);
@@ -69,5 +96,8 @@ await page.screenshot({ path: path.join(outDir, 'deploye-relations.png') });
 check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
 await browser.close();
 server.close();
-if (failures.length) { console.error(`\n${failures.length} échec(s)`); process.exit(1); }
+if (failures.length) {
+  console.error(`\n${failures.length} échec(s)`);
+  process.exit(1);
+}
 console.log('\nVersion publiée vérifiée.');

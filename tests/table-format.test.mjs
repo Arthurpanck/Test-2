@@ -12,38 +12,116 @@ import { readFileSync } from 'node:fs';
 /** Métadonnées compactes d'une fixture, valeurs par défaut rétablies. */
 function loadMeta(name) {
   const m = JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
-  const columns = m.columns.map((c) => ({ parentPos: c.id, label: c.colId, formula: '', reverseCol: 0, description: '', widgetOptions: '', recalcWhen: 0, recalcDeps: null, isFormula: 0, ...c }));
+  const columns = m.columns.map((c) => ({
+    parentPos: c.id,
+    label: c.colId,
+    formula: '',
+    reverseCol: 0,
+    description: '',
+    widgetOptions: '',
+    recalcWhen: 0,
+    recalcDeps: null,
+    isFormula: 0,
+    ...c,
+  }));
   return { tables: m.tables, columns, sections: m.sections || [] };
 }
 
 const T = (type, reverse) => gristTypeFromColType(type, reverse);
 
 test('type SQLite : comme DocStorage._getSqlType() de grist-core', () => {
-  const cases = { Text: 'TEXT', Choice: 'TEXT', ChoiceList: 'TEXT', Bool: 'BOOLEAN', Int: 'INTEGER', Numeric: 'NUMERIC', Date: 'DATE', DateTime: 'DATETIME',
-    'DateTime:Europe/Paris': 'BLOB', 'Ref:Projets': 'INTEGER', 'RefList:Thematiques': 'TEXT', Attachments: 'TEXT', Any: 'BLOB', ManualSortPos: 'NUMERIC' };
+  const cases = {
+    Text: 'TEXT',
+    Choice: 'TEXT',
+    ChoiceList: 'TEXT',
+    Bool: 'BOOLEAN',
+    Int: 'INTEGER',
+    Numeric: 'NUMERIC',
+    Date: 'DATE',
+    DateTime: 'DATETIME',
+    'DateTime:Europe/Paris': 'BLOB',
+    'Ref:Projets': 'INTEGER',
+    'RefList:Thematiques': 'TEXT',
+    Attachments: 'TEXT',
+    Any: 'BLOB',
+    ManualSortPos: 'NUMERIC',
+  };
   for (const [type, sql] of Object.entries(cases)) assert.equal(sqliteType(T(type)), sql, type);
 });
 
-test('type déclaré en français, rôle, calcul et documentation, colonnes dans l\'ordre du modèle', () => {
-  assert.deepEqual(TABLE_COLUMNS, ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?']);
+test("type déclaré en français, rôle, calcul et documentation, colonnes dans l'ordre du modèle", () => {
+  assert.deepEqual(TABLE_COLUMNS, [
+    'Colonne (nom en base)',
+    'Nom affiché',
+    'Type SQLite',
+    'Type déclaré (Grist)',
+    'Rôle',
+    'Calculé ?',
+    'Formule',
+    'Documentée ?',
+  ]);
   assert.equal(declaredType({ gristType: T('Ref:Projets_deliberations') }).text, 'Référence → Projets_deliberations');
-  assert.equal(declaredType({ gristType: T('RefList:Thematiques', 'elu_rattache') }).text, 'Référence multiple → Thematiques (inverse de elu_rattache)');
+  assert.equal(
+    declaredType({ gristType: T('RefList:Thematiques', 'elu_rattache') }).text,
+    'Référence multiple → Thematiques (inverse de elu_rattache)',
+  );
   assert.equal(declaredType({ gristType: T('DateTime:Europe/Paris') }).text, 'Date et Heure (Europe/Paris)');
   assert.equal(declaredType({ gristType: T('Text') }).text, 'Texte');
   assert.equal(declaredType({ gristType: T('Any'), isFormula: true }).text, '', 'formule sans type : vide, comme le modèle');
   const col = (formula, isFormula = true, trigger = null) => ({ name: 'x', isFormula, details: { formula, trigger } });
-  assert.deepEqual([{ name: 'id' }, col('', false), col('$Service.Nom'), col('len(Conges.lookupRecords(Agent=$id))'), col('NOW()', false, { when: 'new' }), col('$Service.Nom', false, { when: 'new' })].map(columnRole),
-    ['Clé primaire', 'Donnée', 'Calculée', 'Calculée', 'Donnée', 'Donnée']);
+  assert.deepEqual(
+    [
+      { name: 'id' },
+      col('', false),
+      col('$Service.Nom'),
+      col('len(Conges.lookupRecords(Agent=$id))'),
+      col('NOW()', false, { when: 'new' }),
+      col('$Service.Nom', false, { when: 'new' }),
+    ].map(columnRole),
+    ['Clé primaire', 'Donnée', 'Calculée', 'Calculée', 'Donnée', 'Donnée'],
+  );
   // Définitions : donnée (sans formule propre, initialisation comprise), calculée (produite par une formule)
   const nature = (f) => columnRole(col(f));
-  assert.deepEqual(['Clients.lookupOne(Nom=$Client).Ville', 'f"{$Prenom} {$Nom.upper()}"', 'UPPER($Nom)', '$Budget - $Depense', 'len($group)', '"Paris"', '$Statut == "Faite"'].map(nature), Array(7).fill('Calculée'));
+  assert.deepEqual(
+    [
+      'Clients.lookupOne(Nom=$Client).Ville',
+      'f"{$Prenom} {$Nom.upper()}"',
+      'UPPER($Nom)',
+      '$Budget - $Depense',
+      'len($group)',
+      '"Paris"',
+      '$Statut == "Faite"',
+    ].map(nature),
+    Array(7).fill('Calculée'),
+  );
   assert.equal(nature('  '), 'Donnée', 'formule vide : donnée');
-  const t = { name: 'Elus', columns: [
-    { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
-    { name: 'nom_complet', label: '💻 Nom complet', gristType: T('Text'), isFormula: true, details: { formula: "CONCATENATE(nom,' ',prenom)" } },
-    { name: 'v_nb', label: '', gristType: T('Int'), isFormula: true, details: { formula: '# Nombre de conflits\nlen(X.lookupRecords(a=$id))' } },
-    { name: 'date_creation', label: '', gristType: T('DateTime:Europe/Paris'), isFormula: false, details: { formula: 'NOW()', trigger: { when: 'new' } } },
-  ] };
+  const t = {
+    name: 'Elus',
+    columns: [
+      { name: 'nom', label: '✏️ Nom', gristType: T('Text'), isFormula: false, details: { formula: '' } },
+      {
+        name: 'nom_complet',
+        label: '💻 Nom complet',
+        gristType: T('Text'),
+        isFormula: true,
+        details: { formula: "CONCATENATE(nom,' ',prenom)" },
+      },
+      {
+        name: 'v_nb',
+        label: '',
+        gristType: T('Int'),
+        isFormula: true,
+        details: { formula: '# Nombre de conflits\nlen(X.lookupRecords(a=$id))' },
+      },
+      {
+        name: 'date_creation',
+        label: '',
+        gristType: T('DateTime:Europe/Paris'),
+        isFormula: false,
+        details: { formula: 'NOW()', trigger: { when: 'new' } },
+      },
+    ],
+  };
   assert.deepEqual(tableRows(t).map(rowValues), [
     ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', 'Non concerné'],
     ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', 'Non concerné'],
@@ -61,25 +139,45 @@ test('lookups : lookupOne et lookupRecords lus dans les formules, chaînes et co
   const key = (l) => `${l.source}.${l.column} → ${l.target} (${l.kind})`;
   const keys = list.map(key);
   assert.ok(keys.includes('Agents.Conge_en_cours → Conges (one)') || keys.some((k) => /→ Conges \(one\)/.test(k)), keys.join('\n'));
-  assert.ok(keys.some((k) => /→ Projets \(records\)/.test(k)) && keys.some((k) => /→ Depenses \(records\)/.test(k)) && keys.some((k) => /→ Taches \(records\)/.test(k)), keys.join('\n'));
+  assert.ok(
+    keys.some((k) => /→ Projets \(records\)/.test(k)) &&
+      keys.some((k) => /→ Depenses \(records\)/.test(k)) &&
+      keys.some((k) => /→ Taches \(records\)/.test(k)),
+    keys.join('\n'),
+  );
   const fake = [
-    { name: 'A', columns: [{ name: 'x', isFormula: true, details: { formula: '"B.lookupOne(id=1)"  # C.lookupRecords()\nreturn B.lookupRecords(k=$k)' } }] },
-    { name: 'B', columns: [] }, { name: 'C', columns: [] },
+    {
+      name: 'A',
+      columns: [
+        { name: 'x', isFormula: true, details: { formula: '"B.lookupOne(id=1)"  # C.lookupRecords()\nreturn B.lookupRecords(k=$k)' } },
+      ],
+    },
+    { name: 'B', columns: [] },
+    { name: 'C', columns: [] },
   ];
   assert.deepEqual(findLookups(fake).map(key), ['A.x → B (records)'], 'pas de lookup dans une chaîne ni un commentaire');
-  assert.deepEqual(findLookups([{ name: 'A', columns: [{ name: 'y', isFormula: true, details: { formula: 'rec.lookupOne(a=1) or Inconnue.lookupOne(a=1)' } }] }]), [], 'cibles inconnues ignorées');
+  assert.deepEqual(
+    findLookups([
+      { name: 'A', columns: [{ name: 'y', isFormula: true, details: { formula: 'rec.lookupOne(a=1) or Inconnue.lookupOne(a=1)' } }] },
+    ]),
+    [],
+    'cibles inconnues ignorées',
+  );
 });
 
-test('géométrie d\'un lookup : tracé orthogonal terminé par une flèche contre la table cherchée', () => {
+test("géométrie d'un lookup : tracé orthogonal terminé par une flèche contre la table cherchée", () => {
   const g = lookupGeometry({ x: 0, y: 0, w: 100, h: 80 }, 40, { x: 300, y: 100, w: 100, h: 80 }, 116);
   assert.deepEqual(g.sides, { source: 'right', target: 'left' });
   assert.match(g.arrow, /^M292,112 L300,116 L292,120 Z$/);
 });
 
-test('lookups de colonne à colonne sur les métadonnées réelles du document complexe (deux colonnes d\'essai : synthèse, initialisation)', () => {
+test("lookups de colonne à colonne sur les métadonnées réelles du document complexe (deux colonnes d'essai : synthèse, initialisation)", () => {
   const meta = loadMeta('essai-reel.metadata.json');
   const schema = schemaFromMetadata(meta.tables, meta.columns, { sections: meta.sections });
-  const keys = findLookups(convertAll({ schema }).corrected.tables, schema).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn ?? '(table)'} (${l.kind}, ${l.via}${l.trigger ? ', initialisation' : ''})`);
+  const keys = findLookups(convertAll({ schema }).corrected.tables, schema).map(
+    (l) =>
+      `${l.source}.${l.column} ← ${l.target}.${l.targetColumn ?? '(table)'} (${l.kind}, ${l.via}${l.trigger ? ', initialisation' : ''})`,
+  );
   assert.deepEqual(keys, [
     'Agents.Nb_projets ← Projets.Chef_de_projet (records, key)',
     'Agents.Statut_calcule ← Conges.Agent (one, key)',
@@ -96,8 +194,12 @@ test('lookups de colonne à colonne sur les métadonnées réelles du document c
 });
 
 test('lookups : colonne lue directement, par une variable de boucle ou une affectation', () => {
-  const t = (name, cols, formula) => ({ name, columns: cols.map((c) => ({ name: c, isFormula: !!formula && c === cols[0], details: { formula: c === cols[0] ? formula : '' } })) });
-  const run = (formula) => findLookups([t('A', ['f'], formula), t('Clients', ['Nom', 'Ville', 'Actif'])]).map((l) => `${l.targetColumn}:${l.via}`);
+  const t = (name, cols, formula) => ({
+    name,
+    columns: cols.map((c) => ({ name: c, isFormula: !!formula && c === cols[0], details: { formula: c === cols[0] ? formula : '' } })),
+  });
+  const run = (formula) =>
+    findLookups([t('A', ['f'], formula), t('Clients', ['Nom', 'Ville', 'Actif'])]).map((l) => `${l.targetColumn}:${l.via}`);
   assert.deepEqual(run('Clients.lookupOne(Nom=$Client).Ville'), ['Ville:read']);
   assert.deepEqual(run('[c.Ville for c in Clients.lookupRecords(Actif=True)]'), ['Ville:read']);
   assert.deepEqual(run('c = Clients.lookupOne(Nom=$x)\nreturn c.Ville if c else None'), ['Ville:read']);
@@ -108,41 +210,70 @@ test('lookups : colonne lue directement, par une variable de boucle ou une affec
 test('calculs : colonnes lues par les formules (même table, référence, liste de lignes)', () => {
   const col = (name, formula = '', extra = {}) => ({ name, isFormula: Boolean(formula), details: { formula }, ...extra });
   const tables = [
-    { name: 'Agents', columns: [
-      col('Prenom'), col('Nom'), col('Code'), col('Service', '', { ref: { table: 'Services', kind: '>' } }),
-      col('Nom_complet', 'f"{$Prenom} {$Nom.upper()}"'),
-      col('v_service_nom', '# Nom du service\n$Service.Nom'),
-      col('Direction_nom', '$Service.Direction.Nom'),
-      col('Ville', 'Sites.lookupOne(Code=$Code).Ville'),
-      col('Libelle', "'$Nom' + UPPER(rec.Prenom)"),
-      col('Cree_le', 'NOW()', { isFormula: false, details: { formula: 'NOW()', trigger: { when: 'new' } } }),
-      col('Init', '', { isFormula: false, details: { formula: '$Code', trigger: { when: 'new' } } }),
-    ] },
-    { name: 'Services', columns: [col('Nom'), col('Direction', '', { ref: { table: 'Directions', kind: '>' } }), col('Agents', '', { ref: { table: 'Agents', kind: '<>' } }),
-      col('Effectif_temps_partiel', 'len([a for a in $Agents if a.Code])'), col('Total', 'SUM($Agents.Code)')] },
+    {
+      name: 'Agents',
+      columns: [
+        col('Prenom'),
+        col('Nom'),
+        col('Code'),
+        col('Service', '', { ref: { table: 'Services', kind: '>' } }),
+        col('Nom_complet', 'f"{$Prenom} {$Nom.upper()}"'),
+        col('v_service_nom', '# Nom du service\n$Service.Nom'),
+        col('Direction_nom', '$Service.Direction.Nom'),
+        col('Ville', 'Sites.lookupOne(Code=$Code).Ville'),
+        col('Libelle', "'$Nom' + UPPER(rec.Prenom)"),
+        col('Cree_le', 'NOW()', { isFormula: false, details: { formula: 'NOW()', trigger: { when: 'new' } } }),
+        col('Init', '', { isFormula: false, details: { formula: '$Code', trigger: { when: 'new' } } }),
+      ],
+    },
+    {
+      name: 'Services',
+      columns: [
+        col('Nom'),
+        col('Direction', '', { ref: { table: 'Directions', kind: '>' } }),
+        col('Agents', '', { ref: { table: 'Agents', kind: '<>' } }),
+        col('Effectif_temps_partiel', 'len([a for a in $Agents if a.Code])'),
+        col('Total', 'SUM($Agents.Code)'),
+      ],
+    },
     { name: 'Directions', columns: [col('Nom')] },
     { name: 'Sites', columns: [col('Code'), col('Ville')] },
   ];
-  const keys = findFormulaDeps(tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn} (${l.via}${l.trigger ? ', init' : ''})`);
-  assert.deepEqual(keys, [
-    'Agents.Nom_complet ← Agents.Prenom (same)',
-    'Agents.Nom_complet ← Agents.Nom (same)',
-    'Agents.v_service_nom ← Services.Nom (ref)',
-    'Agents.Direction_nom ← Directions.Nom (ref)',
-    'Agents.Ville ← Agents.Code (same)',
-    'Agents.Libelle ← Agents.Prenom (same)',
-    'Agents.Init ← Agents.Code (same, init)',
-    'Services.Effectif_temps_partiel ← Services.Agents (same)',
-    'Services.Effectif_temps_partiel ← Agents.Code (ref)',
-    'Services.Total ← Agents.Code (ref)',
-  ], 'commentaires et chaînes ignorés, critères de lookup comptés, chaînes de références et boucles suivies');
+  const keys = findFormulaDeps(tables).map(
+    (l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn} (${l.via}${l.trigger ? ', init' : ''})`,
+  );
+  assert.deepEqual(
+    keys,
+    [
+      'Agents.Nom_complet ← Agents.Prenom (same)',
+      'Agents.Nom_complet ← Agents.Nom (same)',
+      'Agents.v_service_nom ← Services.Nom (ref)',
+      'Agents.Direction_nom ← Directions.Nom (ref)',
+      'Agents.Ville ← Agents.Code (same)',
+      'Agents.Libelle ← Agents.Prenom (same)',
+      'Agents.Init ← Agents.Code (same, init)',
+      'Services.Effectif_temps_partiel ← Services.Agents (same)',
+      'Services.Effectif_temps_partiel ← Agents.Code (ref)',
+      'Services.Total ← Agents.Code (ref)',
+    ],
+    'commentaires et chaînes ignorés, critères de lookup comptés, chaînes de références et boucles suivies',
+  );
 });
 
 test('calculs sur les métadonnées réelles du document complexe', () => {
   const meta = loadMeta('essai-reel.metadata.json');
   const schema = schemaFromMetadata(meta.tables, meta.columns, { sections: meta.sections });
-  const keys = findFormulaDeps(convertAll({ schema }).corrected.tables).map((l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn}`);
-  for (const k of ['Agents.Nom_complet ← Agents.Prenom', 'Budgets.Reste ← Budgets.Montant_engage', 'Depenses.Montant_TTC ← Depenses.Taux_TVA', 'Taches.Terminee ← Taches.Statut', 'Agents_Summary.Quotite ← Agents.Quotite', 'Budgets.Montant_engage ← Budgets.Annee']) {
+  const keys = findFormulaDeps(convertAll({ schema }).corrected.tables).map(
+    (l) => `${l.source}.${l.column} ← ${l.target}.${l.targetColumn}`,
+  );
+  for (const k of [
+    'Agents.Nom_complet ← Agents.Prenom',
+    'Budgets.Reste ← Budgets.Montant_engage',
+    'Depenses.Montant_TTC ← Depenses.Taux_TVA',
+    'Taches.Terminee ← Taches.Statut',
+    'Agents_Summary.Quotite ← Agents.Quotite',
+    'Budgets.Montant_engage ← Budgets.Annee',
+  ]) {
     assert.ok(keys.includes(k), `${k} (${keys.length} liens)`);
   }
   assert.ok(!keys.some((k) => k.endsWith('.id')), 'jamais vers la clé id');

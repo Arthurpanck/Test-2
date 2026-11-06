@@ -17,117 +17,234 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const meta = await metadata('document-test-grist.metadata.json');
   const { context, page, frame, errors } = await h.openWidget({ meta });
   await h.waitDiagram(frame);
-  check(await frame.evaluate(() => window.__ready?.requiredAccess) === 'full', 'accès complet demandé');
+  check((await frame.evaluate(() => window.__ready?.requiredAccess)) === 'full', 'accès complet demandé');
   const cols = await frame.evaluate(() => window.__ready?.columns);
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
-  check(tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Widgets,Analyse,Rapport', `ordre des onglets (${tabs.join(', ')})`);
-  check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'Schéma ouvert par défaut');
-  for (const gone of ['#source-code', '#code-input', '#strict-toggle', '#btn-edit-code', '#btn-open', '#btn-save', '#btn-wrap', '#btn-goto-report', '[data-goto-line]']) {
-    check(await frame.locator(gone).count() === 0, `option retirée : ${gone}`);
+  check(
+    tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Widgets,Analyse,Rapport',
+    `ordre des onglets (${tabs.join(', ')})`,
+  );
+  check((await frame.locator('#tab-schema').getAttribute('aria-selected')) === 'true', 'Schéma ouvert par défaut');
+  for (const gone of [
+    '#source-code',
+    '#code-input',
+    '#strict-toggle',
+    '#btn-edit-code',
+    '#btn-open',
+    '#btn-save',
+    '#btn-wrap',
+    '#btn-goto-report',
+    '[data-goto-line]',
+  ]) {
+    check((await frame.locator(gone).count()) === 0, `option retirée : ${gone}`);
   }
-  check(await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count() === 0, 'pas de bouton dbdiagram.io');
+  check((await frame.locator('a[href*="dbdiagram"], button:has-text("dbdiagram")').count()) === 0, 'pas de bouton dbdiagram.io');
   check((await frame.locator('#stats').textContent()).startsWith('8 tables'), `en-tête : ${await frame.locator('#stats').textContent()}`);
   check((await frame.locator('#read-at').textContent()).startsWith('Lue à'), 'heure de lecture affichée');
   // En-tête sur la ligne des onglets
   const tabBox = await frame.locator('#tab-schema').boundingBox();
   const refreshBox = await frame.locator('#btn-refresh').boundingBox();
-  check(Math.abs((refreshBox.y + refreshBox.height / 2) - (tabBox.y + tabBox.height / 2)) < 8, 'bouton « Relire » sur la ligne des onglets');
-  check(await frame.locator('.app__header').count() === 0, 'plus de bandeau d\'en-tête séparé');
+  check(Math.abs(refreshBox.y + refreshBox.height / 2 - (tabBox.y + tabBox.height / 2)) < 8, 'bouton « Relire » sur la ligne des onglets');
+  check((await frame.locator('.app__header').count()) === 0, "plus de bandeau d'en-tête séparé");
 
   // Barre d'outils juste sous les onglets
   const tabsBox = await frame.locator('.pages').boundingBox();
   const barBox = await frame.locator('#tabpanel-schema .toolbar').boundingBox();
-  check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, 'barre d\'outils collée sous les onglets');
+  check(Math.abs(barBox.y - (tabsBox.y + tabsBox.height)) < 2, "barre d'outils collée sous les onglets");
   check(barBox.height < 72, `barre d'outils du schéma sur une seule ligne (${Math.round(barBox.height)} px)`);
-  const ctrl = await frame.evaluate(() => [...document.querySelectorAll('#tabpanel-schema .toolbar :is(button, input:not([type=radio]):not([type=checkbox]), .fr-segmented__elements)')]
-    .filter((e) => e.offsetParent).map((e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return { id: e.id || e.className, top: Math.round(r.top), h: Math.round(r.height), shadow: cs.boxShadow, border: parseFloat(cs.borderTopWidth) > 0 }; }));
+  const ctrl = await frame.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        '#tabpanel-schema .toolbar :is(button, input:not([type=radio]):not([type=checkbox]), .fr-segmented__elements)',
+      ),
+    ]
+      .filter((e) => e.offsetParent)
+      .map((e) => {
+        const r = e.getBoundingClientRect();
+        const cs = getComputedStyle(e);
+        return {
+          id: e.id || e.className,
+          top: Math.round(r.top),
+          h: Math.round(r.height),
+          shadow: cs.boxShadow,
+          border: parseFloat(cs.borderTopWidth) > 0,
+        };
+      }),
+  );
   const tops = new Set(ctrl.map((c) => c.top));
   const heights = new Set(ctrl.map((c) => c.h));
   check(tops.size === 1 && heights.size === 1, `contrôles alignés et de même hauteur (${[...heights].join('/')} px, ${tops.size} ligne)`);
-  check(ctrl.every((c) => (c.shadow && c.shadow !== 'none') || c.border), 'tous les contrôles sont encadrés');
-  check(await frame.locator('#detail-keys').isChecked() && (await frame.locator('#tabpanel-schema .fr-segmented__element label').allTextContents()).join('|') === 'Relations|Colonnes|Tables', 'schéma : « Relations » en premier et par défaut');
-  check((await frame.locator('.erd__legend').textContent()).includes('plusieurs lignes') && await frame.locator('.erd__legend-icon').count() === 2, 'schéma : légende complète');
+  check(
+    ctrl.every((c) => (c.shadow && c.shadow !== 'none') || c.border),
+    'tous les contrôles sont encadrés',
+  );
+  check(
+    (await frame.locator('#detail-keys').isChecked()) &&
+      (await frame.locator('#tabpanel-schema .fr-segmented__element label').allTextContents()).join('|') === 'Relations|Colonnes|Tables',
+    'schéma : « Relations » en premier et par défaut',
+  );
+  check(
+    (await frame.locator('.erd__legend').textContent()).includes('plusieurs lignes') &&
+      (await frame.locator('.erd__legend-icon').count()) === 2,
+    'schéma : légende complète',
+  );
   await frame.locator('label[for="detail-all"]').click();
   await page.waitForTimeout(300);
   const types = await frame.locator('.erd-node[data-id="Agents"] .erd-row__type').allTextContents();
-  check(types.includes('Booléen') && types.includes('Date et Heure') && types.includes('Choix multiple') && !types.some((t) => /varchar|integer/.test(t)), `types en français sur le schéma (${types.join(', ')})`);
-  check(await frame.locator('.erd-node').count() === 8, 'schéma : 8 tables');
+  check(
+    types.includes('Booléen') &&
+      types.includes('Date et Heure') &&
+      types.includes('Choix multiple') &&
+      !types.some((t) => /varchar|integer/.test(t)),
+    `types en français sur le schéma (${types.join(', ')})`,
+  );
+  check((await frame.locator('.erd-node').count()) === 8, 'schéma : 8 tables');
   await shot(page, '01-schema.png');
 
   // Conversion corrigée : relations et types fidèles
-  check(await frame.locator('#tab-dbml').count() === 0, 'plus d\'onglet DBML');
+  check((await frame.locator('#tab-dbml').count()) === 0, "plus d'onglet DBML");
 
   // Tables
   await frame.locator('#tab-tables').click();
-  check(await frame.locator('.tbl').count() === 8, 'tables : 8 cartes');
+  check((await frame.locator('.tbl').count()) === 8, 'tables : 8 cartes');
   await frame.locator('label[for="cols-refs"]').click();
   const refRows = await frame.locator('.tbl tbody tr').count();
-  check(refRows === 5 && await frame.locator('.tbl').count() === 4, `filtre Relations : ${refRows} colonnes dans ${await frame.locator('.tbl').count()} tables`);
+  check(
+    refRows === 5 && (await frame.locator('.tbl').count()) === 4,
+    `filtre Relations : ${refRows} colonnes dans ${await frame.locator('.tbl').count()} tables`,
+  );
   await frame.locator('label[for="cols-all"]').click();
   await frame.locator('#filter-input').fill('service');
   await page.waitForTimeout(250);
-  check(await frame.locator('.tbl').count() >= 2, 'recherche « service »');
+  check((await frame.locator('.tbl').count()) >= 2, 'recherche « service »');
   await frame.locator('#filter-input').fill('');
   await page.waitForTimeout(200);
-  check((await frame.locator('.tbl').first().locator('thead th').allTextContents()).join('|') === 'Colonne (nom en base)|Nom affiché|Type SQLite|Type déclaré (Grist)|Rôle|Calculé ?|Formule|Documentée ?', 'tables : colonnes du modèle, Documentée ? comprise');
+  check(
+    (await frame.locator('.tbl').first().locator('thead th').allTextContents()).join('|') ===
+      'Colonne (nom en base)|Nom affiché|Type SQLite|Type déclaré (Grist)|Rôle|Calculé ?|Formule|Documentée ?',
+    'tables : colonnes du modèle, Documentée ? comprise',
+  );
   const echeance = await frame.locator('#tbl-Interventions tr', { hasText: 'Echeance' }).first().locator('td').allTextContents();
-  check(echeance[2] === 'INTEGER' && echeance[3].startsWith('Référence → Dates_cles') && echeance[4] === 'Donnée' && echeance[5] === 'Non calculé' && echeance[7] === 'Non concerné', `tables : ligne d'une référence (${echeance.slice(2).join(' | ')})`);
-  check((await frame.locator('.tbl tr.is-key').first().locator('td').allTextContents()).join('|') === 'id||INTEGER||Clé primaire|Non calculé||Non concerné', 'tables : clé primaire');
+  check(
+    echeance[2] === 'INTEGER' &&
+      echeance[3].startsWith('Référence → Dates_cles') &&
+      echeance[4] === 'Donnée' &&
+      echeance[5] === 'Non calculé' &&
+      echeance[7] === 'Non concerné',
+    `tables : ligne d'une référence (${echeance.slice(2).join(' | ')})`,
+  );
+  check(
+    (await frame.locator('.tbl tr.is-key').first().locator('td').allTextContents()).join('|') ===
+      'id||INTEGER||Clé primaire|Non calculé||Non concerné',
+    'tables : clé primaire',
+  );
   const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
   const xz = await JSZip.loadAsync(await readFile(await xl.path()));
   const xs = await xz.file('xl/sharedStrings.xml').async('string');
-  check(xl.suggestedFilename().endsWith('.xlsx') && xs.includes('Type déclaré (Grist)') && xs.includes('Référence → Dates_cles') && Boolean(xz.file('xl/tables/table1.xml')), 'export Excel des tables');
+  check(
+    xl.suggestedFilename().endsWith('.xlsx') &&
+      xs.includes('Type déclaré (Grist)') &&
+      xs.includes('Référence → Dates_cles') &&
+      Boolean(xz.file('xl/tables/table1.xml')),
+    'export Excel des tables',
+  );
   await shot(page, '03-tables.png');
   await frame.locator('.tbl').first().locator('[data-goto-schema]').click();
-  check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'bouton Schéma d\'une carte');
+  check((await frame.locator('#tab-schema').getAttribute('aria-selected')) === 'true', "bouton Schéma d'une carte");
 
   // Analyse
   await frame.locator('#tab-analysis').click();
   const blocking = Number(await frame.locator('#level-blocking .tile__n').textContent());
-  check(await frame.locator('#level-blocking').getAttribute('aria-pressed') === 'true' && await frame.locator('.insight').count() === blocking, 'analyse : filtre « À corriger » sélectionné par défaut');
+  check(
+    (await frame.locator('#level-blocking').getAttribute('aria-pressed')) === 'true' &&
+      (await frame.locator('.insight').count()) === blocking,
+    'analyse : filtre « À corriger » sélectionné par défaut',
+  );
   await frame.locator('#level-all').click();
   const analysis = await frame.locator('#analysis-body').textContent();
   check(analysis.includes('Aucun problème bloquant'), 'analyse : verdict « Aucun problème bloquant »');
   const total = Number(await frame.locator('#level-all .tile__n').textContent());
-  check(await frame.locator('.insight').count() === total && total > 0, `analyse : autant de cartes que la tuile « Tout » (${await frame.locator('.insight').count()} / ${total})`);
-  check(analysis.includes('Aucune règle d\'accès avancée') && analysis.includes('non typée'), 'analyse : droits d\'accès et colonnes vides');
+  check(
+    (await frame.locator('.insight').count()) === total && total > 0,
+    `analyse : autant de cartes que la tuile « Tout » (${await frame.locator('.insight').count()} / ${total})`,
+  );
+  check(analysis.includes("Aucune règle d'accès avancée") && analysis.includes('non typée'), "analyse : droits d'accès et colonnes vides");
   check(!/DBML/.test(analysis), 'analyse : ne parle pas du DBML');
-  const gap = await frame.locator('.insight__targets').first().evaluate((el) => getComputedStyle(el).columnGap);
+  const gap = await frame
+    .locator('.insight__targets')
+    .first()
+    .evaluate((el) => getComputedStyle(el).columnGap);
   check(parseFloat(gap) >= 6, `analyse : étiquettes « Concerné » séparées (${gap})`);
   check(analysis.includes('Comment corriger dans Grist') && analysis.includes('Type de colonne'), 'analyse : étapes de correction');
-  check(!/formula\[default\]|formule d'origine/.test(analysis), 'analyse : sans jargon ni référence à l\'ancienne formule');
+  check(!/formula\[default\]|formule d'origine/.test(analysis), "analyse : sans jargon ni référence à l'ancienne formule");
   await frame.locator('#level-choice').click();
   const nChoice = Number(await frame.locator('#level-choice .tile__n').textContent());
-  check(await frame.locator('.insight').count() === nChoice && await frame.locator('#level-choice').getAttribute('aria-pressed') === 'true', `tuile « Choix à confirmer » = filtre (${await frame.locator('.insight').count()} / ${nChoice})`);
-  check(await frame.locator('#area-all').count() === 0 && await frame.locator('#btn-audit-settings').count() === 0, 'analyse : plus de filtre par domaine ni de bouton « Ce qui a été examiné »');
+  check(
+    (await frame.locator('.insight').count()) === nChoice && (await frame.locator('#level-choice').getAttribute('aria-pressed')) === 'true',
+    `tuile « Choix à confirmer » = filtre (${await frame.locator('.insight').count()} / ${nChoice})`,
+  );
+  check(
+    (await frame.locator('#area-all').count()) === 0 && (await frame.locator('#btn-audit-settings').count()) === 0,
+    'analyse : plus de filtre par domaine ni de bouton « Ce qui a été examiné »',
+  );
   await frame.locator('#level-all').click();
   await shot(page, '04-analyse.png');
-  check(await frame.locator('.coverage').count() === 0 && !(await frame.locator('#analysis-body').textContent()).includes('Vérifications principales'), 'analyse : plus de « Vérifications principales »');
+  check(
+    (await frame.locator('.coverage').count()) === 0 &&
+      !(await frame.locator('#analysis-body').textContent()).includes('Vérifications principales'),
+    'analyse : plus de « Vérifications principales »',
+  );
   await frame.locator('.insight .chip', { hasText: 'Table1' }).first().click();
-  check(await frame.locator('#tab-schema').getAttribute('aria-selected') === 'true', 'clic sur un élément concerné → schéma');
+  check((await frame.locator('#tab-schema').getAttribute('aria-selected')) === 'true', 'clic sur un élément concerné → schéma');
 
   // Rapport
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 30000 });
   const preview = await frame.locator('.doc').textContent();
   check(!preview.includes('swd2QJ') && preview.includes('Document Grist'), 'rapport : identifiant interne masqué');
-  check(['Résumé', 'Schéma', 'Tables et colonnes', 'Widgets', 'Droits d\'accès', 'Code DBML'].every((t) => preview.includes(t)) && preview.lastIndexOf('Code DBML') > preview.lastIndexOf('Droits d\'accès'), 'rapport : sections, code DBML à la fin');
-  check(await frame.locator('[data-report-item="analysis"].is-off').count() === 1 && await frame.locator('.doc [data-report-section="analysis"]').count() === 0, 'rapport : section Analyse décochée par défaut');
-  check(await frame.locator('.report__panel-foot').count() === 0, 'rapport : plus de note sur la police sous le contenu');
+  check(
+    ['Résumé', 'Schéma', 'Tables et colonnes', 'Widgets', "Droits d'accès", 'Code DBML'].every((t) => preview.includes(t)) &&
+      preview.lastIndexOf('Code DBML') > preview.lastIndexOf("Droits d'accès"),
+    'rapport : sections, code DBML à la fin',
+  );
+  check(
+    (await frame.locator('[data-report-item="analysis"].is-off').count()) === 1 &&
+      (await frame.locator('.doc [data-report-section="analysis"]').count()) === 0,
+    'rapport : section Analyse décochée par défaut',
+  );
+  check((await frame.locator('.report__panel-foot').count()) === 0, 'rapport : plus de note sur la police sous le contenu');
   await shot(page, '05-rapport.png');
-  check(await frame.locator('[data-report-goto]').count() === 7 && (await frame.locator('#report-count').textContent()) === '6/7', 'rapport : contenu présenté comme la liste des tables (6/7)');
+  check(
+    (await frame.locator('[data-report-goto]').count()) === 7 && (await frame.locator('#report-count').textContent()) === '6/7',
+    'rapport : contenu présenté comme la liste des tables (6/7)',
+  );
   await frame.locator('[data-report-goto="tables"]').click();
   await page.waitForTimeout(400);
-  check(await frame.locator('[data-report-item="tables"].is-current').count() === 1, 'rapport : clic sur une section → aperçu placé dessus');
+  check(
+    (await frame.locator('[data-report-item="tables"].is-current').count()) === 1,
+    'rapport : clic sur une section → aperçu placé dessus',
+  );
   await frame.locator('[data-section="access"]').click();
-  check((await frame.locator('#report-count').textContent()) === '5/7' && (await frame.locator('[data-report-item="access"].is-off button > span:last-child').textContent()) === '—', 'rapport : section décochée grisée');
-  check(!(await frame.locator('.doc').textContent()).includes('aucune règle d\'accès avancée : chaque'), 'rapport : section retirée de l\'aperçu');
+  check(
+    (await frame.locator('#report-count').textContent()) === '5/7' &&
+      (await frame.locator('[data-report-item="access"].is-off button > span:last-child').textContent()) === '—',
+    'rapport : section décochée grisée',
+  );
+  check(
+    !(await frame.locator('.doc').textContent()).includes("aucune règle d'accès avancée : chaque"),
+    "rapport : section retirée de l'aperçu",
+  );
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
   await dl.saveAs(path.join(outDir, 'rapport.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport.docx')));
   const xml = await zip.file('word/document.xml').async('string');
-  check(dl.suggestedFilename() === 'structure-document.docx' && xml.includes('>Tables et colonnes<') && !xml.includes('aucune règle d\'accès avancée : chaque'), `rapport Word téléchargé (${dl.suggestedFilename()})`);
+  check(
+    dl.suggestedFilename() === 'structure-document.docx' &&
+      xml.includes('>Tables et colonnes<') &&
+      !xml.includes("aucune règle d'accès avancée : chaque"),
+    `rapport Word téléchargé (${dl.suggestedFilename()})`,
+  );
   const media = Object.keys(zip.files).filter((f) => f.startsWith('word/media/') && !zip.files[f].dir);
   const img = media.length ? await zip.file(media[0]).async('uint8array') : new Uint8Array();
   check(img.length > 20000, `rapport Word : image du schéma intégrée (${img.length} octets)`);
@@ -135,8 +252,11 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   await frame.locator('#tab-report').focus();
   await frame.locator('#tab-report').press('ArrowLeft');
-  check(await frame.locator('#tab-analysis').getAttribute('aria-selected') === 'true', 'clavier : flèche gauche');
-  check(await frame.locator('.doc__toc a').count() >= 5 && xml.includes('w:bookmarkStart'), 'rapport : sommaire cliquable (aperçu et Word)');
+  check((await frame.locator('#tab-analysis').getAttribute('aria-selected')) === 'true', 'clavier : flèche gauche');
+  check(
+    (await frame.locator('.doc__toc a').count()) >= 5 && xml.includes('w:bookmarkStart'),
+    'rapport : sommaire cliquable (aperçu et Word)',
+  );
   check(errors.length === 0, `aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -147,11 +267,16 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const { context, page, frame, errors } = await h.openWidget({ meta, viewport: { width: 1280, height: 860 } });
   const t0 = Date.now();
   await h.waitDiagram(frame);
-  check(await frame.locator('.erd-node').count() === 22, `complexe : 22 tables sur le schéma (${await frame.locator('.erd-node').count()}, ${Date.now() - t0} ms)`);
+  check(
+    (await frame.locator('.erd-node').count()) === 22,
+    `complexe : 22 tables sur le schéma (${await frame.locator('.erd-node').count()}, ${Date.now() - t0} ms)`,
+  );
   const overlap = await frame.evaluate(() => {
     const r = [...document.querySelectorAll('.erd-node')].map((n) => n.getBoundingClientRect());
     let n = 0;
-    for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) if (r[i].left < r[j].right && r[j].left < r[i].right && r[i].top < r[j].bottom && r[j].top < r[i].bottom) n++;
+    for (let i = 0; i < r.length; i++)
+      for (let j = i + 1; j < r.length; j++)
+        if (r[i].left < r[j].right && r[j].left < r[i].right && r[i].top < r[j].bottom && r[j].top < r[i].bottom) n++;
     return n;
   });
   check(overlap === 0, `complexe : aucune table superposée (${overlap})`);
@@ -159,17 +284,33 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await page.waitForTimeout(300);
   await shot(page, '10-complexe-schema.png');
   // Liens : un menu, Références et Lookups affichés par défaut, décochables
-  check(await frame.locator('#links-menu').isHidden() && (await frame.locator('#links-count').textContent()) === '2/3' && await frame.locator('.erd--lookups').count() === 1 && await frame.locator('.erd--calc').count() === 0 && !(await frame.locator('#show-calc').isChecked()), 'schéma : références et lookups affichés par défaut, calculs masqués');
+  check(
+    (await frame.locator('#links-menu').isHidden()) &&
+      (await frame.locator('#links-count').textContent()) === '2/3' &&
+      (await frame.locator('.erd--lookups').count()) === 1 &&
+      (await frame.locator('.erd--calc').count()) === 0 &&
+      !(await frame.locator('#show-calc').isChecked()),
+    'schéma : références et lookups affichés par défaut, calculs masqués',
+  );
   await frame.locator('#btn-links').click();
-  check(await frame.locator('#links-menu').isVisible() && (await frame.locator('#btn-links').getAttribute('aria-expanded')) === 'true' && (await frame.locator('#show-lookups-sub').textContent()).endsWith('· 6'), 'schéma : menu « Liens » ouvert, 6 lookups');
+  check(
+    (await frame.locator('#links-menu').isVisible()) &&
+      (await frame.locator('#btn-links').getAttribute('aria-expanded')) === 'true' &&
+      (await frame.locator('#show-lookups-sub').textContent()).endsWith('· 6'),
+    'schéma : menu « Liens » ouvert, 6 lookups',
+  );
   await page.waitForTimeout(800);
   const lk = await frame.evaluate(() => ({
-    one: document.querySelectorAll('.erd-lookup--one').length, records: document.querySelectorAll('.erd-lookup--records').length,
+    one: document.querySelectorAll('.erd-lookup--one').length,
+    records: document.querySelectorAll('.erd-lookup--records').length,
     drawn: [...document.querySelectorAll('.erd-lookup__line')].every((p) => (p.getAttribute('d') || '').startsWith('M')),
     colors: [...new Set([...document.querySelectorAll('.erd-lookup__line')].map((p) => getComputedStyle(p).stroke))].length,
     legend: getComputedStyle(document.querySelector('.erd__legend-lookups')).display,
   }));
-  check(lk.one === 2 && lk.records === 6 && lk.drawn && lk.colors === 2 && lk.legend === 'flex', `schéma : lookups affichés (${JSON.stringify(lk)})`);
+  check(
+    lk.one === 2 && lk.records === 6 && lk.drawn && lk.colors === 2 && lk.legend === 'flex',
+    `schéma : lookups affichés (${JSON.stringify(lk)})`,
+  );
   await shot(page, '10b-complexe-lookups.png');
   // Calculs : colonnes lues par les formules, désactivés par défaut, activables
   await frame.locator('label[for="show-calc"]').click();
@@ -180,19 +321,29 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     drawn: [...document.querySelectorAll('.erd-calc__line')].filter((p) => (p.getAttribute('d') || '').startsWith('M')).length,
     legend: getComputedStyle(document.querySelector('.erd__legend-calc')).display,
     sub: document.querySelector('#show-calc-sub').textContent,
-    rows: ['Prenom', 'Nom', 'Nom_complet', 'Date_entree', 'Anciennete'].every((c) => document.querySelector(`.erd-node[data-id="Agents"] .erd-row[data-col="${c}"]`)),
+    rows: ['Prenom', 'Nom', 'Nom_complet', 'Date_entree', 'Anciennete'].every((c) =>
+      document.querySelector(`.erd-node[data-id="Agents"] .erd-row[data-col="${c}"]`),
+    ),
     count: document.querySelector('#links-count').textContent,
   }));
-  check(dv.on === 1 && dv.n === 37 && dv.drawn >= 30 && dv.legend === 'flex' && dv.rows && dv.count === '3/3' && dv.sub.endsWith('· 27'), `schéma : calculs affichés (${JSON.stringify(dv)})`);
+  check(
+    dv.on === 1 && dv.n === 37 && dv.drawn >= 30 && dv.legend === 'flex' && dv.rows && dv.count === '3/3' && dv.sub.endsWith('· 27'),
+    `schéma : calculs affichés (${JSON.stringify(dv)})`,
+  );
   await shot(page, '10c-complexe-calculs.png');
   await frame.locator('label[for="show-calc"]').click();
   await page.waitForTimeout(600);
   await frame.locator('label[for="show-lookups"]').click();
   await frame.locator('label[for="show-refs"]').click();
   await page.waitForTimeout(600);
-  check(await frame.locator('.erd--lookups').count() === 0 && await frame.locator('.erd--no-refs').count() === 1 && (await frame.locator('#links-count').textContent()) === '0/3', 'schéma : les liens se décochent');
+  check(
+    (await frame.locator('.erd--lookups').count()) === 0 &&
+      (await frame.locator('.erd--no-refs').count()) === 1 &&
+      (await frame.locator('#links-count').textContent()) === '0/3',
+    'schéma : les liens se décochent',
+  );
   await page.waitForTimeout(1000);
-  check(await frame.evaluate(() => window.__options.diagram?.lookups) === false, 'schéma : choix des liens mémorisé');
+  check((await frame.evaluate(() => window.__options.diagram?.lookups)) === false, 'schéma : choix des liens mémorisé');
   await page.keyboard.press('Escape');
   await frame.locator('#tab-schema').click();
   await frame.locator('.erd__viewport').click({ position: { x: 20, y: 20 } });
@@ -203,11 +354,21 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#btn-links').click();
 
   // Types de tables : un menu, les trois cochés par défaut
-  check((await frame.locator('#kinds-count').textContent()) === '3/3' && await frame.locator('.erd-node.is-filtered').count() === 0, 'schéma : tous les types de tables affichés par défaut');
+  check(
+    (await frame.locator('#kinds-count').textContent()) === '3/3' && (await frame.locator('.erd-node.is-filtered').count()) === 0,
+    'schéma : tous les types de tables affichés par défaut',
+  );
   await frame.locator('#btn-kinds').click();
   const nSummary = await frame.locator('.erd-node--summary').count();
   const nAcl = await frame.locator('.erd-node--acl').count();
-  check(await frame.locator('#kinds-menu').isVisible() && nSummary === 3 && nAcl === 2 && (await frame.locator('#show-kind-summary-sub').textContent()).endsWith('· 3') && (await frame.locator('#show-kind-acl-sub').textContent()).endsWith('· 2'), `schéma : menu « Tables » (${nSummary} synthèses, ${nAcl} tables de droits)`);
+  check(
+    (await frame.locator('#kinds-menu').isVisible()) &&
+      nSummary === 3 &&
+      nAcl === 2 &&
+      (await frame.locator('#show-kind-summary-sub').textContent()).endsWith('· 3') &&
+      (await frame.locator('#show-kind-acl-sub').textContent()).endsWith('· 2'),
+    `schéma : menu « Tables » (${nSummary} synthèses, ${nAcl} tables de droits)`,
+  );
   await shot(page, '10d-complexe-types.png');
   await frame.locator('label[for="show-kind-summary"]').click();
   await page.waitForTimeout(300);
@@ -217,70 +378,136 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     edges: document.querySelectorAll('.erd-edge.is-filtered').length,
     count: document.querySelector('#kinds-count').textContent,
   }));
-  check(kd.hidden && kd.others && kd.edges > 0 && kd.count === '2/3', `schéma : tables de synthèse masquées avec leurs liens (${JSON.stringify(kd)})`);
+  check(
+    kd.hidden && kd.others && kd.edges > 0 && kd.count === '2/3',
+    `schéma : tables de synthèse masquées avec leurs liens (${JSON.stringify(kd)})`,
+  );
   await frame.locator('#btn-links').click();
-  check(await frame.locator('#kinds-menu').isHidden() && await frame.locator('#links-menu').isVisible(), 'schéma : un seul menu ouvert à la fois');
+  check(
+    (await frame.locator('#kinds-menu').isHidden()) && (await frame.locator('#links-menu').isVisible()),
+    'schéma : un seul menu ouvert à la fois',
+  );
   await frame.locator('#btn-links').click();
   await page.waitForTimeout(1000);
-  check(await frame.evaluate(() => window.__options.diagram?.kinds?.summary) === false, 'schéma : types de tables mémorisés');
+  check((await frame.evaluate(() => window.__options.diagram?.kinds?.summary)) === false, 'schéma : types de tables mémorisés');
   await frame.locator('#btn-kinds').click();
   await frame.locator('label[for="show-kind-summary"]').click();
   await frame.locator('#btn-kinds').click();
 
-
   // Tables : détails
   await frame.locator('#tab-tables').click();
-  check(await frame.locator('#btn-details').count() === 0 && await frame.locator('#btn-minimap').count() === 0, 'plus de boutons Détails ni Mini-carte');
+  check(
+    (await frame.locator('#btn-details').count()) === 0 && (await frame.locator('#btn-minimap').count()) === 0,
+    'plus de boutons Détails ni Mini-carte',
+  );
   const agents = await frame.locator('#tbl-Agents').textContent();
-  check(agents.includes('Initialisé') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'), 'complexe : formule d\'initialisation et déclenchement');
-  check(agents.includes('Une ligne par agent') && !agents.includes('Informations'), 'complexe : description de table, plus de « Informations »');
+  check(
+    agents.includes('Initialisé') && agents.includes('NOW()') && agents.includes('aux nouvelles lignes seulement'),
+    "complexe : formule d'initialisation et déclenchement",
+  );
+  check(
+    agents.includes('Une ligne par agent') && !agents.includes('Informations'),
+    'complexe : description de table, plus de « Informations »',
+  );
   await frame.locator('[data-index-table="Taches"]').click();
   await page.waitForTimeout(300);
-  check(await frame.locator('[data-index-table="Taches"]').evaluate((b) => b.classList.contains('is-current')), 'index des tables : saut et mise en évidence');
-  await frame.locator('#tables-body').evaluate((el) => { const a = document.getElementById('tbl-Agents'); el.scrollTop = a.offsetTop - el.offsetTop - 12; });
+  check(
+    await frame.locator('[data-index-table="Taches"]').evaluate((b) => b.classList.contains('is-current')),
+    'index des tables : saut et mise en évidence',
+  );
+  await frame.locator('#tables-body').evaluate((el) => {
+    const a = document.getElementById('tbl-Agents');
+    el.scrollTop = a.offsetTop - el.offsetTop - 12;
+  });
   await shot(page, '11-complexe-details.png');
 
   // Analyse
   await frame.locator('#tab-analysis').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('à corriger') && analysis.includes('attribut inconnu') && analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès'), 'complexe : constats sur les droits d\'accès');
-  check(await frame.locator('.insight .insight__area', { hasText: 'Droits d\'accès' }).count() >= 5, 'complexe : constats étiquetés « Droits d\'accès »');
+  check(
+    analysis.includes('à corriger') &&
+      analysis.includes('attribut inconnu') &&
+      analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès'),
+    "complexe : constats sur les droits d'accès",
+  );
+  check(
+    (await frame.locator('.insight .insight__area', { hasText: "Droits d'accès" }).count()) >= 5,
+    "complexe : constats étiquetés « Droits d'accès »",
+  );
   await shot(page, '12-complexe-analyse.png');
   await frame.locator('.insight--blocking [data-goto-access]').first().click();
-  check(await frame.locator('#tab-access').getAttribute('aria-selected') === 'true', 'complexe : « Voir les droits d\'accès » ouvre la page Accès');
+  check(
+    (await frame.locator('#tab-access').getAttribute('aria-selected')) === 'true',
+    "complexe : « Voir les droits d'accès » ouvre la page Accès",
+  );
 
   // Accès
   const access = await frame.locator('#access-body').textContent();
   const tilesBlocking = Number(await frame.locator('#level-blocking .tile__n').textContent());
-  check(Number(await frame.locator('#analysis-count').textContent()) === tilesBlocking && (await frame.locator('.verdict__title').textContent()).startsWith(`${tilesBlocking} point`), `un seul chiffre « à corriger » : onglet, verdict et tuile (${tilesBlocking})`);
-  check(access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Droits d’accès par défaut'), 'accès : sections principales');
-  const settingIds = await frame.locator('[data-setting]').evaluateAll((els) => els.map((e) => `${e.dataset.setting}:${e.querySelector('.settings-row__state').textContent.trim()}`));
-  check(settingIds.join(',') === 'acl:Activées,seed:Non,schema:Oui,access-rules:Oui' && !access.includes('Copier le document entier'), `accès : permissions avancées et les trois cases de Grist seulement (${settingIds.join(', ')})`);
-  check(await frame.locator('.acl-table').count() === 8 + 11, `accès : toutes les tables affichées (${await frame.locator('.acl-table').count()})`);
-  check(access.includes('Personnes dont « Habilitation.Role » vaut « RH »') && access.includes('Fiches réservées au service RH.'), 'accès : conditions en clair et messages');
-  check(await frame.locator('#acl-Agents .perm--deny').count() >= 4 && await frame.locator('#acl-Agents .perm--allow').count() >= 4, 'accès : permissions Autorisé / Refusé');
-  check(access.includes('« user.Profil » n\'est défini nulle part'), 'accès : attribut inexistant signalé sur la règle');
-  await frame.locator('#access-body').evaluate((el) => { el.scrollTop = 0; });
+  check(
+    Number(await frame.locator('#analysis-count').textContent()) === tilesBlocking &&
+      (await frame.locator('.verdict__title').textContent()).startsWith(`${tilesBlocking} point`),
+    `un seul chiffre « à corriger » : onglet, verdict et tuile (${tilesBlocking})`,
+  );
+  check(
+    access.includes('Réglages généraux') && access.includes('Attributs utilisateur') && access.includes('Droits d’accès par défaut'),
+    'accès : sections principales',
+  );
+  const settingIds = await frame
+    .locator('[data-setting]')
+    .evaluateAll((els) => els.map((e) => `${e.dataset.setting}:${e.querySelector('.settings-row__state').textContent.trim()}`));
+  check(
+    settingIds.join(',') === 'acl:Activées,seed:Non,schema:Oui,access-rules:Oui' && !access.includes('Copier le document entier'),
+    `accès : permissions avancées et les trois cases de Grist seulement (${settingIds.join(', ')})`,
+  );
+  check(
+    (await frame.locator('.acl-table').count()) === 8 + 11,
+    `accès : toutes les tables affichées (${await frame.locator('.acl-table').count()})`,
+  );
+  check(
+    access.includes('Personnes dont « Habilitation.Role » vaut « RH »') && access.includes('Fiches réservées au service RH.'),
+    'accès : conditions en clair et messages',
+  );
+  check(
+    (await frame.locator('#acl-Agents .perm--deny').count()) >= 4 && (await frame.locator('#acl-Agents .perm--allow').count()) >= 4,
+    'accès : permissions Autorisé / Refusé',
+  );
+  check(access.includes("« user.Profil » n'est défini nulle part"), 'accès : attribut inexistant signalé sur la règle');
+  await frame.locator('#access-body').evaluate((el) => {
+    el.scrollTop = 0;
+  });
   await shot(page, '13-acces.png');
-  await frame.locator('#access-body').evaluate((el) => { const a = document.getElementById('acl-Agents'); el.scrollTop = a.offsetTop - el.offsetTop - 12; });
+  await frame.locator('#access-body').evaluate((el) => {
+    const a = document.getElementById('acl-Agents');
+    el.scrollTop = a.offsetTop - el.offsetTop - 12;
+  });
   await shot(page, '14-acces-agents.png');
   const pagesTop = await frame.locator('.pages').boundingBox();
   check(pagesTop.y >= 0, 'les onglets restent visibles après un saut');
   await frame.locator('#access-filter').fill('Email');
   await page.waitForTimeout(250);
-  check(await frame.locator('.acl-table').count() === 2, `accès : filtre « Email » (${await frame.locator('.acl-table').count()} tables)`);
+  check(
+    (await frame.locator('.acl-table').count()) === 2,
+    `accès : filtre « Email » (${await frame.locator('.acl-table').count()} tables)`,
+  );
   await frame.locator('#access-filter').fill('');
   await page.waitForTimeout(250);
-  check(await frame.locator('#access-all').count() === 0, 'accès : plus de choix « Tables avec règles / Toutes »');
+  check((await frame.locator('#access-all').count()) === 0, 'accès : plus de choix « Tables avec règles / Toutes »');
   const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
   const csvText = await readFile(await csv.path(), 'utf8');
-  check(csvText.includes('Agents;*;4;Tous les autres;;refusé;refusé;refusé;refusé;;-CRUD;Fiches réservées au service RH.'), 'accès : export CSV des règles');
+  check(
+    csvText.includes('Agents;*;4;Tous les autres;;refusé;refusé;refusé;refusé;;-CRUD;Fiches réservées au service RH.'),
+    'accès : export CSV des règles',
+  );
 
   // Rapport
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__figure img[src^="blob:"]', { timeout: 60000 });
-  check((await frame.locator('.doc').textContent()).includes('Structure et droits d\'accès'), 'rapport : titre adapté');
-  check((await frame.locator('.doc').textContent()).includes('Les tables de synthèse ne figurent pas sur ce schéma'), 'rapport : schéma sans tables de synthèse');
+  check((await frame.locator('.doc').textContent()).includes("Structure et droits d'accès"), 'rapport : titre adapté');
+  check(
+    (await frame.locator('.doc').textContent()).includes('Les tables de synthèse ne figurent pas sur ce schéma'),
+    'rapport : schéma sans tables de synthèse',
+  );
   await frame.locator('[data-report-goto="schema"]').click();
   await page.waitForTimeout(400);
   await shot(page, '21-rapport-schema.png');
@@ -288,13 +515,16 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await dl.saveAs(path.join(outDir, 'rapport-complexe.docx'));
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport-complexe.docx')));
   const xml = await zip.file('word/document.xml').async('string');
-  check(xml.includes('user.Habilitation') && xml.includes('>Initialisé<'), 'rapport complexe : droits d\'accès et formules');
+  check(xml.includes('user.Habilitation') && xml.includes('>Initialisé<'), "rapport complexe : droits d'accès et formules");
   check(errors.length === 0, `complexe : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
 
 // 1 ter bis. Accès · « Qui peut faire quoi ? » : matrice par rôle métier (rôle Grist Éditeur)
-for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, false], ['sombre', { width: 960, height: 760 }, true]]) {
+for (const [label, viewport, dark] of [
+  ['clair', { width: 1280, height: 860 }, false],
+  ['sombre', { width: 960, height: 760 }, true],
+]) {
   const meta = await metadata('document-complexe.metadata.json');
   const { habilitations } = await import('../fixtures/droits-complexe.mjs');
   meta.records = { Habilitations: habilitations };
@@ -303,41 +533,86 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   await frame.locator('#tab-access').click();
   const mx = frame.locator('#rights-matrix');
   const cell = (key, g, bit) => mx.locator(`[data-matrix-cell="${key}|${g}|${bit}"]`);
-  const line = async (key, g) => (await Promise.all(['R', 'U', 'C', 'D'].map(async (b) => (await cell(key, g, b).count() ? (await cell(key, g, b).textContent()).trim() : '—')))).join(' / ');
+  const line = async (key, g) =>
+    (
+      await Promise.all(
+        ['R', 'U', 'C', 'D'].map(async (b) => ((await cell(key, g, b).count()) ? (await cell(key, g, b).textContent()).trim() : '—')),
+      )
+    ).join(' / ');
   if (!dark) {
     const titles = await frame.locator('#access-body .sec__title').allTextContents();
-    check(titles[0] === 'Qui peut faire quoi ?' && titles[1] === 'Réglages généraux', `matrice : avant les réglages généraux (${titles.slice(0, 3).join(', ')})`);
+    check(
+      titles[0] === 'Qui peut faire quoi ?' && titles[1] === 'Réglages généraux',
+      `matrice : avant les réglages généraux (${titles.slice(0, 3).join(', ')})`,
+    );
     check((await mx.locator('.sec__head .count').textContent()) === '22', 'matrice : compte des tables (22)');
     const groups = await mx.locator('.mx__group strong').allTextContents();
     check(groups.join('|') === 'RH|Finances|Tous les autres', `matrice : groupes (${groups.join(', ')})`);
-    check((await mx.locator('.mx__group span').first().textContent()) === 'Habilitation.Role = « RH » · 7 services', 'matrice : 7 services comptés dans la table de l\'attribut');
-    check(await mx.locator('[data-matrix-detail="columns"]').getAttribute('aria-pressed') === 'true', 'matrice : « Par table et par colonne » par défaut');
-    check(await line('Agents', 1) === 'Email / Non / Non / Non' && await line('Agents', 0) === 'Oui / Oui / Oui / Oui', `matrice : Agents (${await line('Agents', 1)})`);
-    check(await line('Agents.Quotite', 0) === 'Oui / Oui / — / —' && await line('Agents.Quotite', 2) === 'Non / Non / — / —', 'matrice : colonne Quotite, Créer et Supprimer sans objet');
-    check(await line('Depenses', 0) === 'Service / Non / Non / Non' && await line('Formations', 2) === 'Oui / ? / Oui / Oui', 'matrice : Depenses et Formations');
-    check(await mx.locator('.mx__row--structure [data-matrix-cell]').count() === 3, 'matrice : une case de structure par groupe');
-    check(await cell('Agents', 1, 'R').getAttribute('title') === 'Oui, seulement sur les lignes de son Email.', 'matrice : phrase complète en infobulle');
+    check(
+      (await mx.locator('.mx__group span').first().textContent()) === 'Habilitation.Role = « RH » · 7 services',
+      "matrice : 7 services comptés dans la table de l'attribut",
+    );
+    check(
+      (await mx.locator('[data-matrix-detail="columns"]').getAttribute('aria-pressed')) === 'true',
+      'matrice : « Par table et par colonne » par défaut',
+    );
+    check(
+      (await line('Agents', 1)) === 'Email / Non / Non / Non' && (await line('Agents', 0)) === 'Oui / Oui / Oui / Oui',
+      `matrice : Agents (${await line('Agents', 1)})`,
+    );
+    check(
+      (await line('Agents.Quotite', 0)) === 'Oui / Oui / — / —' && (await line('Agents.Quotite', 2)) === 'Non / Non / — / —',
+      'matrice : colonne Quotite, Créer et Supprimer sans objet',
+    );
+    check(
+      (await line('Depenses', 0)) === 'Service / Non / Non / Non' && (await line('Formations', 2)) === 'Oui / ? / Oui / Oui',
+      'matrice : Depenses et Formations',
+    );
+    check((await mx.locator('.mx__row--structure [data-matrix-cell]').count()) === 3, 'matrice : une case de structure par groupe');
+    check(
+      (await cell('Agents', 1, 'R').getAttribute('title')) === 'Oui, seulement sur les lignes de son Email.',
+      'matrice : phrase complète en infobulle',
+    );
     const labels = await mx.locator('.mx__row > .mx__label').allTextContents();
-    check(labels[1] === 'Table1' && labels.includes('Taches_summary'), `matrice : tables dans l'ordre du document, résumés compris (${labels.slice(0, 3).join(', ')})`);
+    check(
+      labels[1] === 'Table1' && labels.includes('Taches_summary'),
+      `matrice : tables dans l'ordre du document, résumés compris (${labels.slice(0, 3).join(', ')})`,
+    );
     // Mode « Par table »
     await mx.locator('[data-matrix-detail="tables"]').click();
-    check(await mx.locator('.mx__row--column').count() === 0 && await mx.locator('[data-matrix-detail="tables"]').getAttribute('aria-pressed') === 'true', 'matrice : « Par table » masque les colonnes');
-    check(await frame.evaluate(() => document.activeElement?.dataset.matrixDetail) === 'tables', 'matrice : le focus reste sur le bouton');
+    check(
+      (await mx.locator('.mx__row--column').count()) === 0 &&
+        (await mx.locator('[data-matrix-detail="tables"]').getAttribute('aria-pressed')) === 'true',
+      'matrice : « Par table » masque les colonnes',
+    );
+    check(
+      (await frame.evaluate(() => document.activeElement?.dataset.matrixDetail)) === 'tables',
+      'matrice : le focus reste sur le bouton',
+    );
     await mx.locator('[data-matrix-detail="columns"]').click();
-    check(await mx.locator('.mx__row--column').count() === 4, 'matrice : 4 colonnes à règles');
+    check((await mx.locator('.mx__row--column').count()) === 4, 'matrice : 4 colonnes à règles');
     // Détail d'une case, au clavier
     await cell('Agents', 1, 'R').focus();
     await page.keyboard.press('Enter');
     const detail = mx.locator('.mx__detail');
-    check(await detail.isVisible() && (await detail.locator('.mx__meta').textContent()) === 'Finances · Lire · rôle Grist Éditeur', 'matrice : détail ouvert au clavier');
-    check(await cell('Agents', 1, 'R').evaluate((b) => b.classList.contains('is-picked') && document.activeElement === b), 'matrice : case choisie entourée, focus conservé');
+    check(
+      (await detail.isVisible()) && (await detail.locator('.mx__meta').textContent()) === 'Finances · Lire · rôle Grist Éditeur',
+      'matrice : détail ouvert au clavier',
+    );
+    check(
+      await cell('Agents', 1, 'R').evaluate((b) => b.classList.contains('is-picked') && document.activeElement === b),
+      'matrice : case choisie entourée, focus conservé',
+    );
     const steps = await detail.locator('.mx__step').allTextContents();
-    check(steps.length >= 2 && steps.some((x) => x.includes('Décide')) && steps.some((x) => x.includes('Selon la ligne (Email)')), `matrice : étapes du raisonnement (${steps.length})`);
+    check(
+      steps.length >= 2 && steps.some((x) => x.includes('Décide')) && steps.some((x) => x.includes('Selon la ligne (Email)')),
+      `matrice : étapes du raisonnement (${steps.length})`,
+    );
     check((await detail.locator('.mx__sentence strong').allTextContents()).includes('Email'), 'matrice : colonne décisive en gras');
     await shot(page, '18-matrice.png');
     await detail.locator('[data-matrix-close]').click();
     check(await detail.isHidden(), 'matrice : « Fermer » referme le détail');
-    check(await frame.evaluate(() => document.activeElement?.dataset.matrixCell) === 'Agents|1|R', 'matrice : focus rendu à la case');
+    check((await frame.evaluate(() => document.activeElement?.dataset.matrixCell)) === 'Agents|1|R', 'matrice : focus rendu à la case');
     const focused = () => frame.evaluate(() => document.activeElement?.dataset.matrixCell);
     await page.keyboard.press('ArrowRight');
     const right = await focused();
@@ -347,50 +622,80 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowDown');
     const skip = await focused();
-    check(right === 'Agents|1|U' && down === 'Agents.Quotite|1|U' && skip && !skip.startsWith('Agents') && skip.endsWith('|1|C'), `matrice : flèches d'une case à l'autre, cases « — » sautées (${right}, ${down}, ${skip})`);
+    check(
+      right === 'Agents|1|U' && down === 'Agents.Quotite|1|U' && skip && !skip.startsWith('Agents') && skip.endsWith('|1|C'),
+      `matrice : flèches d'une case à l'autre, cases « — » sautées (${right}, ${down}, ${skip})`,
+    );
     await page.keyboard.press('Enter');
     check(await detail.isVisible(), 'matrice : Entrée ouvre le détail');
     await page.keyboard.press('Escape');
-    check(await detail.isHidden() && (await focused()) === skip, 'matrice : Échap referme le détail');
+    check((await detail.isHidden()) && (await focused()) === skip, 'matrice : Échap referme le détail');
     await cell('Depenses', 0, 'R').click();
     await detail.locator('[data-goto-access="Depenses"]').click();
     await page.waitForTimeout(400);
     const card = await frame.locator('#acl-Depenses').boundingBox();
     const bodyBox = await frame.locator('#access-body').boundingBox();
     check(card && card.y >= bodyBox.y - 2 && card.y < bodyBox.y + 200, 'matrice : « Voir les règles de Depenses » mène à la carte');
-    check(await frame.locator('#access-body .sec__title').allTextContents().then((t) => t.includes('Droits d’accès par table')), 'matrice : le reste de l\'onglet est inchangé');
+    check(
+      await frame
+        .locator('#access-body .sec__title')
+        .allTextContents()
+        .then((t) => t.includes('Droits d’accès par table')),
+      "matrice : le reste de l'onglet est inchangé",
+    );
     // Export Excel : matrice, détail filtrable, paramètres
     const [xl] = await Promise.all([page.waitForEvent('download'), mx.locator('[data-matrix-xlsx]').click()]);
-    check(xl.suggestedFilename().startsWith('qui-peut-faire-quoi-') && xl.suggestedFilename().endsWith('.xlsx'), `matrice : nom du fichier Excel (${xl.suggestedFilename()})`);
+    check(
+      xl.suggestedFilename().startsWith('qui-peut-faire-quoi-') && xl.suggestedFilename().endsWith('.xlsx'),
+      `matrice : nom du fichier Excel (${xl.suggestedFilename()})`,
+    );
     const xz = await JSZip.loadAsync(await readFile(await xl.path()));
     const wbx = await xz.file('xl/workbook.xml').async('string');
     const sst = await xz.file('xl/sharedStrings.xml').async('string');
-    check(['Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) => wbx.includes(`name="${n}"`)) && wbx.includes('_xlnm._FilterDatabase') && Boolean(xz.file('xl/tables/table1.xml')), 'matrice : classeur à trois feuilles, filtres et tableau Excel');
-    check(sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Oui, seulement sur les lignes de son Email.'), 'matrice : groupes et explications dans le classeur');
+    check(
+      ['Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) => wbx.includes(`name="${n}"`)) &&
+        wbx.includes('_xlnm._FilterDatabase') &&
+        Boolean(xz.file('xl/tables/table1.xml')),
+      'matrice : classeur à trois feuilles, filtres et tableau Excel',
+    );
+    check(
+      sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Oui, seulement sur les lignes de son Email.'),
+      'matrice : groupes et explications dans le classeur',
+    );
     // Rapport : la matrice au début des droits d'accès
     await frame.locator('#tab-report').click();
     await frame.waitForSelector('.doc', { timeout: 30000 });
     const docText = await frame.locator('.doc').textContent();
-    check(docText.includes('Qui peut faire quoi ?') && await frame.locator('.doc .doc__fill--ok').count() > 50 && await frame.locator('.doc td[colspan="4"]').count() === 3, 'rapport : matrice dans l\'aperçu');
+    check(
+      docText.includes('Qui peut faire quoi ?') &&
+        (await frame.locator('.doc .doc__fill--ok').count()) > 50 &&
+        (await frame.locator('.doc td[colspan="4"]').count()) === 3,
+      "rapport : matrice dans l'aperçu",
+    );
     await frame.locator('#access-body').evaluate(() => {});
     await frame.locator('.doc .doc__h2', { hasText: 'Qui peut faire quoi' }).scrollIntoViewIfNeeded();
     await shot(page, '20-rapport-matrice.png');
     const [wd] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), frame.locator('#btn-docx').click()]);
     const wz = await JSZip.loadAsync(await readFile(await wd.path()));
     const wxml = await wz.file('word/document.xml').async('string');
-    check(wxml.includes('>Qui peut faire quoi ?<') && wxml.includes('w:orient="landscape"') && wxml.includes('w:fill="DFFEE6"'), 'rapport Word : matrice en paysage');
+    check(
+      wxml.includes('>Qui peut faire quoi ?<') && wxml.includes('w:orient="landscape"') && wxml.includes('w:fill="DFFEE6"'),
+      'rapport Word : matrice en paysage',
+    );
     await frame.locator('#tab-access').click();
     // Le filtre des règles masque la matrice (comme les réglages)
     await frame.locator('#access-filter').fill('Email');
     await page.waitForTimeout(250);
-    check(await mx.count() === 0, 'matrice : masquée pendant une recherche');
+    check((await mx.count()) === 0, 'matrice : masquée pendant une recherche');
     await frame.locator('#access-filter').fill('');
     await page.waitForTimeout(250);
     const overflow = await frame.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     check(overflow <= 0, `matrice : seule la grille défile horizontalement (${overflow}px)`);
   } else {
     await cell('Agents', 0, 'R').click();
-    await frame.locator('#access-body').evaluate((el) => { el.scrollTop = 0; });
+    await frame.locator('#access-body').evaluate((el) => {
+      el.scrollTop = 0;
+    });
     await shot(page, '19-matrice-sombre-960.png');
     const grid = await mx.locator('.mx__scroll').evaluate((el) => el.scrollWidth > el.clientWidth);
     check(grid, 'matrice 960 px : défilement horizontal de la grille');
@@ -405,7 +710,10 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
   const { context, page, frame, errors } = await h.openWidget({ meta, viewport: { width: 1280, height: 860 } });
   await h.waitDiagram(frame);
   await frame.locator('#tab-tables').click();
-  check((await frame.locator('#tbl-Commandes .card__meta').textContent()).includes('24 lignes'), 'mal structuré : nombre de lignes affiché');
+  check(
+    (await frame.locator('#tbl-Commandes .card__meta').textContent()).includes('24 lignes'),
+    'mal structuré : nombre de lignes affiché',
+  );
   await frame.locator('#tab-analysis').click();
   const text = await frame.locator('#analysis-body').textContent();
   // Revue du 4 novembre (3.11.0) : « liens écrits à la main » retiré ; texte → nombres, booléens et dates séparés.
@@ -413,39 +721,82 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
     check(text.includes(t), `mal structuré : « ${t} »`);
   }
   check(!/DBML/.test(text), 'mal structuré : analyse sans DBML');
-  check(text.includes('dont le nom ne précise pas l’usage') && !text.includes('Un widget externe avec accès complet') && text.includes('sans ses colonnes') && text.includes('ne figure dans aucune page'), 'mal structuré : constats sur les pages et widgets');
+  check(
+    text.includes('dont le nom ne précise pas l’usage') &&
+      !text.includes('Un widget externe avec accès complet') &&
+      text.includes('sans ses colonnes') &&
+      text.includes('ne figure dans aucune page'),
+    'mal structuré : constats sur les pages et widgets',
+  );
   await frame.locator('#tab-widgets').click();
   const w = await frame.locator('#widgets-body').textContent();
-  check(await frame.locator('.widget-card').count() === 5 && w.includes('Code dans le document') && w.includes('widgets.exemple.fr') && w.indexOf('Vues non officielles') < w.indexOf('Vues personnalisées'), 'onglet Vues : non officiels en premier, avec origine et adresse');
-  check(await frame.locator('.widget-cols li').count() >= 3 && !(await frame.locator('#widgets-body').textContent()).includes('gristlabs.github.io'), 'onglet Vues : galerie réduite à l\'accès et aux colonnes en liste');
-  check(w.includes('Fiche client') && w.includes('Graphique (barres)') && !/\bTableau · table\b/.test(w) && w.includes('que des tableaux') && w.includes('Brouillon'), 'onglet Vues : tableaux exclus, autres vues par page');
-  check(await frame.locator('.widget-cols--missing').count() === 3, 'onglet Vues : colonnes à associer signalées');
+  check(
+    (await frame.locator('.widget-card').count()) === 5 &&
+      w.includes('Code dans le document') &&
+      w.includes('widgets.exemple.fr') &&
+      w.indexOf('Vues non officielles') < w.indexOf('Vues personnalisées'),
+    'onglet Vues : non officiels en premier, avec origine et adresse',
+  );
+  check(
+    (await frame.locator('.widget-cols li').count()) >= 3 &&
+      !(await frame.locator('#widgets-body').textContent()).includes('gristlabs.github.io'),
+    "onglet Vues : galerie réduite à l'accès et aux colonnes en liste",
+  );
+  check(
+    w.includes('Fiche client') &&
+      w.includes('Graphique (barres)') &&
+      !/\bTableau · table\b/.test(w) &&
+      w.includes('que des tableaux') &&
+      w.includes('Brouillon'),
+    'onglet Vues : tableaux exclus, autres vues par page',
+  );
+  check((await frame.locator('.widget-cols--missing').count()) === 3, 'onglet Vues : colonnes à associer signalées');
   await frame.locator('label[for="wkind-gallery"]').click();
-  check(await frame.locator('.widget-card').count() === 2 && !(await frame.locator('#widgets-body').textContent()).includes('Vues non officielles'), 'widgets : filtre « Galerie »');
+  check(
+    (await frame.locator('.widget-card').count()) === 2 &&
+      !(await frame.locator('#widgets-body').textContent()).includes('Vues non officielles'),
+    'widgets : filtre « Galerie »',
+  );
   await frame.locator('label[for="wkind-all"]').click();
   await frame.locator('#widgets-filter').fill('carte');
   await page.waitForTimeout(250);
-  check(await frame.locator('.widget-card').count() === 1, `widgets : recherche « carte » (${await frame.locator('.widget-card').count()})`);
+  check(
+    (await frame.locator('.widget-card').count()) === 1,
+    `widgets : recherche « carte » (${await frame.locator('.widget-card').count()})`,
+  );
   await frame.locator('#widgets-filter').fill('');
   await page.waitForTimeout(250);
   await shot(page, '17-widgets.png');
   await frame.locator('#tab-report').click();
   await frame.waitForSelector('.doc__toc', { timeout: 30000 });
   const doc = await frame.locator('.doc').textContent();
-  check(doc.includes('Vues personnalisées') && doc.includes('Vues non officielles') && doc.includes('Tableau croisé dynamique') && doc.includes('Table des matières'), 'rapport : section Vues');
+  check(
+    doc.includes('Vues personnalisées') &&
+      doc.includes('Vues non officielles') &&
+      doc.includes('Tableau croisé dynamique') &&
+      doc.includes('Table des matières'),
+    'rapport : section Vues',
+  );
   await frame.locator('#tab-analysis').click();
   await page.waitForTimeout(600);
   await shot(page, '16-mal-structure-analyse.png');
   await frame.locator('#level-choice').click();
   const before = Number(await frame.locator('#level-choice .tile__n').textContent());
-  check(await frame.locator('.insight--choice .insight__intended').count() === before, 'choix : « Si c\'est voulu » sur chaque carte');
+  check((await frame.locator('.insight--choice .insight__intended').count()) === before, "choix : « Si c'est voulu » sur chaque carte");
   await frame.locator('.insight--choice [data-action="accept"]').first().click();
   await page.waitForTimeout(200);
   const after = Number(await frame.locator('#level-choice .tile__n').textContent());
   check(after === before - 1, `« C'est voulu » : ${before} → ${after} choix à confirmer`);
-  check(Array.isArray((await frame.evaluate(() => window.__options.accepted))) && (await frame.evaluate(() => window.__options.accepted.length)) === 1, '« C\'est voulu » mémorisé dans les options du widget');
+  check(
+    Array.isArray(await frame.evaluate(() => window.__options.accepted)) &&
+      (await frame.evaluate(() => window.__options.accepted.length)) === 1,
+    "« C'est voulu » mémorisé dans les options du widget",
+  );
   await frame.locator('#level-accepted').click();
-  check(await frame.locator('.insight--accepted').count() === 1 && (await frame.locator('#level-accepted .tile__n').textContent()) === '1', 'section « Choix confirmés »');
+  check(
+    (await frame.locator('.insight--accepted').count()) === 1 && (await frame.locator('#level-accepted .tile__n').textContent()) === '1',
+    'section « Choix confirmés »',
+  );
   const order = await frame.locator('#tabpanel-analysis .tile .tile__label').allTextContents();
   check(order.join('|') === 'À corriger|À améliorer|Choix à confirmer|Choix confirmés|Bon à savoir|Tout', `tuiles : ${order.join(' | ')}`);
   await shot(page, '17-choix.png');
@@ -489,19 +840,20 @@ for (const [label, viewport, dark] of [['clair', { width: 1280, height: 860 }, f
 }
 
 // 4. Petit format, thème sombre
-for (const [name, viewport, dark] of [['07-etroit', { width: 420, height: 860 }, false], ['08-sombre', { width: 1200, height: 760 }, true]]) {
+for (const [name, viewport, dark] of [
+  ['07-etroit', { width: 420, height: 860 }, false],
+  ['08-sombre', { width: 1200, height: 760 }, true],
+]) {
   const meta = await metadata('document-exemple.code.py');
   const { context, page, frame, errors } = await h.openWidget({ meta, viewport, dark });
   await h.waitDiagram(frame);
   await shot(page, `${name}.png`);
   const overflow = await frame.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(overflow <= 0, `${name} : pas de défilement horizontal (${overflow}px)`);
-  if (dark) check(await frame.evaluate(() => document.documentElement.dataset.frTheme) === 'dark', 'sombre : thème DSFR sombre');
+  if (dark) check((await frame.evaluate(() => document.documentElement.dataset.frTheme)) === 'dark', 'sombre : thème DSFR sombre');
   check(errors.length === 0, `${name} : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
 
 await h.finish();
-console.log('\nTous les contrôles d\'interface passent.');
-
-
+console.log("\nTous les contrôles d'interface passent.");

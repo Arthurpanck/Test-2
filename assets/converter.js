@@ -19,9 +19,35 @@ export const W = '[\\p{L}\\p{N}_]';
 
 /** Caractères retirés par `str.strip()` en Python (différent de `String.trim()`). */
 const PY_WHITESPACE = new Set([
-  '\t', '\n', '\v', '\f', '\r', '\x1c', '\x1d', '\x1e', '\x1f', ' ', '\x85', '\xa0',
-  ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-  ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '　',
+  '\t',
+  '\n',
+  '\v',
+  '\f',
+  '\r',
+  '\x1c',
+  '\x1d',
+  '\x1e',
+  '\x1f',
+  ' ',
+  '\x85',
+  '\xa0',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  ' ',
+  '　',
 ]);
 
 export function pyStrip(s) {
@@ -182,7 +208,11 @@ export function convertTypeCorrected(gristType, isFormula) {
 export function refListValue(value) {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'string') {
-    try { return refListValue(JSON.parse(value)); } catch { return null; }
+    try {
+      return refListValue(JSON.parse(value));
+    } catch {
+      return null;
+    }
   }
   if (!Array.isArray(value)) return null;
   return (value[0] === 'L' ? value.slice(1) : value).filter((v) => typeof v === 'number');
@@ -193,12 +223,14 @@ export function refListValue(value) {
  * `sections` (facultatif) : lignes de `_grist_Views_section`, pour la description des tables.
  */
 export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
-  const tables = columnarToRows(metaTables).slice().sort((a, b) => a.id - b.id);
+  const tables = columnarToRows(metaTables)
+    .slice()
+    .sort((a, b) => a.id - b.id);
   const cols = columnarToRows(metaColumns);
   const sectionDescription = new Map(columnarToRows(sections || []).map((s) => [s.id, s.description || '']));
   const colIdByRef = new Map(cols.map((c) => [c.id, c.colId]));
-  const tableIdByRef = new Map(tables.map(t => [t.id, t.tableId]));
-  const sorted = cols.slice().sort((a, b) => (a.parentId - b.parentId) || (a.parentPos - b.parentPos));
+  const tableIdByRef = new Map(tables.map((t) => [t.id, t.tableId]));
+  const sorted = cols.slice().sort((a, b) => a.parentId - b.parentId || a.parentPos - b.parentPos);
   const byTable = new Map();
   for (const c of sorted) {
     if (!byTable.has(c.parentId)) byTable.set(c.parentId, []);
@@ -248,7 +280,7 @@ export function columnDetails(c) {
   let trigger = null;
   if (!c.isFormula && formula.trim()) {
     // recalcWhen : 0 = nouvelles lignes (+ colonnes de recalcDeps), 1 = jamais, 2 = toute modification.
-    const when = c.recalcWhen === 2 ? 'any' : c.recalcWhen === 1 ? 'never' : (c.recalcDeps && c.recalcDeps.length ? 'deps' : 'new');
+    const when = c.recalcWhen === 2 ? 'any' : c.recalcWhen === 1 ? 'never' : c.recalcDeps && c.recalcDeps.length ? 'deps' : 'new';
     trigger = { when, deps: when === 'deps' ? c.recalcDeps : [] };
   }
   return {
@@ -270,7 +302,6 @@ export function decodeSummaryTableName(tableInfo) {
   return null;
 }
 
-
 const byCodePoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Tables visibles dans la Vue du code, dans le même ordre que Grist. */
@@ -288,7 +319,7 @@ export function userViewTables(schema) {
     if (t.tableId.startsWith('_grist_') || decodeSummaryTableName(t)) continue;
     const columns = [...t.columns.values()]
       .map((c, i) => [c, i])
-      .sort((a, b) => (Number(a[0].isFormula) - Number(b[0].isFormula)) || (a[1] - b[1]))
+      .sort((a, b) => Number(a[0].isFormula) - Number(b[0].isFormula) || a[1] - b[1])
       .map(([c]) => c)
       .filter((c) => isVisibleColumn(c.colId));
     const sums = summaries.get(t.tableId);
@@ -319,8 +350,13 @@ export function modelFromSchema(schema) {
         // Grist la range parmi les formules, mais elle n'en a aucune.
         const empty = c.isFormula && !String(c.formula || '').trim();
         return {
-          name: c.colId, isFormula: c.isFormula && !empty, empty, gristType: gristTypeFromColType(c.type, c.reverseColId),
-          label: c.label, description: c.description, details: columnDetails(c),
+          name: c.colId,
+          isFormula: c.isFormula && !empty,
+          empty,
+          gristType: gristTypeFromColType(c.type, c.reverseColId),
+          label: c.label,
+          description: c.description,
+          details: columnDetails(c),
         };
       }),
     });
@@ -331,7 +367,13 @@ export function modelFromSchema(schema) {
         source: t.tableId,
         columns: [...t.summaryFormulas.values()]
           .filter((c) => !c.colId.startsWith('gristHelper_'))
-          .map((c) => ({ name: c.colId, isFormula: true, gristType: gristTypeFromColType(c.type, c.reverseColId), label: c.label, details: columnDetails(c) })),
+          .map((c) => ({
+            name: c.colId,
+            isFormula: true,
+            gristType: gristTypeFromColType(c.type, c.reverseColId),
+            label: c.label,
+            details: columnDetails(c),
+          })),
       });
     }
   }
@@ -346,10 +388,17 @@ export function outputFromModel(model) {
     kind: t.kind,
     source: t.source,
     description: t.description || '',
-    columns: t.columns.map((c) => toOutputColumn(c.name, convertTypeCorrected(c.gristType, c.isFormula), {
-      line: c.line, gristType: c.gristType, sourceIsFormula: c.isFormula, label: c.label, description: c.description,
-      empty: Boolean(c.empty), details: c.details || null,
-    })),
+    columns: t.columns.map((c) =>
+      toOutputColumn(c.name, convertTypeCorrected(c.gristType, c.isFormula), {
+        line: c.line,
+        gristType: c.gristType,
+        sourceIsFormula: c.isFormula,
+        label: c.label,
+        description: c.description,
+        empty: Boolean(c.empty),
+        details: c.details || null,
+      }),
+    ),
   }));
 }
 

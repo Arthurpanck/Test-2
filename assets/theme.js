@@ -9,14 +9,34 @@
  */
 
 export const DOC_THEME = {
-  font: 'Calibri, Carlito, "Marianne", Arial, sans-serif', mono: 'Consolas, "Courier New", monospace',
-  primary: '#000091', onPrimary: '#ffffff', summary: '#6e445a',
-  text: '#161616', muted: '#666666', border: '#dddddd', surface: '#f6f6f6',
-  type: '#18753c', formula: '#a558a0', key: '#b34000',
-  blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
-  neutral: '#3a3a3a', fillOk: '#dffee6', fillKo: '#ffe9e9', fillUk: '#eeeeee',
-  lookupOne: '#d64d00', lookupRecords: '#009081', acl: '#c9191e', calc: '#a558a0',
-  background: '#ffffff', line: '#929292', subtle: '#eeeeee', // fond, traits et séparateurs discrets
+  font: 'Calibri, Carlito, "Marianne", Arial, sans-serif',
+  mono: 'Consolas, "Courier New", monospace',
+  primary: '#000091',
+  onPrimary: '#ffffff',
+  summary: '#6e445a',
+  text: '#161616',
+  muted: '#666666',
+  border: '#dddddd',
+  surface: '#f6f6f6',
+  type: '#18753c',
+  formula: '#a558a0',
+  key: '#b34000',
+  blocking: '#ce0500',
+  improve: '#b34000',
+  choice: '#a558a0',
+  info: '#0063cb',
+  ready: '#18753c',
+  neutral: '#3a3a3a',
+  fillOk: '#dffee6',
+  fillKo: '#ffe9e9',
+  fillUk: '#eeeeee',
+  lookupOne: '#d64d00',
+  lookupRecords: '#009081',
+  acl: '#c9191e',
+  calc: '#a558a0',
+  background: '#ffffff',
+  line: '#929292',
+  subtle: '#eeeeee', // fond, traits et séparateurs discrets
 };
 
 /** Couleur pour Excel (« RRGGBB », sans #). */

@@ -17,11 +17,17 @@ import { findFormulaDeps } from './formula-deps.js?v=3.18.0';
 import { tablesXlsx } from './tables-export.js?v=3.18.0';
 import { matrixXlsx } from './rights-export.js?v=3.18.0';
 import {
-  ACTIONS as MATRIX_ACTIONS, ACTION_LABEL, prepareMatrixModel, buildMatrix, cellText, cellTone, cellSentence, cellSteps, detectRole,
+  ACTIONS as MATRIX_ACTIONS,
+  ACTION_LABEL,
+  prepareMatrixModel,
+  buildMatrix,
+  cellText,
+  cellTone,
+  cellSentence,
+  cellSteps,
+  detectRole,
 } from './rights-matrix.js?v=3.18.0';
-import {
-  REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary,
-} from './report.js?v=3.18.0';
+import { REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary } from './report.js?v=3.18.0';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
@@ -31,14 +37,66 @@ const inGrist = Boolean(gristApi) && window.self !== window.top;
 
 const $ = (id) => document.getElementById(id);
 const els = {};
-for (const id of ['stats', 'read-at', 'btn-refresh', 'doc-alert', 'analysis-count',
-  'btn-zoom-out', 'zoom-value', 'btn-zoom-in', 'btn-zoom-fit', 'btn-relayout', 'detail-all', 'detail-keys', 'detail-tables',
-  'find-table', 'find-table-list', 'btn-png', 'btn-kinds', 'kinds-menu', 'kinds-count', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'show-kind-table-sub', 'show-kind-summary-sub', 'show-kind-acl-sub', 'btn-links', 'links-menu', 'links-count', 'show-refs', 'show-lookups', 'show-calc', 'show-refs-sub', 'show-lookups-sub', 'show-calc-sub', 'schema-body',
-  'filter-input', 'cols-all', 'cols-refs', 'cols-formulas', 'btn-csv', 'tables-body',
-  'access-filter', 'btn-access-csv', 'access-body',
-  'widgets-filter', 'wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views', 'widgets-body',
-  'analysis-filter', 'analysis-body',
-  'report-sections', 'report-count', 'btn-docx', 'report-body', 'toast', 'live']) {
+for (const id of [
+  'stats',
+  'read-at',
+  'btn-refresh',
+  'doc-alert',
+  'analysis-count',
+  'btn-zoom-out',
+  'zoom-value',
+  'btn-zoom-in',
+  'btn-zoom-fit',
+  'btn-relayout',
+  'detail-all',
+  'detail-keys',
+  'detail-tables',
+  'find-table',
+  'find-table-list',
+  'btn-png',
+  'btn-kinds',
+  'kinds-menu',
+  'kinds-count',
+  'show-kind-table',
+  'show-kind-summary',
+  'show-kind-acl',
+  'show-kind-table-sub',
+  'show-kind-summary-sub',
+  'show-kind-acl-sub',
+  'btn-links',
+  'links-menu',
+  'links-count',
+  'show-refs',
+  'show-lookups',
+  'show-calc',
+  'show-refs-sub',
+  'show-lookups-sub',
+  'show-calc-sub',
+  'schema-body',
+  'filter-input',
+  'cols-all',
+  'cols-refs',
+  'cols-formulas',
+  'btn-csv',
+  'tables-body',
+  'access-filter',
+  'btn-access-csv',
+  'access-body',
+  'widgets-filter',
+  'wkind-all',
+  'wkind-unofficial',
+  'wkind-gallery',
+  'wkind-views',
+  'widgets-body',
+  'analysis-filter',
+  'analysis-body',
+  'report-sections',
+  'report-count',
+  'btn-docx',
+  'report-body',
+  'toast',
+  'live',
+]) {
   els[id] = $(id);
 }
 const tabs = ['schema', 'tables', 'access', 'widgets', 'analysis', 'report'];
@@ -54,7 +112,9 @@ const state = {
   access: null, // buildAccess()
   pages: null, // buildPages() : pages et widgets
   pagesMeta: null,
-  data: {}, failedTables: [], auditMeta: {},
+  data: {},
+  failedTables: [],
+  auditMeta: {},
   loadProgress: null, // { done, total } pendant la lecture des données
   profiles: null, // profileTables() : données lues, pour les constats sur les données
   profileKey: null,
@@ -84,20 +144,29 @@ const state = {
 // Utilitaires
 // ---------------------------------------------------------------------------
 
-
 function debounce(fn, ms) {
   let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
 }
 
 let toastTimer;
 function toast(message, level = 'success') {
   clearTimeout(toastTimer);
   els.toast.innerHTML = `<div class="fr-alert fr-alert--${level} fr-alert--sm"><p>${esc(message)}</p></div>`;
-  toastTimer = setTimeout(() => { els.toast.innerHTML = ''; }, level === 'error' ? 7000 : 3500);
+  toastTimer = setTimeout(
+    () => {
+      els.toast.innerHTML = '';
+    },
+    level === 'error' ? 7000 : 3500,
+  );
 }
 
-const announce = debounce((message) => { els.live.textContent = message; }, 600);
+const announce = debounce((message) => {
+  els.live.textContent = message;
+}, 600);
 
 async function copyText(text) {
   try {
@@ -112,7 +181,11 @@ async function copyText(text) {
     document.body.append(ta);
     ta.select();
     let ok = false;
-    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      ok = false;
+    }
     ta.remove();
     return ok;
   }
@@ -133,7 +206,9 @@ function buttonFeedback(btn, label) {
   const original = btn.dataset.label || btn.textContent;
   btn.dataset.label = original;
   btn.textContent = label;
-  setTimeout(() => { btn.textContent = original; }, 2000);
+  setTimeout(() => {
+    btn.textContent = original;
+  }, 2000);
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +233,14 @@ function recompute() {
   state.stats = state.out ? computeStats(state.out.tables) : null; // calculées une fois par lecture
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
   state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, sampled: state.sampled, meta: state.auditMeta, failedTables: state.failedTables} }) : null;
+  state.insights = state.out
+    ? buildInsights(state.out.tables, state.access, {
+        profiles: state.profiles,
+        accepted: state.accepted,
+        pages: state.pages,
+        audit: { schema: state.schema, data: state.data, sampled: state.sampled, meta: state.auditMeta, failedTables: state.failedTables },
+      })
+    : null;
   render();
   if (state.out) {
     const s = state.stats;
@@ -182,7 +264,7 @@ async function loadSchema({ manual = false } = {}) {
       optional('_grist_Views'),
       optional('_grist_Filters'),
     ]);
-    state.auditMeta = {filters, sections, tables, columns, views};
+    state.auditMeta = { filters, sections, tables, columns, views };
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
@@ -227,7 +309,11 @@ async function loadData({ force = false } = {}) {
   const worker = async () => {
     while (queue.length) {
       const id = queue.shift();
-      try { data[id] = presampleTable(id, await gristApi.docApi.fetchTable(id)); } catch { failed.add(id); }
+      try {
+        data[id] = presampleTable(id, await gristApi.docApi.fetchTable(id));
+      } catch {
+        failed.add(id);
+      }
       state.loadProgress = { done: ++done, total: ids.length };
       renderHeader();
       await yieldToBrowser(); // l'interface reste fluide entre deux tables
@@ -241,7 +327,13 @@ async function loadData({ force = false } = {}) {
   const sampled = sampleAuditData(state.data);
   state.sampled = sampled; // repris tel quel par l'analyse (runAudit) : un seul tirage par lecture
   state.profiles = profileTables(sampled.data);
-  for (const c of sampled.coverage) { const p = state.profiles.get(c.table); if (p) { p.rows = c.visibleRows; p.sampled = c.sampled; } }
+  for (const c of sampled.coverage) {
+    const p = state.profiles.get(c.table);
+    if (p) {
+      p.rows = c.visibleRows;
+      p.sampled = c.sampled;
+    }
+  }
   state.profileKey = key;
 }
 
@@ -254,7 +346,9 @@ const yieldToBrowser = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 function saveOption(key, value) {
   if (!inGrist) return;
-  Promise.resolve(gristApi.setOption(key, value)).catch(() => { /* accès en lecture seule */ });
+  Promise.resolve(gristApi.setOption(key, value)).catch(() => {
+    /* accès en lecture seule */
+  });
 }
 const TABLE_KINDS = ['table', 'summary', 'acl'];
 const saveDiagramSoon = debounce(() => saveOption('diagram', { ...state.diagram }), 800);
@@ -297,30 +391,39 @@ function emptyState(html) {
 }
 
 function unavailableMessage() {
-  if (!inGrist) return emptyState('<p>Cette vue s\'utilise dans Grist : ajoutez-le comme vue personnalisée avec l\'accès « Accès complet au document ».</p>');
-  if (state.loadProgress) return emptyState(`<p>Lecture des données : ${state.loadProgress.done} sur ${state.loadProgress.total} tables…</p>`);
+  if (!inGrist)
+    return emptyState(
+      "<p>Cette vue s'utilise dans Grist : ajoutez-le comme vue personnalisée avec l'accès « Accès complet au document ».</p>",
+    );
+  if (state.loadProgress)
+    return emptyState(`<p>Lecture des données : ${state.loadProgress.done} sur ${state.loadProgress.total} tables…</p>`);
   if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
-  return emptyState('<p>La structure du document n\'est pas disponible.</p>');
+  return emptyState("<p>La structure du document n'est pas disponible.</p>");
 }
 
 function renderHeader() {
   if (state.out) {
     const s = state.stats;
     els.stats.textContent = [
-      plural(s.tables, 'table', 'tables'), plural(s.columns, 'colonne', 'colonnes'), plural(s.relations, 'relation', 'relations'),
+      plural(s.tables, 'table', 'tables'),
+      plural(s.columns, 'colonne', 'colonnes'),
+      plural(s.relations, 'relation', 'relations'),
     ].join(' · ');
     els.stats.title = `${els.stats.textContent} · ${plural(s.formulas, 'formule', 'formules')}`;
   } else {
     els.stats.textContent = '';
   }
-  if (state.loadProgress) els['read-at'].textContent = `Lecture des données : ${state.loadProgress.done}/${state.loadProgress.total} tables`;
+  if (state.loadProgress)
+    els['read-at'].textContent = `Lecture des données : ${state.loadProgress.done}/${state.loadProgress.total} tables`;
   else if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
-  else if (state.schemaAt) els['read-at'].textContent = `Lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  else if (state.schemaAt)
+    els['read-at'].textContent = `Lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   else els['read-at'].textContent = '';
   els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
 
   if (!inGrist) {
-    els['doc-alert'].innerHTML = `<div class="fr-alert fr-alert--info fr-alert--sm"><p>Ouvrez cette vue dans un document Grist : il lit directement la structure du document où il est installé.</p></div>`;
+    els['doc-alert'].innerHTML =
+      `<div class="fr-alert fr-alert--info fr-alert--sm"><p>Ouvrez cette vue dans un document Grist : il lit directement la structure du document où il est installé.</p></div>`;
   } else if (state.schemaError) {
     els['doc-alert'].innerHTML = `
       <div class="fr-alert fr-alert--warning fr-alert--sm">
@@ -365,7 +468,7 @@ const badge = (text, kind = '') => `<span class="badge${kind ? ` badge--${kind}`
 
 function attentionButton(issues, area) {
   return issues.length
-    ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="${esc(area)}">${esc(plural(issues.length, 'point d\'attention', 'points d\'attention'))}</button>`
+    ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="${esc(area)}">${esc(plural(issues.length, "point d'attention", "points d'attention"))}</button>`
     : '';
 }
 
@@ -375,7 +478,10 @@ function attentionButton(issues, area) {
 
 function renderTables() {
   const out = state.out;
-  if (!out) { els['tables-body'].innerHTML = unavailableMessage(); return; }
+  if (!out) {
+    els['tables-body'].innerHTML = unavailableMessage();
+    return;
+  }
   const q = state.filter.trim().toLowerCase();
   const incoming = new Map();
   for (const t of out.tables) {
@@ -390,8 +496,11 @@ function renderTables() {
   const keep = (c) => state.cols === 'all' || (state.cols === 'refs' ? Boolean(c.ref) : c.isFormula || Boolean(c.details?.trigger));
   const visible = out.tables
     .map((t) => ({ ...t, shownColumns: t.columns.filter(keep) }))
-    .filter((t) => (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name) || matches(c.label)))
-      && (state.cols === 'all' || t.shownColumns.length));
+    .filter(
+      (t) =>
+        (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name) || matches(c.label))) &&
+        (state.cols === 'all' || t.shownColumns.length),
+    );
 
   const s = state.stats;
   const summaries = out.tables.filter((t) => t.kind === 'summary').length;
@@ -399,34 +508,52 @@ function renderTables() {
     title: 'Tables et colonnes',
     lead: 'Chaque table avec ses colonnes, leur type, leurs liens, formules et listes de choix.',
     kpis: [
-      { value: s.tables, label: summaries ? `${s.tables > 1 ? 'tables' : 'table'} dont ${plural(summaries, 'synthèse', 'synthèses')}` : (s.tables > 1 ? 'tables' : 'table') },
+      {
+        value: s.tables,
+        label: summaries
+          ? `${s.tables > 1 ? 'tables' : 'table'} dont ${plural(summaries, 'synthèse', 'synthèses')}`
+          : s.tables > 1
+            ? 'tables'
+            : 'table',
+      },
       { value: s.columns, label: s.columns > 1 ? 'colonnes' : 'colonne' },
       { value: s.relations, label: s.relations > 1 ? 'relations' : 'relation' },
       { value: s.formulas, label: s.formulas > 1 ? 'formules' : 'formule' },
     ],
   });
   if (!visible.length) {
-    els['tables-body'].innerHTML = `<div class="view">${header}${emptyState(q ? `<p>Aucune table ni colonne ne contient « ${esc(state.filter)} ».</p>` : '<p>Aucune table ne correspond.</p>')}</div>`;
+    els['tables-body'].innerHTML =
+      `<div class="view">${header}${emptyState(q ? `<p>Aucune table ni colonne ne contient « ${esc(state.filter)} ».</p>` : '<p>Aucune table ne correspond.</p>')}</div>`;
     return;
   }
 
-  const cards = visible.map((t) => {
-    // Format « Table pour exportation » : nom en base, nom affiché, type SQLite, type déclaré,
-    // rôle, calculé, formule (table-format.js, partagé avec le rapport et l'export Excel).
-    const shown = new Set(t.shownColumns);
-    const lines = tableRows(t, (c) => shown.has(c)).filter((r) => !r.isKey || state.cols === 'all');
-    const rows = lines.map((r) => {
-      const c = r.column;
-      const cls = [r.isKey ? 'is-key' : '', c?.isFormula ? 'is-formula' : '', c?.ref ? 'is-ref' : '', c?.empty ? 'is-empty' : '', c && (matches(c.name) || matches(c.label)) ? 'is-match' : ''].filter(Boolean).join(' ');
-      let declared = esc(r.declared.text);
-      if (r.declared.target) {
-        const target = c.ref?.table || r.declared.target;
-        const chip = known.has(target)
-          ? `<button class="chip" type="button" data-goto-table="${esc(target)}">${esc(r.declared.target)}</button>`
-          : `<span class="chip chip--plain">${esc(r.declared.target)} · table absente</span>`;
-        declared = `${esc(r.declared.label)} → ${chip}${r.declared.reverse ? `<span class="col-label">inverse de ${esc(r.declared.reverse)}</span>` : ''}`;
-      }
-      return `<tr${cls ? ` class="${cls}"` : ''}>
+  const cards = visible
+    .map((t) => {
+      // Format « Table pour exportation » : nom en base, nom affiché, type SQLite, type déclaré,
+      // rôle, calculé, formule (table-format.js, partagé avec le rapport et l'export Excel).
+      const shown = new Set(t.shownColumns);
+      const lines = tableRows(t, (c) => shown.has(c)).filter((r) => !r.isKey || state.cols === 'all');
+      const rows = lines
+        .map((r) => {
+          const c = r.column;
+          const cls = [
+            r.isKey ? 'is-key' : '',
+            c?.isFormula ? 'is-formula' : '',
+            c?.ref ? 'is-ref' : '',
+            c?.empty ? 'is-empty' : '',
+            c && (matches(c.name) || matches(c.label)) ? 'is-match' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          let declared = esc(r.declared.text);
+          if (r.declared.target) {
+            const target = c.ref?.table || r.declared.target;
+            const chip = known.has(target)
+              ? `<button class="chip" type="button" data-goto-table="${esc(target)}">${esc(r.declared.target)}</button>`
+              : `<span class="chip chip--plain">${esc(r.declared.target)} · table absente</span>`;
+            declared = `${esc(r.declared.label)} → ${chip}${r.declared.reverse ? `<span class="col-label">inverse de ${esc(r.declared.reverse)}</span>` : ''}`;
+          }
+          return `<tr${cls ? ` class="${cls}"` : ''}>
         <td><span class="col-name">${esc(r.name)}</span></td>
         <td>${r.label ? `<span class="col-display">${esc(r.label)}</span>` : ''}${columnDescriptionHtml(r.description)}</td>
         <td><code class="col-sql">${esc(r.sqlite)}</code></td>
@@ -435,14 +562,15 @@ function renderTables() {
         <td>${r.computed === 'Non calculé' ? `<span class="col-muted">${esc(r.computed)}</span>` : `<span class="col-flag">${esc(r.computed)}</span>${r.when ? `<span class="col-desc">${esc(r.when)}</span>` : ''}`}</td>
         <td>${r.formula ? `<code class="col-formula">${esc(r.formula)}</code>` : ''}</td>
         <td>${r.documented === 'Non concerné' ? `<span class="col-muted">${esc(r.documented)}</span>` : r.documented === 'Documentée' ? `<span class="col-doc col-doc--ok">${esc(r.documented)}</span>` : `<span class="col-doc col-doc--ko">${esc(r.documented)}</span>`}</td></tr>`;
-    }).join('');
-    const pk = '';
-    const refs = incoming.get(t.name) || [];
-    const foot = refs.length
-      ? `<div class="card__foot"><span>Référencée par</span><ul class="chips">${refs.map((r) => `<li><button class="chip" type="button" data-goto-table="${esc(r.table)}">${esc(r.table)}.${esc(r.column)}</button></li>`).join('')}</ul></div>`
-      : '';
-    const rowsCount = state.profiles?.has(t.name) ? ` · ${plural(state.profiles.get(t.name).rows, 'ligne', 'lignes')}` : '';
-    return `<article class="card tbl" id="${slug(t.name)}">
+        })
+        .join('');
+      const pk = '';
+      const refs = incoming.get(t.name) || [];
+      const foot = refs.length
+        ? `<div class="card__foot"><span>Référencée par</span><ul class="chips">${refs.map((r) => `<li><button class="chip" type="button" data-goto-table="${esc(r.table)}">${esc(r.table)}.${esc(r.column)}</button></li>`).join('')}</ul></div>`
+        : '';
+      const rowsCount = state.profiles?.has(t.name) ? ` · ${plural(state.profiles.get(t.name).rows, 'ligne', 'lignes')}` : '';
+      return `<article class="card tbl" id="${slug(t.name)}">
       <header class="card__head">
         <h3 class="card__title">${esc(t.name)}</h3>
         ${t.kind === 'summary' ? badge('Synthèse', 'choice') : ''}
@@ -457,12 +585,14 @@ function renderTables() {
       </table></div>
       ${foot}
     </article>`;
-  }).join('');
+    })
+    .join('');
   const index = `<nav class="tables-index" aria-label="Index des tables">
       <p class="tables-index__head">${esc(plural(visible.length, 'table', 'tables'))}</p>
       <ul>${visible.map((t) => `<li><button type="button" data-index-table="${esc(t.name)}"${t.kind === 'summary' ? ' class="is-summary"' : ''}><span class="tables-index__name">${esc(t.name).replace(/_/g, '_<wbr>')}</span><span>${t.columns.length + 1}</span></button></li>`).join('')}</ul>
     </nav>`;
-  els['tables-body'].innerHTML = `<div class="view">${header}<div class="tables-layout">${index}<div class="tables-list">${cards}</div></div></div>`;
+  els['tables-body'].innerHTML =
+    `<div class="view">${header}<div class="tables-layout">${index}<div class="tables-list">${cards}</div></div></div>`;
   updateTablesIndex();
 }
 
@@ -473,7 +603,10 @@ function updateTablesIndex() {
   if (!cards.length) return;
   const top = body.getBoundingClientRect().top + 24;
   let current = cards[0];
-  for (const c of cards) { if (c.getBoundingClientRect().top <= top) current = c; else break; }
+  for (const c of cards) {
+    if (c.getBoundingClientRect().top <= top) current = c;
+    else break;
+  }
   const name = current.querySelector('.card__title')?.textContent;
   for (const b of body.querySelectorAll('[data-index-table]')) b.classList.toggle('is-current', b.dataset.indexTable === name);
 }
@@ -484,12 +617,21 @@ function columnDescriptionHtml(description) {
   return description ? `<span class="col-desc">${esc(description)}</span>` : '';
 }
 
-const SEVERITY_ICON = { blocking: 'fr-icon-error-warning-line', improve: 'fr-icon-warning-line', choice: 'fr-icon-question-line', info: 'fr-icon-information-line', accepted: 'fr-icon-check-line' };
+const SEVERITY_ICON = {
+  blocking: 'fr-icon-error-warning-line',
+  improve: 'fr-icon-warning-line',
+  choice: 'fr-icon-question-line',
+  info: 'fr-icon-information-line',
+  accepted: 'fr-icon-check-line',
+};
 
 /** Lignes examinées, cellules analysées, tables illisibles : la phrase sous le verdict. */
 function auditCoverageText(audit) {
   if (!audit) return '';
-  const counts = audit.coverage.reduce((a, c) => ({ visible: a.visible + c.visibleRows, inspected: a.inspected + c.inspectedRows }), { visible: 0, inspected: 0 });
+  const counts = audit.coverage.reduce((a, c) => ({ visible: a.visible + c.visibleRows, inspected: a.inspected + c.inspectedRows }), {
+    visible: 0,
+    inspected: 0,
+  });
   const parts = [
     counts.inspected === counts.visible
       ? plural(counts.inspected, 'ligne examinée', 'lignes examinées')
@@ -497,7 +639,7 @@ function auditCoverageText(audit) {
     plural(audit.cells, 'cellule analysée', 'cellules analysées'),
   ];
   const failed = state.failedTables.length;
-  if (failed) parts.push(failed > 1 ? `${failed} tables n'ont pas pu être lues` : 'une table n\'a pas pu être lue');
+  if (failed) parts.push(failed > 1 ? `${failed} tables n'ont pas pu être lues` : "une table n'a pas pu être lue");
   return parts.join(' · ');
 }
 
@@ -526,25 +668,50 @@ function renderAnalysis() {
   const aclTables = new Set((state.access?.tables || []).map((t) => t.tableId));
   const MAX_CHIPS = 14;
   const card = (it, { accepted = false } = {}) => {
-    const chips = it.targets.slice(0, MAX_CHIPS).map((t) => {
-      const text = `${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}`;
-      if (it.area === 'access' && aclTables.has(t.table)) return `<li><button class="chip" type="button" data-goto-access="${esc(t.table)}" title="Voir ses règles d'accès">${text}</button></li>`;
-      if (known.has(t.table)) return `<li><button class="chip" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${text}</button></li>`;
-      return `<li><span class="chip chip--plain">${text}</span></li>`;
-    }).join('') + (it.targets.length > MAX_CHIPS ? `<li><span class="chip insight__more">et ${it.targets.length - MAX_CHIPS} autres</span></li>` : '');
+    const chips =
+      it.targets
+        .slice(0, MAX_CHIPS)
+        .map((t) => {
+          const text = `${esc(targetLabel(t))}${t.note ? ` · ${esc(t.note)}` : ''}`;
+          if (it.area === 'access' && aclTables.has(t.table))
+            return `<li><button class="chip" type="button" data-goto-access="${esc(t.table)}" title="Voir ses règles d'accès">${text}</button></li>`;
+          if (known.has(t.table))
+            return `<li><button class="chip" type="button" data-goto-schema="${esc(t.table)}" title="Voir sur le schéma">${text}</button></li>`;
+          return `<li><span class="chip chip--plain">${text}</span></li>`;
+        })
+        .join('') +
+      (it.targets.length > MAX_CHIPS ? `<li><span class="chip insight__more">et ${it.targets.length - MAX_CHIPS} autres</span></li>` : '');
     const intended = it.intended ? `<p class="insight__intended"><strong>Si c'est voulu :</strong> ${esc(it.intended)}</p>` : '';
     const steps = it.steps.length
-      ? `<div class="insight__fix"><p class="insight__label">${it.intended ? 'Sinon, dans Grist' : 'Comment corriger dans Grist'}</p><ol>${stepsAfterIntended(it).map((x) => `<li>${esc(x)}</li>`).join('')}</ol></div>`
+      ? `<div class="insight__fix"><p class="insight__label">${it.intended ? 'Sinon, dans Grist' : 'Comment corriger dans Grist'}</p><ol>${stepsAfterIntended(
+          it,
+        )
+          .map((x) => `<li>${esc(x)}</li>`)
+          .join('')}</ol></div>`
       : '';
     const actions = [];
-    if (it.area === 'access') actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-lock-line" type="button" data-goto-access="${esc(aclTables.has(it.targets[0]?.table) ? it.targets[0].table : '*')}">Voir les droits d'accès</button>`);
-    else if (it.area === 'pages') actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" type="button" data-goto-widgets="1">Voir les vues</button>');
-    else if (it.targets[0] && known.has(it.targets[0].table)) actions.push(`<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`);
-    if (it.steps.length && !accepted) actions.push('<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>');
+    if (it.area === 'access')
+      actions.push(
+        `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-lock-line" type="button" data-goto-access="${esc(aclTables.has(it.targets[0]?.table) ? it.targets[0].table : '*')}">Voir les droits d'accès</button>`,
+      );
+    else if (it.area === 'pages')
+      actions.push(
+        '<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-layout-grid-line" type="button" data-goto-widgets="1">Voir les vues</button>',
+      );
+    else if (it.targets[0] && known.has(it.targets[0].table))
+      actions.push(
+        `<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-git-merge-line" type="button" data-goto-schema="${esc(it.targets[0].table)}">Voir sur le schéma</button>`,
+      );
+    if (it.steps.length && !accepted)
+      actions.push(
+        '<button class="fr-btn fr-btn--sm fr-btn--tertiary fr-btn--icon-left fr-icon-refresh-line" type="button" data-action="refresh">J\'ai corrigé, relire le document</button>',
+      );
     if (it.severity === 'choice') {
-      actions.push(accepted
-        ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" type="button" data-action="unaccept" data-key="${esc(insightKey(it))}">Ne plus considérer comme voulu</button>`
-        : `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-check-line" type="button" data-action="accept" data-key="${esc(insightKey(it))}">C'est voulu</button>`);
+      actions.push(
+        accepted
+          ? `<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-btn--icon-left fr-icon-close-line" type="button" data-action="unaccept" data-key="${esc(insightKey(it))}">Ne plus considérer comme voulu</button>`
+          : `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-check-line" type="button" data-action="accept" data-key="${esc(insightKey(it))}">C'est voulu</button>`,
+      );
     }
     const sev = accepted ? 'accepted' : it.severity;
     return `<article class="insight insight--${it.severity}${accepted ? ' insight--accepted' : ''}" data-finding="${esc(it.id)}">
@@ -567,13 +734,16 @@ function renderAnalysis() {
   };
 
   const q = state.analysisFilter.trim().toLowerCase();
-  const textOf = (it) => [it.title, it.summary, it.why, ...it.targets.map((t) => `${targetLabel(t)} ${t.note || ''}`)].join(' ').toLowerCase();
+  const textOf = (it) =>
+    [it.title, it.summary, it.why, ...it.targets.map((t) => `${targetLabel(t)} ${t.note || ''}`)].join(' ').toLowerCase();
   const pool = state.level === 'accepted' ? ins.accepted : ins.items.filter((it) => state.level === 'all' || it.severity === state.level);
-  const shown = pool.filter((it) => (!q || textOf(it).includes(q)));
+  const shown = pool.filter((it) => !q || textOf(it).includes(q));
 
   const tileCount = { all: ins.items.length, accepted: ins.accepted.length, ...ins.counts };
-  const tiles = LEVEL_TILES.map((t) => `<button type="button" class="tile tile--${t.id}" id="level-${t.id}" data-level="${t.id}" aria-pressed="${state.level === t.id}">
-      <span class="tile__n">${tileCount[t.id] || 0}</span><span class="tile__label">${esc(t.label)}</span></button>`).join('');
+  const tiles = LEVEL_TILES.map(
+    (t) => `<button type="button" class="tile tile--${t.id}" id="level-${t.id}" data-level="${t.id}" aria-pressed="${state.level === t.id}">
+      <span class="tile__n">${tileCount[t.id] || 0}</span><span class="tile__label">${esc(t.label)}</span></button>`,
+  ).join('');
   const coverage = auditCoverageText(ins.audit);
   const verdict = `<header class="verdict-block">
       <div class="verdict verdict--${ins.verdict.level}">
@@ -588,7 +758,9 @@ function renderAnalysis() {
   const listTitle = `${state.level === 'all' ? 'Tous les constats, du plus urgent au moins urgent' : `Constats « ${levelLabel} »`}${filters ? ` · ${filters}` : ''} (${shown.length})`;
   const list = shown.length
     ? shown.map((it) => card(it, { accepted: state.level === 'accepted' })).join('')
-    : emptyState(`<p>${filters ? 'Aucun constat ne correspond à ces filtres.' : state.level === 'all' ? 'Rien à signaler.' : state.level === 'accepted' ? 'Aucun choix confirmé. Sur une carte « Choix à confirmer », le bouton « C\'est voulu » la range ici.' : `Aucun point « ${esc(levelLabel)} ».`}</p>`);
+    : emptyState(
+        `<p>${filters ? 'Aucun constat ne correspond à ces filtres.' : state.level === 'all' ? 'Rien à signaler.' : state.level === 'accepted' ? "Aucun choix confirmé. Sur une carte « Choix à confirmer », le bouton « C'est voulu » la range ici." : `Aucun point « ${esc(levelLabel)} ».`}</p>`,
+      );
   els['analysis-body'].innerHTML = `<div class="view">${verdict}
     <div class="analysis">
       <div class="insights"><p class="insights__title">${esc(listTitle)}</p>${list}</div>
@@ -607,21 +779,38 @@ const PERM_HTML = {
 
 function rulesTableHtml(rules, bits, caption) {
   const head = `<tr><th scope="col">Qui</th>${bits.map((b) => `<th scope="col" class="rules__perm">${esc(PERMISSION_LABEL[b])}</th>`).join('')}<th scope="col">Message en cas de refus</th></tr>`;
-  const body = rules.map((r) => `<tr>
+  const body = rules
+    .map(
+      (r) => `<tr>
       <td class="rules__who"><strong>${esc(r.who.text)}</strong>${r.formula && r.who.kind !== 'email' ? `<code>${esc(r.formula)}</code>` : ''}${r.problems.map((p) => `<span class="rules__problem">${esc(p.text)}</span>`).join('')}</td>
       ${bits.map((b) => `<td class="rules__perm">${PERM_HTML[r.perms[b] || 'none']}</td>`).join('')}
-      <td class="rules__memo">${esc(r.memo)}</td></tr>`).join('');
+      <td class="rules__memo">${esc(r.memo)}</td></tr>`,
+    )
+    .join('');
   return `<div class="table-scroll"><table class="grid-table rules"><caption class="fr-sr-only">${esc(caption)}</caption><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
 function accessMatches(q, ...values) {
-  return !q || values.some((v) => String(v || '').toLowerCase().includes(q));
+  return (
+    !q ||
+    values.some((v) =>
+      String(v || '')
+        .toLowerCase()
+        .includes(q),
+    )
+  );
 }
 
 const SETTING_KIND = { success: 'ok', warning: 'improve', info: 'info' };
 
 /** Nom de fichier tiré du nom du document (sans accents ni ponctuation). */
-const fileBase = () => (state.docName || 'document').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'document';
+const fileBase = () =>
+  (state.docName || 'document')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase() || 'document';
 
 /** « Qui peut faire quoi ? » en classeur Excel : matrice, détail filtrable, paramètres. */
 function downloadMatrixXlsx() {
@@ -662,7 +851,8 @@ function rightsMatrixHtml() {
   const pick = state.matrixPick;
   const attrTable = role?.table || '';
   const cellButton = (row, gi, c, extraStyle = '') => {
-    if (c.state === 'na') return `<div class="mx__cell${c.bit === 'R' ? ' mx__edge' : ''}"><span class="mx__na" aria-hidden="true">—</span></div>`;
+    if (c.state === 'na')
+      return `<div class="mx__cell${c.bit === 'R' ? ' mx__edge' : ''}"><span class="mx__na" aria-hidden="true">—</span></div>`;
     const action = ACTION_LABEL[c.bit];
     const sentence = cellSentence(c, { attrTable });
     const picked = pick && pick.row === row.key && pick.group === gi && pick.bit === c.bit;
@@ -677,15 +867,21 @@ function rightsMatrixHtml() {
       ${groups.map((g) => `<div class="mx__group mx__edge"><strong>${esc(g.name)}</strong><span>${esc(g.sub)}</span></div>`).join('')}
       ${groups.map(() => MATRIX_ACTIONS.map(([bit, label]) => `<div class="mx__act${bit === 'R' ? ' mx__edge' : ''}">${esc(label)}</div>`).join('')).join('')}
     </div>`;
-  const body = shown.map((row) => {
-    const cls = row.kind === 'structure' ? ' mx__row--structure' : row.kind === 'column' ? ' mx__row--column' : '';
-    // Coupure possible après chaque « _ » des noms longs (tables de résumé).
-    const label = `<div class="mx__label">${esc(row.label).replace(/_/g, '_<wbr>')}${row.sub ? `<span>${esc(row.sub)}</span>` : ''}</div>`;
-    const cellsHtml = groups.map((g, gi) => (row.kind === 'structure'
-      ? cellButton(row, gi, cells.get(`${row.key}|${gi}|S`), ' style="grid-column: span 4"')
-      : MATRIX_ACTIONS.map(([bit]) => cellButton(row, gi, cells.get(`${row.key}|${gi}|${bit}`))).join(''))).join('');
-    return `<div class="mx__row${cls}">${label}${cellsHtml}</div>`;
-  }).join('');
+  const body = shown
+    .map((row) => {
+      const cls = row.kind === 'structure' ? ' mx__row--structure' : row.kind === 'column' ? ' mx__row--column' : '';
+      // Coupure possible après chaque « _ » des noms longs (tables de résumé).
+      const label = `<div class="mx__label">${esc(row.label).replace(/_/g, '_<wbr>')}${row.sub ? `<span>${esc(row.sub)}</span>` : ''}</div>`;
+      const cellsHtml = groups
+        .map((g, gi) =>
+          row.kind === 'structure'
+            ? cellButton(row, gi, cells.get(`${row.key}|${gi}|S`), ' style="grid-column: span 4"')
+            : MATRIX_ACTIONS.map(([bit]) => cellButton(row, gi, cells.get(`${row.key}|${gi}|${bit}`))).join(''),
+        )
+        .join('');
+      return `<div class="mx__row${cls}">${label}${cellsHtml}</div>`;
+    })
+    .join('');
 
   let detail = '';
   const c = pick && cells.get(`${pick.row}|${pick.group}|${pick.bit}`);
@@ -701,8 +897,12 @@ function rightsMatrixHtml() {
         <div class="mx__actions">${row.table ? `<button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" data-goto-access="${esc(row.table)}">Voir les règles de ${esc(row.table)}</button>` : ''}
           <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" data-matrix-close="1">Fermer</button></div>
       </div>
-      <ol class="mx__steps">${steps.map((st, i) => `<li class="mx__step${st.off ? ' mx__step--off' : ''}"><span class="mx__step-n">${i + 1}</span>
-        <div><strong>${esc(st.title)}</strong><code>${esc(st.condition)}</code></div>${badge(st.badge, st.tone)}</li>`).join('')}</ol>`;
+      <ol class="mx__steps">${steps
+        .map(
+          (st, i) => `<li class="mx__step${st.off ? ' mx__step--off' : ''}"><span class="mx__step-n">${i + 1}</span>
+        <div><strong>${esc(st.title)}</strong><code>${esc(st.condition)}</code></div>${badge(st.badge, st.tone)}</li>`,
+        )
+        .join('')}</ol>`;
   }
   return `${sectionHead('Qui peut faire quoi ?', {
     count: tablesCount,
@@ -750,23 +950,32 @@ function refreshMatrix(focusSelector) {
  */
 function settingsSectionHtml(a) {
   return `<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
-    <div class="card">${generalSettings(a).map((x) => `<div class="settings-row" data-setting="${x.id}"><p class="settings-row__name">${esc(x.name)}</p>
-      <p class="settings-row__state">${badge(x.state, SETTING_KIND[x.level])}</p><p class="settings-row__text">${esc(x.text)}</p></div>`).join('')}</div></section>`;
+    <div class="card">${generalSettings(a)
+      .map(
+        (x) => `<div class="settings-row" data-setting="${x.id}"><p class="settings-row__name">${esc(x.name)}</p>
+      <p class="settings-row__state">${badge(x.state, SETTING_KIND[x.level])}</p><p class="settings-row__text">${esc(x.text)}</p></div>`,
+      )
+      .join('')}</div></section>`;
 }
 
 function renderAccess() {
   const body = els['access-body'];
-  if (!state.out) { body.innerHTML = unavailableMessage(); return; }
+  if (!state.out) {
+    body.innerHTML = unavailableMessage();
+    return;
+  }
   const a = state.access;
   els['btn-access-csv'].disabled = !a || !a.hasRules;
   if (!a) {
-    body.innerHTML = emptyState('<p>Les règles d\'accès du document n\'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les droits d’accès) peuvent les consulter.</p>');
+    body.innerHTML = emptyState(
+      "<p>Les règles d'accès du document n'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les droits d’accès) peuvent les consulter.</p>",
+    );
     return;
   }
   const accessIssues = (state.insights?.items || []).filter((i) => i.area === 'access' && i.severity !== 'info');
   if (!a.hasRules) {
     body.innerHTML = `<div class="view">${pageHeader({
-      title: 'Aucune règle d\'accès avancée',
+      title: "Aucune règle d'accès avancée",
       lead: 'Chaque personne invitée voit et modifie tout le document selon son rôle de partage : propriétaire, éditeur ou lecteur.',
     })}<p class="sec__hint">Pour restreindre une table, une colonne ou certaines lignes, ouvrez « Règles d'accès » dans le menu de gauche de Grist.</p>${settingsSectionHtml(a)}</div>`;
     return;
@@ -775,7 +984,7 @@ function renderAccess() {
   const ruleMatches = (r) => accessMatches(q, r.formula, r.who.text, r.memo);
 
   const header = pageHeader({
-    title: 'Règles d\'accès avancées',
+    title: "Règles d'accès avancées",
     lead: 'Qui peut lire, modifier, créer et supprimer, table par table puis colonne par colonne.',
     kpis: [
       { value: a.ruleCount, label: a.ruleCount > 1 ? 'conditions de droits d’accès' : 'condition de droits d’accès' },
@@ -788,25 +997,38 @@ function renderAccess() {
 
   const settingsHtml = settingsSectionHtml(a);
 
-  const attrs = a.attributes.length ? `<section>${sectionHead('Attributs utilisateur', {
-    count: a.attributes.length,
-    hintHtml: 'Un attribut retrouve la personne connectée dans une table ; les conditions l\'utilisent sous la forme <code>user.Nom.Colonne</code>.',
-  })}
+  const attrs = a.attributes.length
+    ? `<section>${sectionHead('Attributs utilisateur', {
+        count: a.attributes.length,
+        hintHtml:
+          "Un attribut retrouve la personne connectée dans une table ; les conditions l'utilisent sous la forme <code>user.Nom.Colonne</code>.",
+      })}
     <div class="card"><div class="table-scroll"><table class="grid-table rules"><caption class="fr-sr-only">Attributs utilisateur</caption>
       <thead><tr><th scope="col">Attribut</th><th scope="col">Cherché dans</th><th scope="col">En comparant à</th><th scope="col">État</th></tr></thead>
-      <tbody>${a.attributes.map((x) => `<tr><td><code>user.${esc(x.name)}</code></td><td>${esc(x.tableId)}.${esc(x.lookupColId)}</td><td><code>user.${esc(x.charId)}</code></td>
-        <td>${x.problems.length ? badge(x.problems.join(', '), 'blocking') : badge('Correct', 'ok')}</td></tr>`).join('')}</tbody></table></div></div></section>` : '';
+      <tbody>${a.attributes
+        .map(
+          (
+            x,
+          ) => `<tr><td><code>user.${esc(x.name)}</code></td><td>${esc(x.tableId)}.${esc(x.lookupColId)}</td><td><code>user.${esc(x.charId)}</code></td>
+        <td>${x.problems.length ? badge(x.problems.join(', '), 'blocking') : badge('Correct', 'ok')}</td></tr>`,
+        )
+        .join('')}</tbody></table></div></div></section>`
+    : '';
 
   const defaults = a.defaults.filter(ruleMatches);
-  const defaultsHtml = defaults.length ? `<section>${sectionHead('Droits d’accès par défaut', { count: defaults.length, hint: 'Elles s\'appliquent à toutes les tables, après les droits d’accès propres à chaque table.' })}
-    <div class="card">${rulesTableHtml(defaults, BITS.defaults, 'Droits d’accès par défaut')}</div></section>` : '';
+  const defaultsHtml = defaults.length
+    ? `<section>${sectionHead('Droits d’accès par défaut', { count: defaults.length, hint: "Elles s'appliquent à toutes les tables, après les droits d’accès propres à chaque table." })}
+    <div class="card">${rulesTableHtml(defaults, BITS.defaults, 'Droits d’accès par défaut')}</div></section>`
+    : '';
 
   const known = new Set(state.out.tables.map((t) => t.name));
   const cards = [];
   for (const t of a.tables) {
     const tableHit = accessMatches(q, t.tableId);
     const rules = tableHit ? t.rules : t.rules.filter(ruleMatches);
-    const cols = t.columns.map((c) => ({ ...c, rules: tableHit || accessMatches(q, c.colIds.join(' ')) ? c.rules : c.rules.filter(ruleMatches) })).filter((c) => c.rules.length);
+    const cols = t.columns
+      .map((c) => ({ ...c, rules: tableHit || accessMatches(q, c.colIds.join(' ')) ? c.rules : c.rules.filter(ruleMatches) }))
+      .filter((c) => c.rules.length);
     if (!rules.length && !cols.length) continue;
     const n = t.rules.length + t.columns.reduce((s, c) => s + c.rules.length, 0);
     const rowRules = [...t.rules, ...t.columns.flatMap((c) => c.rules)].some((r) => r.who.row);
@@ -827,8 +1049,8 @@ function renderAccess() {
   }
   const tablesHtml = `<section>${sectionHead('Droits d’accès par table', {
     count: a.tables.length,
-    hint: 'Les droits d’accès s\'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : aucun droit n’est décidé ici pour cette action, la condition suivante s’applique.',
-  })}<div class="cards">${cards.join('') || emptyState(q ? `<p>Aucun droit d’accès ne contient « ${esc(state.accessFilter)} ».</p>` : '<p>Aucune table n\'a de règle propre.</p>')}</div></section>`;
+    hint: "Les droits d’accès s'appliquent de haut en bas : la première dont la condition est remplie décide, permission par permission. « — » : aucun droit n’est décidé ici pour cette action, la condition suivante s’applique.",
+  })}<div class="cards">${cards.join('') || emptyState(q ? `<p>Aucun droit d’accès ne contient « ${esc(state.accessFilter)} ».</p>` : "<p>Aucune table n'a de règle propre.</p>")}</div></section>`;
 
   body.innerHTML = `<div class="view">${header}${q ? '' : `<section id="rights-matrix">${rightsMatrixHtml()}</section>`}${q ? '' : settingsHtml}${q ? '' : attrs}${defaultsHtml}${tablesHtml}</div>`;
 }
@@ -841,57 +1063,91 @@ const WIDGET_KIND = { external: ['Externe', 'improve'], document: ['Dans le docu
 
 function renderWidgets() {
   const body = els['widgets-body'];
-  if (!state.out) { body.innerHTML = unavailableMessage(); return; }
+  if (!state.out) {
+    body.innerHTML = unavailableMessage();
+    return;
+  }
   const m = state.pages;
-  if (!m) { body.innerHTML = emptyState('<p>Les pages du document n\'ont pas pu être lues.</p>'); return; }
+  if (!m) {
+    body.innerHTML = emptyState("<p>Les pages du document n'ont pas pu être lues.</p>");
+    return;
+  }
   const known = new Set(state.out.tables.map((t) => t.name));
   const issues = (state.insights?.items || []).filter((i) => i.area === 'pages' && i.severity !== 'info');
   const q = state.widgetsFilter.trim().toLowerCase();
-  const hit = (w) => !q || [w.title, w.page, w.table, w.typeLabel, w.custom?.name, w.custom?.host, w.custom?.author].some((v) => String(v || '').toLowerCase().includes(q));
+  const hit = (w) =>
+    !q ||
+    [w.title, w.page, w.table, w.typeLabel, w.custom?.name, w.custom?.host, w.custom?.author].some((v) =>
+      String(v || '')
+        .toLowerCase()
+        .includes(q),
+    );
   const show = (kind) => state.wkind === 'all' || state.wkind === kind;
   const unofficial = m.unofficial.filter(hit);
   const gallery = m.gallery.filter(hit);
   const views = m.views.filter(hit);
 
-  const tableChip = (t) => (known.has(t) ? `<button class="chip" type="button" data-goto-table="${esc(t)}">${esc(t)}</button>` : `<span class="chip chip--plain">${esc(t)}</span>`);
-  const where = (w) => `<p class="widget-where">Page <span class="chip chip--plain">${esc(w.page || '(sans nom)')}</span>${w.table ? ` · table ${tableChip(w.table)}${w.summary ? ' (synthèse)' : ''}` : ''}${w.linkedTo ? ` · suit « ${esc(w.linkedTo)} »` : ''}</p>`;
+  const tableChip = (t) =>
+    known.has(t)
+      ? `<button class="chip" type="button" data-goto-table="${esc(t)}">${esc(t)}</button>`
+      : `<span class="chip chip--plain">${esc(t)}</span>`;
+  const where = (w) =>
+    `<p class="widget-where">Page <span class="chip chip--plain">${esc(w.page || '(sans nom)')}</span>${w.table ? ` · table ${tableChip(w.table)}${w.summary ? ' (synthèse)' : ''}` : ''}${w.linkedTo ? ` · suit « ${esc(w.linkedTo)} »` : ''}</p>`;
   const columnsList = (c) => {
     const lines = columnLines(c);
     return lines.length
       ? `<ul class="widget-cols">${lines.map((l) => `<li${l.missing ? ' class="widget-cols--missing"' : ''}><span class="widget-cols__field">${esc(l.field)}</span> <span aria-hidden="true">→</span> ${l.missing ? 'à associer' : `<strong>${esc(l.column)}</strong>`}</li>`).join('')}</ul>`
       : '<span class="widget-cols__none">Aucune colonne à associer</span>';
   };
-  const accessText = (c) => (c.access === 'full' && c.origin === 'external' ? badge(ACCESS_LABELS.full, 'improve') : esc(ACCESS_LABELS[c.access] || c.access || '—'));
+  const accessText = (c) =>
+    c.access === 'full' && c.origin === 'external' ? badge(ACCESS_LABELS.full, 'improve') : esc(ACCESS_LABELS[c.access] || c.access || '—');
   const card = (w, badges, rows) => `<article class="card widget-card">
       <header class="card__head"><h4 class="card__title">${esc(w.title || w.custom?.name || 'Vue personnalisée')}</h4>${badges.join('')}</header>
-      <div class="card__body">${where(w)}<dl class="widget-props">${rows.filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div></article>`;
+      <div class="card__body">${where(w)}<dl class="widget-props">${rows
+        .filter(Boolean)
+        .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
+        .join('')}</dl></div></article>`;
 
-  const unofficialCards = unofficial.map((w) => {
-    const c = w.custom;
-    const [label, kind] = WIDGET_KIND[c.origin] || ['Non officiel', ''];
-    return card(w, [badge(label, kind)], [
-      ['Origine', esc(originText(c))],
-      ['Accès', accessText(c)],
-      columnLines(c).length ? ['Colonnes', columnsList(c)] : null,
-      c.url && c.origin !== 'document' ? ['Adresse', `<span class="widget-url">${esc(c.url)}</span>`] : null,
-      w.description ? ['Description', esc(w.description)] : null,
-    ]);
-  }).join('');
-  const galleryCards = gallery.map((w) => {
-    const c = w.custom;
-    const badges = [];
-    if (c.missingColumns?.length) badges.push(badge(plural(c.missingColumns.length, 'champ à associer', 'champs à associer'), 'blocking'));
-    if (!c.maintained) badges.push(badge(`Communauté${c.author ? ` · ${c.author}` : ''}`, 'choice'));
-    return card(w, badges, [['Accès', accessText(c)], ['Colonnes', columnsList(c)]]);
-  }).join('');
+  const unofficialCards = unofficial
+    .map((w) => {
+      const c = w.custom;
+      const [label, kind] = WIDGET_KIND[c.origin] || ['Non officiel', ''];
+      return card(
+        w,
+        [badge(label, kind)],
+        [
+          ['Origine', esc(originText(c))],
+          ['Accès', accessText(c)],
+          columnLines(c).length ? ['Colonnes', columnsList(c)] : null,
+          c.url && c.origin !== 'document' ? ['Adresse', `<span class="widget-url">${esc(c.url)}</span>`] : null,
+          w.description ? ['Description', esc(w.description)] : null,
+        ],
+      );
+    })
+    .join('');
+  const galleryCards = gallery
+    .map((w) => {
+      const c = w.custom;
+      const badges = [];
+      if (c.missingColumns?.length)
+        badges.push(badge(plural(c.missingColumns.length, 'champ à associer', 'champs à associer'), 'blocking'));
+      if (!c.maintained) badges.push(badge(`Communauté${c.author ? ` · ${c.author}` : ''}`, 'choice'));
+      return card(w, badges, [
+        ['Accès', accessText(c)],
+        ['Colonnes', columnsList(c)],
+      ]);
+    })
+    .join('');
 
   let lastPage = null;
-  const viewRows = views.map((w) => {
-    const first = w.page !== lastPage;
-    lastPage = w.page;
-    return `<tr><td>${first ? `<strong>${esc(w.page || '(sans nom)')}</strong>` : ''}</td><td>${esc(w.title || w.table || w.typeLabel)}${w.description ? `<span class="col-label">${esc(w.description)}</span>` : ''}</td>
+  const viewRows = views
+    .map((w) => {
+      const first = w.page !== lastPage;
+      lastPage = w.page;
+      return `<tr><td>${first ? `<strong>${esc(w.page || '(sans nom)')}</strong>` : ''}</td><td>${esc(w.title || w.table || w.typeLabel)}${w.description ? `<span class="col-label">${esc(w.description)}</span>` : ''}</td>
       <td>${esc(w.typeLabel)}</td><td>${w.table ? tableChip(w.table) : ''}${w.summary ? ' <span class="col-label">synthèse</span>' : ''}</td><td>${w.linkedTo ? esc(w.linkedTo) : '<span class="perm--none">—</span>'}</td></tr>`;
-  }).join('');
+    })
+    .join('');
 
   const sections = [];
   if (show('unofficial')) {
@@ -899,14 +1155,17 @@ function renderWidgets() {
       ${unofficialCards ? `<div class="cards-grid">${unofficialCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucune vue non officielle ne correspond.' : 'Aucune vue non officielle dans ce document.'}</p>`}</section>`);
   }
   if (show('gallery')) {
-    sections.push(`<section>${sectionHead('Vues personnalisées', { count: gallery.length, hint: 'Choisis dans la galerie de Grist : l\'accès accordé et la colonne associée à chaque champ attendu.' })}
+    sections.push(`<section>${sectionHead('Vues personnalisées', { count: gallery.length, hint: "Choisis dans la galerie de Grist : l'accès accordé et la colonne associée à chaque champ attendu." })}
       ${galleryCards ? `<div class="cards-grid">${galleryCards}</div>` : `<p class="empty empty--inline">${q ? 'Aucune vue de la galerie ne correspond.' : 'Aucune vue de la galerie dans ce document.'}</p>`}</section>`);
   }
   if (show('views')) {
     sections.push(`<section>${sectionHead('Fiches, listes, graphiques et formulaires', { count: views.length, hint: 'Les vues classiques autres que les tableaux, avec la vue dont elles suivent la sélection.' })}
-      ${viewRows ? `<div class="card"><div class="table-scroll"><table class="grid-table"><caption class="fr-sr-only">Fiches, listes, graphiques et formulaires</caption>
+      ${
+        viewRows
+          ? `<div class="card"><div class="table-scroll"><table class="grid-table"><caption class="fr-sr-only">Fiches, listes, graphiques et formulaires</caption>
         <thead><tr><th scope="col">Page</th><th scope="col">Vue</th><th scope="col">Type</th><th scope="col">Table</th><th scope="col">Suit la sélection de</th></tr></thead><tbody>${viewRows}</tbody></table></div></div>`
-        : `<p class="empty empty--inline">${q ? 'Aucune vue ne correspond.' : 'Aucune autre vue que des tableaux.'}</p>`}</section>`);
+          : `<p class="empty empty--inline">${q ? 'Aucune vue ne correspond.' : 'Aucune autre vue que des tableaux.'}</p>`
+      }</section>`);
   }
   if (state.wkind === 'all' && !q && (m.tableOnlyPages.length || m.tablesWithoutPage.length)) {
     const rows = [];
@@ -915,15 +1174,17 @@ function renderWidgets() {
         <ul class="chips">${m.tableOnlyPages.map((p) => `<li><span class="chip chip--plain">${esc(p)}</span></li>`).join('')}</ul></details>`);
     }
     if (m.tablesWithoutPage.length) {
-      rows.push(`<details class="rest-row" open><summary class="fr-icon-arrow-right-line"><strong>${esc(plural(m.tablesWithoutPage.length, 'table', 'tables'))}</strong> ${m.tablesWithoutPage.length > 1 ? 'ne sont affichées' : 'n\'est affichée'} sur aucune page ${badge('Choix à confirmer', 'choice')}</summary>
+      rows.push(`<details class="rest-row" open><summary class="fr-icon-arrow-right-line"><strong>${esc(plural(m.tablesWithoutPage.length, 'table', 'tables'))}</strong> ${m.tablesWithoutPage.length > 1 ? 'ne sont affichées' : "n'est affichée"} sur aucune page ${badge('Choix à confirmer', 'choice')}</summary>
         <ul class="chips">${m.tablesWithoutPage.map((t) => `<li>${tableChip(t)}</li>`).join('')}</ul></details>`);
     }
-    sections.push(`<section>${sectionHead('Le reste', { hint: 'Pour ne rien oublier, sans encombrer la page.' })}<div class="card">${rows.join('')}</div></section>`);
+    sections.push(
+      `<section>${sectionHead('Le reste', { hint: 'Pour ne rien oublier, sans encombrer la page.' })}<div class="card">${rows.join('')}</div></section>`,
+    );
   }
 
   const header = pageHeader({
     title: 'Vues',
-    lead: 'Tout ce qui n\'est pas un tableau : vues personnalisées, fiches, listes, graphiques et formulaires.',
+    lead: "Tout ce qui n'est pas un tableau : vues personnalisées, fiches, listes, graphiques et formulaires.",
     kpis: [
       { value: m.unofficial.length, label: 'non officiels' },
       { value: m.gallery.length, label: 'de la galerie' },
@@ -939,25 +1200,59 @@ function accessCsv() {
   const a = state.access;
   const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
   const state2 = (r, b) => (r.perms[b] === 'allow' ? 'autorisé' : r.perms[b] === 'deny' ? 'refusé' : '');
-  const rows = [['Table', 'Colonnes', 'Ordre', 'Qui', 'Condition', ...['R', 'U', 'C', 'D', 'S'].map((b) => PERMISSION_LABEL[b]), 'Permissions (Grist)', 'Message']];
-  const add = (table, cols, list) => list.forEach((r, i) => rows.push([table, cols, i + 1, r.who.text, r.formula, ...['R', 'U', 'C', 'D', 'S'].map((b) => state2(r, b)), r.permText, r.memo]));
+  const rows = [
+    [
+      'Table',
+      'Colonnes',
+      'Ordre',
+      'Qui',
+      'Condition',
+      ...['R', 'U', 'C', 'D', 'S'].map((b) => PERMISSION_LABEL[b]),
+      'Permissions (Grist)',
+      'Message',
+    ],
+  ];
+  const add = (table, cols, list) =>
+    list.forEach((r, i) =>
+      rows.push([table, cols, i + 1, r.who.text, r.formula, ...['R', 'U', 'C', 'D', 'S'].map((b) => state2(r, b)), r.permText, r.memo]),
+    );
   add('(toutes les tables)', '*', a.defaults);
   for (const t of a.tables) {
     add(t.tableId, '*', t.rules);
     for (const c of t.columns) add(t.tableId, c.colIds.join(', '), c.rules);
   }
   for (const sp of a.special) add(`(réglage) ${sp.label}`, sp.id, sp.rules);
-  for (const x of a.attributes) rows.push(['(attribut utilisateur)', '', '', `user.${x.name}`, `${x.tableId}.${x.lookupColId} = user.${x.charId}`, '', '', '', '', '', '', x.problems.join(', ')]);
+  for (const x of a.attributes)
+    rows.push([
+      '(attribut utilisateur)',
+      '',
+      '',
+      `user.${x.name}`,
+      `${x.tableId}.${x.lookupColId} = user.${x.charId}`,
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      x.problems.join(', '),
+    ]);
   return '\ufeff' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
 }
 
 function gotoAccess(table) {
-  if (state.accessFilter) { state.accessFilter = ''; els['access-filter'].value = ''; }
+  if (state.accessFilter) {
+    state.accessFilter = '';
+    els['access-filter'].value = '';
+  }
   renderAccess();
   renderWidgets();
   selectTab('access');
   const el = table && table !== '*' ? $(aclSlug(table)) : null;
-  if (!el) { els['access-body'].scrollTop = 0; return; }
+  if (!el) {
+    els['access-body'].scrollTop = 0;
+    return;
+  }
   scrollWithin(el);
   flash(el);
 }
@@ -992,7 +1287,10 @@ function renderReportSections() {
  */
 async function schemaSnapshot() {
   const out = state.out;
-  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])])]);
+  const key = JSON.stringify([
+    aclTableNames(),
+    out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]),
+  ]);
   if (state.snapshot?.key === key) return state.snapshot;
   const host = document.createElement('div');
   host.className = 'snapshot-host';
@@ -1000,7 +1298,10 @@ async function schemaSnapshot() {
   document.body.append(host);
   const v = new ErdViewer(host);
   try {
-    await v.setData(out.tables.filter((t) => t.kind !== 'summary'), { detail: 'keys', aclTables: aclTableNames(), ghosts: false, aspectRatio: 0.8 });
+    await v.setData(
+      out.tables.filter((t) => t.kind !== 'summary'),
+      { detail: 'keys', aclTables: aclTableNames(), ghosts: false, aspectRatio: 0.8 },
+    );
     const blob = await v.toPng(2);
     const b = v.bounds();
     const png = new Uint8Array(await blob.arrayBuffer());
@@ -1037,19 +1338,30 @@ function updateReportIndex() {
   const heads = [...els['report-body'].querySelectorAll('[data-report-section]')];
   let current = heads[0]?.dataset.reportSection;
   const top = box.getBoundingClientRect().top + 24;
-  for (const h of heads) { if (h.getBoundingClientRect().top <= top) current = h.dataset.reportSection; else break; }
-  for (const li of els['report-sections'].querySelectorAll('[data-report-item]')) li.classList.toggle('is-current', li.dataset.reportItem === current);
+  for (const h of heads) {
+    if (h.getBoundingClientRect().top <= top) current = h.dataset.reportSection;
+    else break;
+  }
+  for (const li of els['report-sections'].querySelectorAll('[data-report-item]'))
+    li.classList.toggle('is-current', li.dataset.reportItem === current);
 }
 
 let reportSeq = 0;
 async function renderReport() {
   renderReportSections();
-  if (!state.out) { els['report-body'].innerHTML = unavailableMessage(); return; }
-  if (!state.reportSections.size) { els['report-body'].innerHTML = emptyState('<p>Choisissez au moins une section à inclure.</p>'); return; }
+  if (!state.out) {
+    els['report-body'].innerHTML = unavailableMessage();
+    return;
+  }
+  if (!state.reportSections.size) {
+    els['report-body'].innerHTML = emptyState('<p>Choisissez au moins une section à inclure.</p>');
+    return;
+  }
   const seq = ++reportSeq;
   const draw = (schema) => {
     const blocks = buildReport(reportContext(schema), [...state.reportSections]);
-    els['report-body'].innerHTML = `<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => schema?.url || '' })}</article>`;
+    els['report-body'].innerHTML =
+      `<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => schema?.url || '' })}</article>`;
     updateReportIndex();
   };
   const needsSchema = state.reportSections.has('schema');
@@ -1095,14 +1407,33 @@ async function downloadReport() {
 let viewer = null;
 let tablesIndexFrame = 0;
 let diagramReady = Promise.resolve();
-const DIAGRAM_CONTROLS = ['btn-zoom-in', 'btn-zoom-out', 'btn-zoom-fit', 'btn-relayout', 'btn-png', 'btn-kinds', 'show-kind-table', 'show-kind-summary', 'show-kind-acl', 'btn-links', 'show-refs', 'show-lookups', 'show-calc', 'find-table',
-  'detail-all', 'detail-keys', 'detail-tables'];
+const DIAGRAM_CONTROLS = [
+  'btn-zoom-in',
+  'btn-zoom-out',
+  'btn-zoom-fit',
+  'btn-relayout',
+  'btn-png',
+  'btn-kinds',
+  'show-kind-table',
+  'show-kind-summary',
+  'show-kind-acl',
+  'btn-links',
+  'show-refs',
+  'show-lookups',
+  'show-calc',
+  'find-table',
+  'detail-all',
+  'detail-keys',
+  'detail-tables',
+];
 
 function ensureViewer() {
   if (viewer) return viewer;
   els['schema-body'].innerHTML = '';
   viewer = new ErdViewer(els['schema-body'], {
-    onViewChange: (view) => { els['zoom-value'].textContent = `${Math.round(view.k * 100)} %`; },
+    onViewChange: (view) => {
+      els['zoom-value'].textContent = `${Math.round(view.k * 100)} %`;
+    },
     onLayoutChange: (positions) => {
       state.diagram = { ...state.diagram, positions };
       saveDiagramSoon();
@@ -1134,14 +1465,23 @@ function renderDiagram() {
   }
   const lookups = documentLookups();
   const calc = documentFormulaDeps();
-  const key = JSON.stringify([aclTableNames(), out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]), lookups, calc]);
+  const key = JSON.stringify([
+    aclTableNames(),
+    out.tables.map((t) => [t.name, t.kind, t.columns.map((c) => [c.name, c.base, c.isFormula, c.ref])]),
+    lookups,
+    calc,
+  ]);
   if (key === state.diagramKey && viewer) return diagramReady;
   state.diagramKey = key;
   const v = ensureViewer();
   updateDiagramControls(true);
   els['find-table-list'].innerHTML = out.tables.map((t) => `<option value="${esc(t.name)}"></option>`).join('');
-  diagramReady = v.setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail, aclTables: aclTableNames() })
-    .then(() => { v.setRefs(state.diagram.refs !== false); return v.setLookups(lookups, state.diagram.lookups !== false); })
+  diagramReady = v
+    .setData(out.tables, { positions: state.diagram.positions, detail: state.diagram.detail, aclTables: aclTableNames() })
+    .then(() => {
+      v.setRefs(state.diagram.refs !== false);
+      return v.setLookups(lookups, state.diagram.lookups !== false);
+    })
     .then(() => v.setCalc(calc, state.diagram.calc === true))
     .then(() => v.setKinds(shownKinds()))
     .catch((err) => {
@@ -1162,12 +1502,27 @@ function aclTableNames() {
  * application au schéma, nombre affiché sous le libellé.
  */
 const LINK_TOGGLES = [
-  { key: 'refs', byDefault: true, apply: (v, on) => v.setRefs(on), sub: 'Colonnes de type Référence',
-    count: () => (state.stats ? state.stats.relations : 0) },
-  { key: 'lookups', byDefault: true, apply: (v, on) => v.setLookups(documentLookups(), on), sub: 'lookupOne (orange) et lookupRecords (vert)',
-    count: () => new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size },
-  { key: 'calc', byDefault: false, apply: (v, on) => v.setCalc(documentFormulaDeps(), on), sub: 'Colonnes lues par les formules',
-    count: () => new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size },
+  {
+    key: 'refs',
+    byDefault: true,
+    apply: (v, on) => v.setRefs(on),
+    sub: 'Colonnes de type Référence',
+    count: () => (state.stats ? state.stats.relations : 0),
+  },
+  {
+    key: 'lookups',
+    byDefault: true,
+    apply: (v, on) => v.setLookups(documentLookups(), on),
+    sub: 'lookupOne (orange) et lookupRecords (vert)',
+    count: () => new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size,
+  },
+  {
+    key: 'calc',
+    byDefault: false,
+    apply: (v, on) => v.setCalc(documentFormulaDeps(), on),
+    sub: 'Colonnes lues par les formules',
+    count: () => new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size,
+  },
 ];
 /** La bascule est-elle active ? (option absente : réglage par défaut) */
 const linkShown = (t) => (t.byDefault ? state.diagram[t.key] !== false : state.diagram[t.key] === true);
@@ -1255,7 +1610,7 @@ function scrollWithin(el, block = 'start') {
   if (!box) return;
   const c = box.getBoundingClientRect();
   const r = el.getBoundingClientRect();
-  box.scrollTop += block === 'center' ? (r.top - c.top) - (c.height - r.height) / 2 : r.top - c.top - 12;
+  box.scrollTop += block === 'center' ? r.top - c.top - (c.height - r.height) / 2 : r.top - c.top - 12;
 }
 
 function flash(el) {
@@ -1282,43 +1637,122 @@ function gotoTable(name) {
 // Actions
 // ---------------------------------------------------------------------------
 
+/** Branche les contrôles de la page, onglet par onglet (l'ordre d'enregistrement compte pour les écouteurs du document). */
 function bindEvents() {
   els['btn-refresh'].addEventListener('click', () => loadSchema({ manual: true }));
 
+  bindTablesEvents();
+  bindAccessEvents();
+  bindTablesIndexEvents();
+  bindWidgetsEvents();
+  bindAnalysisEvents();
+  bindReportEvents();
+  bindSchemaEvents();
+  bindTabsEvents();
+  bindMatrixKeys();
+  bindDynamicActions();
+}
+
+/** Onglet Tables : filtre, colonnes affichées, export Excel. */
+function bindTablesEvents() {
   // Tables
-  els['filter-input'].addEventListener('input', debounce(() => { state.filter = els['filter-input'].value; renderTables(); }, 120));
+  els['filter-input'].addEventListener(
+    'input',
+    debounce(() => {
+      state.filter = els['filter-input'].value;
+      renderTables();
+    }, 120),
+  );
   for (const id of ['cols-all', 'cols-refs', 'cols-formulas']) {
-    els[id].addEventListener('change', () => { if (els[id].checked) { state.cols = els[id].value; renderTables(); } });
+    els[id].addEventListener('change', () => {
+      if (els[id].checked) {
+        state.cols = els[id].value;
+        renderTables();
+      }
+    });
   }
   els['btn-csv'].addEventListener('click', () => {
     if (!state.out) return;
-    downloadFile(`tables-${fileBase()}.xlsx`, tablesXlsx(state.out.tables, { docName: state.docName, date: new Date() }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    downloadFile(
+      `tables-${fileBase()}.xlsx`,
+      tablesXlsx(state.out.tables, { docName: state.docName, date: new Date() }),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
     toast('Classeur Excel des tables téléchargé.');
   });
+}
 
+/** Onglet Accès : filtre et export Excel des règles. */
+function bindAccessEvents() {
   // Droits d'accès
-  els['access-filter'].addEventListener('input', debounce(() => { state.accessFilter = els['access-filter'].value; renderAccess(); }, 120));
+  els['access-filter'].addEventListener(
+    'input',
+    debounce(() => {
+      state.accessFilter = els['access-filter'].value;
+      renderAccess();
+    }, 120),
+  );
   els['btn-access-csv'].addEventListener('click', () => {
     if (state.access?.hasRules) downloadFile('regles-acces-document.csv', accessCsv(), 'text/csv;charset=utf-8');
   });
+}
 
+/** Onglet Tables : l'index suit le défilement. */
+function bindTablesIndexEvents() {
   // Tables : index qui suit le défilement
-  els['tables-body'].addEventListener('scroll', () => { if (!tablesIndexFrame) tablesIndexFrame = requestAnimationFrame(() => { tablesIndexFrame = 0; updateTablesIndex(); }); }, { passive: true });
+  els['tables-body'].addEventListener(
+    'scroll',
+    () => {
+      if (!tablesIndexFrame)
+        tablesIndexFrame = requestAnimationFrame(() => {
+          tablesIndexFrame = 0;
+          updateTablesIndex();
+        });
+    },
+    { passive: true },
+  );
+}
 
+/** Onglet Vues : filtre et types de vues. */
+function bindWidgetsEvents() {
   // Widgets
-  els['widgets-filter'].addEventListener('input', debounce(() => { state.widgetsFilter = els['widgets-filter'].value; renderWidgets(); }, 120));
+  els['widgets-filter'].addEventListener(
+    'input',
+    debounce(() => {
+      state.widgetsFilter = els['widgets-filter'].value;
+      renderWidgets();
+    }, 120),
+  );
   for (const id of ['wkind-all', 'wkind-unofficial', 'wkind-gallery', 'wkind-views']) {
-    els[id].addEventListener('change', () => { if (els[id].checked) { state.wkind = els[id].value; renderWidgets(); } });
+    els[id].addEventListener('change', () => {
+      if (els[id].checked) {
+        state.wkind = els[id].value;
+        renderWidgets();
+      }
+    });
   }
+}
 
+/** Onglet Analyse : recherche. */
+function bindAnalysisEvents() {
   // Analyse : niveau (tuiles), recherche, règles métier
-  els['analysis-filter'].addEventListener('input', debounce(() => { state.analysisFilter = els['analysis-filter'].value; renderAnalysis(); }, 120));
+  els['analysis-filter'].addEventListener(
+    'input',
+    debounce(() => {
+      state.analysisFilter = els['analysis-filter'].value;
+      renderAnalysis();
+    }, 120),
+  );
+}
 
+/** Onglet Rapport : sections, index, téléchargement. */
+function bindReportEvents() {
   // Rapport
   els['report-sections'].addEventListener('change', (ev) => {
     const box = ev.target.closest('[data-section]');
     if (!box) return;
-    if (box.checked) state.reportSections.add(box.dataset.section); else state.reportSections.delete(box.dataset.section);
+    if (box.checked) state.reportSections.add(box.dataset.section);
+    else state.reportSections.delete(box.dataset.section);
     renderReport();
   });
   els['report-sections'].addEventListener('click', async (ev) => {
@@ -1326,13 +1760,32 @@ function bindEvents() {
     if (!go) return;
     const id = go.dataset.reportGoto;
     // Section non incluse : un clic sur son nom l'ajoute, puis l'aperçu s'y place.
-    if (!state.reportSections.has(id)) { state.reportSections.add(id); await renderReport(); }
+    if (!state.reportSections.has(id)) {
+      state.reportSections.add(id);
+      await renderReport();
+    }
     const el = els['report-body'].querySelector(`[data-report-section="${id}"]`);
-    if (el) { scrollWithin(el); flash(el); }
+    if (el) {
+      scrollWithin(el);
+      flash(el);
+    }
   });
-  els['report-body'].closest('.page__body').addEventListener('scroll', () => { if (!reportIndexFrame) reportIndexFrame = requestAnimationFrame(() => { reportIndexFrame = 0; updateReportIndex(); }); }, { passive: true });
+  els['report-body'].closest('.page__body').addEventListener(
+    'scroll',
+    () => {
+      if (!reportIndexFrame)
+        reportIndexFrame = requestAnimationFrame(() => {
+          reportIndexFrame = 0;
+          updateReportIndex();
+        });
+    },
+    { passive: true },
+  );
   els['btn-docx'].addEventListener('click', downloadReport);
+}
 
+/** Onglet Schéma : zoom, disposition, vues, recherche, export, menus Tables et Liens. */
+function bindSchemaEvents() {
   // Schéma
   els['btn-zoom-in'].addEventListener('click', () => viewer?.zoomAt(1.25));
   els['btn-zoom-out'].addEventListener('click', () => viewer?.zoomAt(0.8));
@@ -1356,10 +1809,18 @@ function bindEvents() {
     const name = els['find-table'].value.trim();
     if (!viewer || !name) return;
     const match = [...viewer.nodes.keys()].find((id) => id.toLowerCase() === name.toLowerCase());
-    if (match) { viewer.focusTable(match); els['find-table'].value = ''; }
+    if (match) {
+      viewer.focusTable(match);
+      els['find-table'].value = '';
+    }
   };
   els['find-table'].addEventListener('change', findTable);
-  els['find-table'].addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); findTable(); } });
+  els['find-table'].addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      findTable();
+    }
+  });
   els['btn-png'].addEventListener('click', async () => {
     if (!viewer) return;
     try {
@@ -1371,11 +1832,17 @@ function bindEvents() {
   });
   for (const [name, [btn, menu]] of Object.entries(MENUS)) {
     els[btn].addEventListener('click', () => setMenu(name, els[menu].hidden));
-    els[menu].addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { setMenu(name, false); els[btn].focus(); } });
+    els[menu].addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        setMenu(name, false);
+        els[btn].focus();
+      }
+    });
   }
   document.addEventListener('click', (ev) => {
     const inside = ev.target.closest('.links');
-    for (const [name, [, menu]] of Object.entries(MENUS)) if (!els[menu].hidden && !els[menu].parentElement.contains(inside)) setMenu(name, false);
+    for (const [name, [, menu]] of Object.entries(MENUS))
+      if (!els[menu].hidden && !els[menu].parentElement.contains(inside)) setMenu(name, false);
   });
   for (const k of TABLE_KINDS) {
     els[`show-kind-${k}`].addEventListener('change', () => {
@@ -1393,7 +1860,10 @@ function bindEvents() {
       saveDiagramSoon();
     });
   }
+}
 
+/** Onglets : clic et clavier. */
+function bindTabsEvents() {
   // Onglets : clic et clavier (flèches, Début, Fin)
   for (const t of tabs) {
     const tab = $(`tab-${t}`);
@@ -1405,10 +1875,16 @@ function bindEvents() {
       else if (ev.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
       else if (ev.key === 'Home') next = tabs[0];
       else if (ev.key === 'End') next = tabs[tabs.length - 1];
-      if (next) { ev.preventDefault(); selectTab(next, { focus: true }); }
+      if (next) {
+        ev.preventDefault();
+        selectTab(next, { focus: true });
+      }
     });
   }
+}
 
+/** Matrice des droits : clavier. */
+function bindMatrixKeys() {
   // Matrice des droits : flèches d'une case à l'autre, Échap referme le détail
   document.addEventListener('keydown', (ev) => {
     const cellBtn = ev.target.closest?.('#rights-matrix [data-matrix-cell]');
@@ -1434,56 +1910,104 @@ function bindEvents() {
     let c = grid[r].indexOf(cellBtn);
     if (move[1] && cellBtn.dataset.matrixCell.endsWith('|S') && move[1] > 0) c += 3; // sortir de la case large
     for (;;) {
-      r += move[0]; c += move[1];
+      r += move[0];
+      c += move[1];
       if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) return;
       const next = grid[r][c];
-      if (next && next !== cellBtn) { ev.preventDefault(); next.focus(); next.scrollIntoView({ block: 'nearest', inline: 'nearest' }); return; }
+      if (next && next !== cellBtn) {
+        ev.preventDefault();
+        next.focus();
+        next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return;
+      }
     }
   });
+}
 
-  // Liens et boutons rendus dynamiquement
-  document.addEventListener('click', (ev) => {
-    const target = ev.target.closest('[data-goto-table],[data-goto-schema],[data-goto-access],[data-goto-analysis],[data-goto-widgets],[data-index-table],[data-level],[data-action],[data-matrix-cell],[data-matrix-detail],[data-matrix-close],[data-matrix-xlsx]');
-    if (!target) return;
-    ev.preventDefault();
-    if (target.dataset.matrixXlsx) { downloadMatrixXlsx(); return; }
-    if (target.dataset.matrixDetail) {
-      state.matrixDetail = target.dataset.matrixDetail;
+/**
+ * Éléments rendus dynamiquement (liens, boutons, cases de la matrice) : un seul écouteur sur le
+ * document. Chaque attribut data-* déclenche son action ; en cas de plusieurs, le premier de la liste.
+ */
+const CLICK_ACTIONS = [
+  ['matrixXlsx', () => downloadMatrixXlsx()],
+  [
+    'matrixDetail',
+    (detail) => {
+      state.matrixDetail = detail;
       if (state.matrixDetail === 'tables' && state.matrixPick?.row.includes('.')) state.matrixPick = null;
       refreshMatrix(`[data-matrix-detail="${state.matrixDetail}"]`);
-      return;
-    }
-    if (target.dataset.matrixCell) {
-      const [row, group, bit] = target.dataset.matrixCell.split('|');
+    },
+  ],
+  [
+    'matrixCell',
+    (cell) => {
+      const [row, group, bit] = cell.split('|');
       state.matrixPick = { row, group: Number(group), bit };
-      refreshMatrix(`[data-matrix-cell="${CSS.escape(target.dataset.matrixCell)}"]`);
-      return;
-    }
-    if (target.dataset.matrixClose) {
+      refreshMatrix(`[data-matrix-cell="${CSS.escape(cell)}"]`);
+    },
+  ],
+  [
+    'matrixClose',
+    () => {
       const back = state.matrixPick && `${state.matrixPick.row}|${state.matrixPick.group}|${state.matrixPick.bit}`;
       state.matrixPick = null;
       refreshMatrix(back ? `[data-matrix-cell="${CSS.escape(back)}"]` : null);
-      return;
-    }
-    if (target.dataset.level) { state.level = target.dataset.level; renderAnalysis(); $(`level-${state.level}`)?.focus(); return; }
-    if (target.dataset.indexTable) { const el = $(slug(target.dataset.indexTable)); if (el) { scrollWithin(el); flash(el); } return; }
-    if (target.dataset.gotoWidgets) { selectTab('widgets', { focus: true }); return; }
-    if (target.dataset.action === 'refresh') loadSchema({ manual: true });
-    else if (target.dataset.action === 'accept' || target.dataset.action === 'unaccept') {
-      if (target.dataset.action === 'accept') state.accepted.add(target.dataset.key); else state.accepted.delete(target.dataset.key);
-      saveOption('accepted', [...state.accepted]);
-      recompute();
-      toast(target.dataset.action === 'accept' ? 'Noté comme voulu : ce point ne sera plus compté.' : 'Ce point est de nouveau à confirmer.', 'info');
-    }
-    else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
-    else if (target.dataset.gotoAnalysis) {
+    },
+  ],
+  [
+    'level',
+    (level) => {
+      state.level = level;
+      renderAnalysis();
+      $(`level-${state.level}`)?.focus();
+    },
+  ],
+  [
+    'indexTable',
+    (table) => {
+      const el = $(slug(table));
+      if (el) {
+        scrollWithin(el);
+        flash(el);
+      }
+    },
+  ],
+  ['gotoWidgets', () => selectTab('widgets', { focus: true })],
+  [
+    'action',
+    (action, target) => {
+      if (action === 'refresh') loadSchema({ manual: true });
+      else if (action === 'accept' || action === 'unaccept') {
+        if (action === 'accept') state.accepted.add(target.dataset.key);
+        else state.accepted.delete(target.dataset.key);
+        saveOption('accepted', [...state.accepted]);
+        recompute();
+        toast(action === 'accept' ? 'Noté comme voulu : ce point ne sera plus compté.' : 'Ce point est de nouveau à confirmer.', 'info');
+      }
+    },
+  ],
+  ['gotoAccess', (table) => gotoAccess(table)],
+  [
+    'gotoAnalysis',
+    () => {
       // « N points d'attention » : l'analyse s'ouvre sur les constats à corriger.
       state.level = 'blocking';
       renderAnalysis();
       selectTab('analysis', { focus: true });
-    }
-    else if (target.dataset.gotoSchema) showOnDiagram(target.dataset.gotoSchema);
-    else if (target.dataset.gotoTable) gotoTable(target.dataset.gotoTable);
+    },
+  ],
+  ['gotoSchema', (table) => showOnDiagram(table)],
+  ['gotoTable', (table) => gotoTable(table)],
+];
+const CLICK_SELECTOR = CLICK_ACTIONS.map(([key]) => `[data-${key.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}]`).join(',');
+
+function bindDynamicActions() {
+  document.addEventListener('click', (ev) => {
+    const target = ev.target.closest(CLICK_SELECTOR);
+    if (!target) return;
+    ev.preventDefault();
+    const found = CLICK_ACTIONS.find(([key]) => target.dataset[key]);
+    if (found) found[1](target.dataset[found[0]], target);
   });
 }
 
@@ -1498,7 +2022,11 @@ function bindEvents() {
  */
 async function readDocTitle(api) {
   let name = '';
-  try { name = String((await api.docApi.getDocName?.()) || ''); } catch { /* sans nom */ }
+  try {
+    name = String((await api.docApi.getDocName?.()) || '');
+  } catch {
+    /* sans nom */
+  }
   return /^[A-Za-z0-9]{16,}$/.test(name) ? '' : name;
 }
 
@@ -1511,7 +2039,10 @@ function connectGrist() {
   });
   gristApi.onRecords(() => loadSchemaSoon());
   readDocTitle(gristApi).then((name) => {
-    if (name) { state.docName = name; if (state.tab === 'report') renderReport(); }
+    if (name) {
+      state.docName = name;
+      if (state.tab === 'report') renderReport();
+    }
   });
   loadSchema();
 }
@@ -1521,7 +2052,3 @@ syncTheme();
 selectTab('schema');
 if (inGrist) connectGrist();
 recompute();
-
-
-
-

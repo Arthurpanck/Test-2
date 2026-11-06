@@ -14,7 +14,6 @@ import { structureSmells } from './datacheck.js?v=3.18.0';
 import { runAudit } from './audit-engine.js?v=3.18.0';
 import { pageInsights } from './pages.js?v=3.18.0';
 
-
 export const SEVERITIES = {
   blocking: { label: 'À corriger', order: 0 },
   improve: { label: 'À améliorer', order: 1 },
@@ -26,11 +25,14 @@ export const LEVELS = Object.keys(SEVERITIES);
 const REFRESH_STEP = 'Revenez dans cette vue et cliquez sur « Relire le document ».';
 
 /** Domaines des constats. */
-export const AREAS = { structure: 'Structure', data: 'Données', access: 'Droits d\'accès', pages: 'Vues' };
+export const AREAS = { structure: 'Structure', data: 'Données', access: "Droits d'accès", pages: 'Vues' };
 
 /** Clé d'un constat, pour mémoriser qu'il est « voulu » : change si les éléments concernés changent. */
 export function insightKey(it) {
-  return `${it.id}${it.evidence ? ':v' + it.evidence.version + ':' + it.evidence.signature : ''}:${it.targets.map((t) => `${t.table}.${t.column || ''}`).sort().join('|')}`;
+  return `${it.id}${it.evidence ? ':v' + it.evidence.version + ':' + it.evidence.signature : ''}:${it.targets
+    .map((t) => `${t.table}.${t.column || ''}`)
+    .sort()
+    .join('|')}`;
 }
 
 /**
@@ -43,10 +45,13 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const items = [];
   // 4. Colonnes vides (ni type ni formule), comme A, B, C d'une table créée par défaut.
   const empty = [];
-  for (const t of tables) for (const c of t.columns) if (c.empty || c.gristType?.name === 'Any' || (c.isFormula && c.base === 'default')) empty.push({ table: t.name, column: c.name });
+  for (const t of tables)
+    for (const c of t.columns)
+      if (c.empty || c.gristType?.name === 'Any' || (c.isFormula && c.base === 'default')) empty.push({ table: t.name, column: c.name });
   if (empty.length) {
     items.push({
-      id: 'empty', severity: 'blocking',
+      id: 'empty',
+      severity: 'blocking',
       title: empty.length > 1 ? `${empty.length} colonnes non typées` : 'Une colonne non typée',
       summary: 'Le type de ces colonnes est « Non défini », qu’elles contiennent une formule ou des valeurs saisies.',
       why: 'Un type explicite indique ce que la colonne doit contenir et permet un affichage, un tri et des calculs adaptés : texte, nombre, date, case à cocher ou référence.',
@@ -61,11 +66,17 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
 
   // 6. Tables sans aucun lien.
   const linked = new Set();
-  for (const t of tables) for (const c of t.columns) if (c.ref) { linked.add(t.name); linked.add(c.ref.table); }
+  for (const t of tables)
+    for (const c of t.columns)
+      if (c.ref) {
+        linked.add(t.name);
+        linked.add(c.ref.table);
+      }
   const isolated = tables.filter((t) => !linked.has(t.name)).map((t) => ({ table: t.name }));
   if (isolated.length && tables.length > 1) {
     items.push({
-      id: 'isolated', severity: 'choice',
+      id: 'isolated',
+      severity: 'choice',
       title: isolated.length > 1 ? `${isolated.length} tables reliées à aucune autre` : 'Une table reliée à aucune autre',
       summary: 'Aucune colonne de référence ne relie ces tables au reste du document.',
       why: 'Les références relient différentes tables entre elles. Elles permettent de rapporter les informations de la table liée et d’éviter de les ressaisir, ainsi que de créer des vues reliées dynamiquement entre elles. Ne créez pas une table sans informations propres uniquement pour fournir une liste déroulante : les types Choix et Choix multiple sont prévus pour cela.',
@@ -82,7 +93,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   items.push(...structureSmells(tables, profiles, access));
   items.push(...accessInsights(access));
   const auditResult = audit ? runAudit({ ...audit, access, pages }) : null;
-  items.push(...pageInsights(pages).filter(i => !(auditResult && i.id === 'table-without-page')));
+  items.push(...pageInsights(pages).filter((i) => !(auditResult && i.id === 'table-without-page')));
   if (auditResult) items.push(...auditResult.items);
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
 
@@ -90,7 +101,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const active = items.filter((it) => !acceptedItems.includes(it));
   const counts = Object.fromEntries(LEVELS.map((l) => [l, 0]));
   for (const it of active) counts[it.severity] += 1;
-
 
   const blockingItems = active.filter((i) => i.severity === 'blocking');
   let verdict;
@@ -100,17 +110,28 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     const parts = [
       blockingItems.some((i) => i.area === 'structure') ? 'des liens ou des colonnes ne fonctionnent pas comme prévu' : '',
       blockingItems.some((i) => i.area === 'data') ? 'des valeurs ou des calculs doivent être corrigés' : '',
-      blockingItems.some((i) => i.area === 'access') ? 'des droits d\'accès doivent être vérifiés' : '',
-      blockingItems.some((i) => i.area === 'pages') ? 'des vues ne s\'affichent pas comme prévu' : '',
+      blockingItems.some((i) => i.area === 'access') ? "des droits d'accès doivent être vérifiés" : '',
+      blockingItems.some((i) => i.area === 'pages') ? "des vues ne s'affichent pas comme prévu" : '',
     ].filter(Boolean);
-    const sentence = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}` : (parts[0] || 'des éléments ne fonctionnent pas comme prévu');
-    verdict = { level: 'blocking', title: `${n} point${n > 1 ? 's' : ''} à corriger`, text: `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. Suivez les étapes ci-dessous.` };
+    const sentence =
+      parts.length > 1
+        ? `${parts.slice(0, -1).join(', ')} et ${parts[parts.length - 1]}`
+        : parts[0] || 'des éléments ne fonctionnent pas comme prévu';
+    verdict = {
+      level: 'blocking',
+      title: `${n} point${n > 1 ? 's' : ''} à corriger`,
+      text: `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. Suivez les étapes ci-dessous.`,
+    };
   } else {
     const rest = [
       counts.improve ? `${counts.improve} point${counts.improve > 1 ? 's' : ''} à améliorer` : '',
       counts.choice ? `${counts.choice} choix à confirmer` : '',
     ].filter(Boolean);
-    verdict = { level: 'ready', title: 'Aucun problème bloquant détecté', text: rest.length ? `${rest.join(' et ')} dans les éléments analysés.` : 'Aucun problème détecté dans les éléments analysés.' };
+    verdict = {
+      level: 'ready',
+      title: 'Aucun problème bloquant détecté',
+      text: rest.length ? `${rest.join(' et ')} dans les éléments analysés.` : 'Aucun problème détecté dans les éléments analysés.',
+    };
   }
   return { verdict, counts, items: active, accepted: acceptedItems, audit: auditResult };
 }
@@ -125,7 +146,3 @@ export function stepsAfterIntended(it) {
 export function targetLabel(t) {
   return t.column ? `${t.table}.${t.column}` : t.table;
 }
-
-
-
-

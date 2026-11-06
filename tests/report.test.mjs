@@ -19,10 +19,26 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 /** Métadonnées d'une fixture ; valeurs par défaut rétablies (fixture compacte du document complexe). */
 export function loadMeta(name) {
   const m = JSON.parse(readFileSync(path.join(here, 'fixtures', name), 'utf8'));
-  const cols = m.columns.id ? m.columns : m.columns.map((c) => ({
-    parentPos: c.id, label: c.colId, formula: '', reverseCol: 0, description: '', widgetOptions: '', recalcWhen: 0, recalcDeps: null, isFormula: 0, ...c,
-  }));
-  return { tables: m.tables, columns: cols, sections: m.sections || [], acl: m.aclResources ? { resources: m.aclResources, rules: m.aclRules } : { resources: [], rules: [] } };
+  const cols = m.columns.id
+    ? m.columns
+    : m.columns.map((c) => ({
+        parentPos: c.id,
+        label: c.colId,
+        formula: '',
+        reverseCol: 0,
+        description: '',
+        widgetOptions: '',
+        recalcWhen: 0,
+        recalcDeps: null,
+        isFormula: 0,
+        ...c,
+      }));
+  return {
+    tables: m.tables,
+    columns: cols,
+    sections: m.sections || [],
+    acl: m.aclResources ? { resources: m.aclResources, rules: m.aclRules } : { resources: [], rules: [] },
+  };
 }
 
 function context(name = 'document-test-grist.metadata.json') {
@@ -31,8 +47,13 @@ function context(name = 'document-test-grist.metadata.json') {
   const out = convertAll({ schema }).corrected;
   const access = buildAccess({ ...meta.acl, schema });
   return {
-    docName: 'Test widget DBML (DSFR)', date: new Date(2026, 9, 26, 14, 5),
-    stats: computeStats(out.tables), tables: out.tables, insights: buildInsights(out.tables, access), access, dbml: out.dbml,
+    docName: 'Test widget DBML (DSFR)',
+    date: new Date(2026, 9, 26, 14, 5),
+    stats: computeStats(out.tables),
+    tables: out.tables,
+    insights: buildInsights(out.tables, access),
+    access,
+    dbml: out.dbml,
     schema: { png: PNG, width: 1600, height: 900 },
   };
 }
@@ -51,12 +72,33 @@ test('le rapport Word contient toutes les sections et les données du document',
   writeFileSync(path.join(here, '..', 'captures', 'rapport-test.docx'), buf);
   for (const s of REPORT_SECTIONS) assert.ok(has(xml, `>${s.title}<`), `section « ${s.title} »`);
   for (const t of ctx.tables) assert.ok(xml.includes(`>${t.name}<`) || xml.includes(`>${t.name} (synthèse)<`), `table ${t.name}`);
-  assert.ok(has(xml,ctx.insights.verdict.title), 'verdict actualisé avec les colonnes non typées À corriger');
+  assert.ok(has(xml, ctx.insights.verdict.title), 'verdict actualisé avec les colonnes non typées À corriger');
   assert.ok(xml.includes('Comment corriger dans Grist'), 'étapes de correction');
   assert.ok(xml.includes('>Code DBML<') && xml.includes('Table '), 'section DBML à la fin');
-  assert.ok(xml.includes('>Non défini<') && xml.includes('>Référence multiple → ') && xml.includes('>Date et Heure'), 'types de colonnes en français');
-  assert.ok(['Colonne (nom en base)', 'Type SQLite', 'Type déclaré (Grist)', 'Calculé ?', 'Documentée ?', '>Non calculé<', '>Non concerné<', '>Pas de documentation<', '>Clé primaire<', '>INTEGER<', '>Donnée<'].every((x) => xml.includes(x)), 'format « Table pour exportation »');
-  assert.ok(Object.keys(zip.files).some((f) => f.startsWith('word/media/')), 'image du schéma intégrée');
+  assert.ok(
+    xml.includes('>Non défini<') && xml.includes('>Référence multiple → ') && xml.includes('>Date et Heure'),
+    'types de colonnes en français',
+  );
+  assert.ok(
+    [
+      'Colonne (nom en base)',
+      'Type SQLite',
+      'Type déclaré (Grist)',
+      'Calculé ?',
+      'Documentée ?',
+      '>Non calculé<',
+      '>Non concerné<',
+      '>Pas de documentation<',
+      '>Clé primaire<',
+      '>INTEGER<',
+      '>Donnée<',
+    ].every((x) => xml.includes(x)),
+    'format « Table pour exportation »',
+  );
+  assert.ok(
+    Object.keys(zip.files).some((f) => f.startsWith('word/media/')),
+    'image du schéma intégrée',
+  );
 });
 
 test('le choix des sections est respecté', async () => {
@@ -66,7 +108,7 @@ test('le choix des sections est respecté', async () => {
 });
 
 test('le Word suit le thème du design (variables --doc-*)', async () => {
-  const fake = { getPropertyValue: (k) => ({ '--doc-primary': '#123456', '--doc-font': '"Spectral", serif' }[k] || '') };
+  const fake = { getPropertyValue: (k) => ({ '--doc-primary': '#123456', '--doc-font': '"Spectral", serif' })[k] || '' };
   const theme = readTheme(fake);
   assert.equal(theme.primary, '#123456');
   assert.equal(theme.font, 'Spectral');
@@ -76,22 +118,22 @@ test('le Word suit le thème du design (variables --doc-*)', async () => {
   assert.ok(styles.includes('w:val="123456"'), 'titres à la couleur primaire');
 });
 
-test('l\'aperçu HTML reprend les mêmes blocs', () => {
+test("l'aperçu HTML reprend les mêmes blocs", () => {
   const html = renderHtml(buildReport(context()), { imageUrl: () => 'schema.png' });
   for (const s of REPORT_SECTIONS) assert.ok(has(html, ` ${s.title}</h2>`), s.title);
   assert.ok(html.includes('<img src="schema.png"'));
 });
 
-test('document complexe : droits d\'accès, formules et détails dans le Word', async () => {
+test("document complexe : droits d'accès, formules et détails dans le Word", async () => {
   const ctx = context('document-complexe.metadata.json');
   const { buf, xml } = await docxXml(buildReport(ctx));
   writeFileSync(path.join(here, '..', 'captures', 'rapport-complexe.docx'), buf);
-  assert.ok(has(xml, 'Structure et droits d\'accès'), 'titre adapté aux sections');
-  assert.ok(has(xml, '>Droits d\'accès<'), 'section droits d\'accès');
+  assert.ok(has(xml, "Structure et droits d'accès"), 'titre adapté aux sections');
+  assert.ok(has(xml, ">Droits d'accès<"), "section droits d'accès");
   assert.ok(xml.includes('user.Habilitation'), 'attribut utilisateur');
   assert.ok(xml.includes('Fiches réservées au service RH.'), 'message de refus');
   assert.ok(xml.includes('>Refusé<') && xml.includes('>Autorisé<'), 'permissions en clair');
-  assert.ok(xml.includes('>Initialisé<') && xml.includes('NOW()'), 'formule d\'initialisation');
+  assert.ok(xml.includes('>Initialisé<') && xml.includes('NOW()'), "formule d'initialisation");
   assert.ok(xml.includes('quand cette colonne change : Statut'), 'déclenchement sur une colonne');
   assert.ok(xml.includes('Données RH sensibles'), 'description de table');
   assert.ok(xml.includes('user.Profil'), 'attribut inexistant signalé');
@@ -102,7 +144,10 @@ test('sommaire cliquable : liens internes vers des signets sur chaque titre', as
   const anchors = [...xml.matchAll(/w:hyperlink[^>]*w:anchor="(sec\d+)"/g)].map((m) => m[1]);
   const marks = new Set([...xml.matchAll(/w:bookmarkStart[^>]*w:name="(sec\d+)"/g)].map((m) => m[1]));
   assert.ok(anchors.length >= 5, `${anchors.length} entrées`);
-  assert.ok(anchors.every((a) => marks.has(a)), 'chaque entrée mène à un signet');
+  assert.ok(
+    anchors.every((a) => marks.has(a)),
+    'chaque entrée mène à un signet',
+  );
   assert.ok(xml.includes('>Table des matières<'));
   assert.ok(xml.includes('PAGEREF sec1') && xml.includes('w:leader="dot"'), 'numéros de page et points de conduite');
   assert.ok(xml.includes('>1.  <') || xml.includes('1.\t'), 'titres numérotés');
@@ -116,26 +161,53 @@ test('section Widgets : widgets personnalisés détaillés, tableaux exclus, dan
   const ctx = { ...context(), pages, insights: { ...context().insights, items: pageInsights(pages) } };
   const blocks = buildReport(ctx, ['summary', 'pages']);
   const toc = blocks.find((b) => b.type === 'toc');
-  assert.deepEqual(toc.entries.filter((e) => e.level === 2).map((e) => e.text).slice(1), ['Vues non officielles', 'Vues personnalisées', 'Fiches, listes, graphiques et formulaires', 'Points d\'attention']);
+  assert.deepEqual(
+    toc.entries
+      .filter((e) => e.level === 2)
+      .map((e) => e.text)
+      .slice(1),
+    ['Vues non officielles', 'Vues personnalisées', 'Fiches, listes, graphiques et formulaires', "Points d'attention"],
+  );
   const { xml } = await docxXml(blocks);
-  for (const t of ['Tableau croisé dynamique', 'widgets.exemple.fr', 'Code dans le document', '• Name → à associer', 'Fiche client', 'Accès complet au document']) assert.ok(xml.includes(t), t);
+  for (const t of [
+    'Tableau croisé dynamique',
+    'widgets.exemple.fr',
+    'Code dans le document',
+    '• Name → à associer',
+    'Fiche client',
+    'Accès complet au document',
+  ])
+    assert.ok(xml.includes(t), t);
   assert.ok(!xml.includes('>Tableau<'), 'aucun widget « Tableau » listé');
 });
 
-test('droits d\'accès : « Qui peut faire quoi ? » en paysage, cases colorées, cas à vérifier', async () => {
+test("droits d'accès : « Qui peut faire quoi ? » en paysage, cases colorées, cas à vérifier", async () => {
   const { buildMatrix } = await import('../assets/rights-matrix.js');
   const { habilitations } = await import('./fixtures/droits-complexe.mjs');
   const meta = loadMeta('document-complexe.metadata.json');
   const ctx = context('document-complexe.metadata.json');
-  ctx.matrix = buildMatrix(meta.acl, [...schemaFromMetadata(meta.tables, meta.columns).keys()].filter((t) => !t.startsWith('_grist')), habilitations);
+  ctx.matrix = buildMatrix(
+    meta.acl,
+    [...schemaFromMetadata(meta.tables, meta.columns).keys()].filter((t) => !t.startsWith('_grist')),
+    habilitations,
+  );
   const blocks = buildReport(ctx);
   const { buf, xml } = await docxXml(blocks);
   writeFileSync(path.join(here, '..', 'captures', 'rapport-matrice.docx'), buf);
   assert.ok(xml.includes('>Qui peut faire quoi ?<'), 'sous-titre');
   const sects = [...xml.matchAll(/<w:pgSz [^>]*>/g)].map((m) => m[0]);
-  assert.ok(sects.some((x) => x.includes('w:orient="landscape"') && x.includes('w:w="16838"')), `page en paysage (${sects.join(' ')})`);
-  assert.ok(sects.filter((x) => x.includes('w:orient="landscape"')).length === 2 && sects.length >= 5, 'tables et matrice en paysage, portrait entre les deux');
-  assert.ok(xml.includes('w:fill="DFFEE6"') && xml.includes('w:fill="FFE9E9"') && xml.includes('w:fill="EEEEEE"'), 'cases vertes, rouges et grises');
+  assert.ok(
+    sects.some((x) => x.includes('w:orient="landscape"') && x.includes('w:w="16838"')),
+    `page en paysage (${sects.join(' ')})`,
+  );
+  assert.ok(
+    sects.filter((x) => x.includes('w:orient="landscape"')).length === 2 && sects.length >= 5,
+    'tables et matrice en paysage, portrait entre les deux',
+  );
+  assert.ok(
+    xml.includes('w:fill="DFFEE6"') && xml.includes('w:fill="FFE9E9"') && xml.includes('w:fill="EEEEEE"'),
+    'cases vertes, rouges et grises',
+  );
   assert.ok(xml.includes('<w:gridSpan w:val="4"/>'), 'droits de structure sur quatre cases');
   assert.ok(xml.includes('>Habilitation.Role = « RH » · 7 services<') && xml.includes('>Tous les autres<'), 'groupes');
   assert.ok(xml.includes('>Email<') && xml.includes('>Service<') && xml.includes('>Quotite<'), 'colonnes qui décident, colonnes à règles');

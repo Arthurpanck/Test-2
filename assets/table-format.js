@@ -7,7 +7,16 @@
 import { GRIST_TYPE_LABELS } from './types.js?v=3.18.0';
 import { scanPython } from './python-text.js?v=3.18.0';
 
-export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?'];
+export const TABLE_COLUMNS = [
+  'Colonne (nom en base)',
+  'Nom affiché',
+  'Type SQLite',
+  'Type déclaré (Grist)',
+  'Rôle',
+  'Calculé ?',
+  'Formule',
+  'Documentée ?',
+];
 
 /**
  * Une formule est documentée si elle contient un commentaire Python (« # … », hors chaînes de
@@ -19,7 +28,8 @@ export function hasDocumentation(code) {
 }
 
 /** « Documentée ? » : Non concerné (pas de formule), Documentée ou Pas de documentation. */
-export const documentationLabel = (formula) => (!formula ? 'Non concerné' : hasDocumentation(formula) ? 'Documentée' : 'Pas de documentation');
+export const documentationLabel = (formula) =>
+  !formula ? 'Non concerné' : hasDocumentation(formula) ? 'Documentée' : 'Pas de documentation';
 
 /**
  * Type de stockage SQLite, comme DocStorage._getSqlType() de grist-core : il dépend de la chaîne
@@ -29,16 +39,31 @@ export function sqliteType(gristType) {
   const name = gristType?.name || 'Any';
   const arg = gristType?.arg;
   switch (name) {
-    case 'Bool': return 'BOOLEAN';
-    case 'Choice': case 'Text': return 'TEXT';
-    case 'ChoiceList': case 'Attachments': return 'TEXT';
-    case 'ReferenceList': return 'TEXT';
-    case 'Reference': return 'INTEGER';
-    case 'Date': return arg ? 'BLOB' : 'DATE';
-    case 'DateTime': return arg ? 'BLOB' : 'DATETIME';
-    case 'Int': case 'Id': return 'INTEGER';
-    case 'Numeric': case 'ManualSortPos': case 'PositionNumber': return 'NUMERIC';
-    default: return 'BLOB';
+    case 'Bool':
+      return 'BOOLEAN';
+    case 'Choice':
+    case 'Text':
+      return 'TEXT';
+    case 'ChoiceList':
+    case 'Attachments':
+      return 'TEXT';
+    case 'ReferenceList':
+      return 'TEXT';
+    case 'Reference':
+      return 'INTEGER';
+    case 'Date':
+      return arg ? 'BLOB' : 'DATE';
+    case 'DateTime':
+      return arg ? 'BLOB' : 'DATETIME';
+    case 'Int':
+    case 'Id':
+      return 'INTEGER';
+    case 'Numeric':
+    case 'ManualSortPos':
+    case 'PositionNumber':
+      return 'NUMERIC';
+    default:
+      return 'BLOB';
   }
 }
 
@@ -55,8 +80,13 @@ export function declaredType(c) {
 
 /** Quand s'applique une formule d'initialisation. */
 export function triggerWhen(trigger) {
-  if (trigger.when === 'deps') return `aux nouvelles lignes et quand ${trigger.deps.length > 1 ? 'ces colonnes changent' : 'cette colonne change'} : ${trigger.deps.join(', ')}`;
-  return { new: 'aux nouvelles lignes seulement', any: 'aux nouvelles lignes et à chaque modification', never: 'jamais automatiquement' }[trigger.when] || '';
+  if (trigger.when === 'deps')
+    return `aux nouvelles lignes et quand ${trigger.deps.length > 1 ? 'ces colonnes changent' : 'cette colonne change'} : ${trigger.deps.join(', ')}`;
+  return (
+    { new: 'aux nouvelles lignes seulement', any: 'aux nouvelles lignes et à chaque modification', never: 'jamais automatiquement' }[
+      trigger.when
+    ] || ''
+  );
 }
 
 /**
@@ -75,7 +105,20 @@ export const columnRole = (c) => (!c || c.name === 'id' ? 'Clé primaire' : colu
 
 /** Lignes d'une table (clé « id » comprise), dans l'ordre des colonnes. */
 export function tableRows(t, keep = () => true) {
-  const rows = [{ name: 'id', label: '', sqlite: 'INTEGER', declared: { text: '' }, role: 'Clé primaire', computed: 'Non calculé', formula: '', documented: 'Non concerné', description: '', isKey: true }];
+  const rows = [
+    {
+      name: 'id',
+      label: '',
+      sqlite: 'INTEGER',
+      declared: { text: '' },
+      role: 'Clé primaire',
+      computed: 'Non calculé',
+      formula: '',
+      documented: 'Non concerné',
+      description: '',
+      isKey: true,
+    },
+  ];
   for (const c of t.columns) {
     if (!keep(c)) continue;
     const d = c.details || {};
@@ -98,5 +141,3 @@ export function tableRows(t, keep = () => true) {
 
 /** Valeurs des sept colonnes, en texte (export, rapport). */
 export const rowValues = (r) => [r.name, r.label, r.sqlite, r.declared.text, r.role, r.computed, r.formula, r.documented];
-
-

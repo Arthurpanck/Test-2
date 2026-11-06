@@ -19,17 +19,30 @@
  */
 export function scanPython(code, { fstringCode = false } = {}) {
   const src = String(code ?? '');
-  let masked = '', stripped = '';
-  let hasComment = false, hasTriple = false, unterminated = false;
+  let masked = '',
+    stripped = '';
+  let hasComment = false,
+    hasTriple = false,
+    unterminated = false;
   for (let i = 0; i < src.length; i++) {
     const ch = src[i];
     if (ch === '#') {
       hasComment = true;
-      while (i < src.length && src[i] !== '\n') { masked += ' '; i++; }
-      if (i < src.length) { masked += '\n'; stripped += '\n'; }
+      while (i < src.length && src[i] !== '\n') {
+        masked += ' ';
+        i++;
+      }
+      if (i < src.length) {
+        masked += '\n';
+        stripped += '\n';
+      }
       continue;
     }
-    if (ch !== '"' && ch !== "'") { masked += ch; stripped += ch; continue; }
+    if (ch !== '"' && ch !== "'") {
+      masked += ch;
+      stripped += ch;
+      continue;
+    }
     const triple = src.startsWith(ch.repeat(3), i);
     const quote = triple ? ch.repeat(3) : ch;
     if (triple) hasTriple = true;
@@ -40,12 +53,29 @@ export function scanPython(code, { fstringCode = false } = {}) {
     let depth = 0;
     let closed = false;
     while (j < src.length) {
-      if (src.startsWith(quote, j)) { closed = true; break; }
+      if (src.startsWith(quote, j)) {
+        closed = true;
+        break;
+      }
       const c = src[j];
-      if (c === '\\') { body += '  '; j += 2; continue; }
+      if (c === '\\') {
+        body += '  ';
+        j += 2;
+        continue;
+      }
       if (!triple && c === '\n') break; // une chaîne simple s'arrête à la fin de la ligne
-      if (isF && c === '{') { depth++; body += depth > 0 ? c : ' '; j++; continue; }
-      if (isF && c === '}') { body += depth > 0 ? c : ' '; depth = Math.max(0, depth - 1); j++; continue; }
+      if (isF && c === '{') {
+        depth++;
+        body += depth > 0 ? c : ' ';
+        j++;
+        continue;
+      }
+      if (isF && c === '}') {
+        body += depth > 0 ? c : ' ';
+        depth = Math.max(0, depth - 1);
+        j++;
+        continue;
+      }
       body += c === '\n' ? '\n' : isF && depth > 0 ? c : ' ';
       j++;
     }
@@ -74,12 +104,16 @@ export function matchingParen(text, open) {
 /** Découpe aux virgules de premier niveau (texte masqué) : « a=1, b=f(2, 3) » → ['a=1', ' b=f(2, 3)']. */
 export function splitTopLevel(text) {
   const parts = [];
-  let depth = 0, start = 0;
+  let depth = 0,
+    start = 0;
   for (let i = 0; i <= text.length; i++) {
     const ch = text[i];
     if (ch && '([{'.includes(ch)) depth++;
     else if (ch && ')]}'.includes(ch)) depth--;
-    else if ((ch === ',' && depth === 0) || i === text.length) { parts.push(text.slice(start, i)); start = i + 1; }
+    else if ((ch === ',' && depth === 0) || i === text.length) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
   }
   return parts;
 }
@@ -87,7 +121,13 @@ export function splitTopLevel(text) {
 // Suite d'attributs `.A.B` ; un attribut suivi de « ( » est une méthode (`.upper()`), pas une colonne.
 const ATTRS = '((?:\\s*\\.\\s*[A-Za-z_]\\w*\\b(?!\\s*\\())*)';
 const CHAIN = new RegExp(`(?:\\$|(?<![\\w.])rec\\s*\\.\\s*)([A-Za-z_]\\w*)${ATTRS}`, 'g');
-export const attributesOf = (text) => (text ? text.split('.').map((s) => s.trim()).filter(Boolean) : []);
+export const attributesOf = (text) =>
+  text
+    ? text
+        .split('.')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 
 /**
  * Colonnes de la ligne lues par une formule (texte masqué) : `$Service.Direction.Nom` ou

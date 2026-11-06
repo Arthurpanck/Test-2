@@ -25,17 +25,35 @@ export const DEFAULT_BITS = ['R', 'U', 'C', 'D', 'S'];
 /** Propriétés de `user` qui désignent une personne précise. */
 const NAMED = new Set(['Email', 'Name', 'UserID', 'UserRef', 'SessionID']);
 /** Propriétés de `user` fournies par Grist. */
-export const USER_BUILTINS = new Set(['Access', 'Email', 'UserID', 'UserRef', 'Name', 'LinkKey', 'Origin', 'SessionID', 'IsLoggedIn', 'ShareRef', 'Type']);
+export const USER_BUILTINS = new Set([
+  'Access',
+  'Email',
+  'UserID',
+  'UserRef',
+  'Name',
+  'LinkKey',
+  'Origin',
+  'SessionID',
+  'IsLoggedIn',
+  'ShareRef',
+  'Type',
+]);
 
 /** Ordre d'application des règles d'une ressource. */
-export const byRulePos = (a, b) => ((a.rulePos ?? Infinity) - (b.rulePos ?? Infinity)) || (a.id - b.id);
+export const byRulePos = (a, b) => (a.rulePos ?? Infinity) - (b.rulePos ?? Infinity) || a.id - b.id;
 
 /** Texte des permissions (« +R-CD », « all », « none ») → { R: 'allow' | 'deny', … }. */
 export function parsePermissions(text) {
   const t = String(text || '').trim();
   const out = {};
-  if (t === 'all') { for (const p of PERMISSIONS) out[p.bit] = 'allow'; return out; }
-  if (t === 'none') { for (const p of PERMISSIONS) out[p.bit] = 'deny'; return out; }
+  if (t === 'all') {
+    for (const p of PERMISSIONS) out[p.bit] = 'allow';
+    return out;
+  }
+  if (t === 'none') {
+    for (const p of PERMISSIONS) out[p.bit] = 'deny';
+    return out;
+  }
   for (const m of t.matchAll(/([+-])([A-Z]+)/g)) {
     for (const bit of m[2]) out[bit] = m[1] === '+' ? 'allow' : 'deny';
   }
@@ -57,13 +75,22 @@ export function permissionBits(text) {
  *  - attributes : attributs utilisateur dans l'ordre d'application, { row, def } (def : le JSON lu).
  */
 export function readAcl({ resources = [], rules = [] } = {}) {
-  const resourceRows = columnarToRows(resources || []).map((r) => ({ ...r, id: r.id, tableId: String(r.tableId || ''), colIds: String(r.colIds || '') }));
+  const resourceRows = columnarToRows(resources || []).map((r) => ({
+    ...r,
+    id: r.id,
+    tableId: String(r.tableId || ''),
+    colIds: String(r.colIds || ''),
+  }));
   const ruleRows = columnarToRows(rules || []);
   const attributes = [];
   for (const r of ruleRows.slice().sort(byRulePos)) {
     if (!r.userAttributes) continue;
     let def;
-    try { def = JSON.parse(r.userAttributes); } catch { def = null; }
+    try {
+      def = JSON.parse(r.userAttributes);
+    } catch {
+      def = null;
+    }
     if (def && def.name) attributes.push({ row: r, def });
   }
   return { resources: resourceRows, rules: ruleRows.filter((r) => !r.userAttributes), attributes };
@@ -80,26 +107,58 @@ export function parseCondition(code) {
   const tokens = [];
   let p = 0;
   while (p < text.length) {
-    if (/\s/.test(text[p])) { p++; continue; }
+    if (/\s/.test(text[p])) {
+      p++;
+      continue;
+    }
     const rest = text.slice(p);
     let m;
-    if ((m = /^(?:'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/.exec(rest))) { tokens.push({ type: 'literal', value: m[0].slice(1, -1).replace(/\\(['"\\])/g, '$1') }); p += m[0].length; continue; }
-    if ((m = /^-?\d+(?:\.\d+)?/.exec(rest))) { tokens.push({ type: 'literal', value: Number(m[0]) }); p += m[0].length; continue; }
-    if ((m = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/.exec(rest))) { tokens.push({ type: 'word', value: m[0] }); p += m[0].length; continue; }
-    if ((m = /^(==|!=|<=|>=|[<>()[\],])/.exec(rest))) { tokens.push({ type: 'op', value: m[0] }); p += m[0].length; continue; }
+    if ((m = /^(?:'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/.exec(rest))) {
+      tokens.push({ type: 'literal', value: m[0].slice(1, -1).replace(/\\(['"\\])/g, '$1') });
+      p += m[0].length;
+      continue;
+    }
+    if ((m = /^-?\d+(?:\.\d+)?/.exec(rest))) {
+      tokens.push({ type: 'literal', value: Number(m[0]) });
+      p += m[0].length;
+      continue;
+    }
+    if ((m = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/.exec(rest))) {
+      tokens.push({ type: 'word', value: m[0] });
+      p += m[0].length;
+      continue;
+    }
+    if ((m = /^(==|!=|<=|>=|[<>()[\],])/.exec(rest))) {
+      tokens.push({ type: 'op', value: m[0] });
+      p += m[0].length;
+      continue;
+    }
     throw new Error(`Syntaxe hors du sous-ensemble : ${rest.slice(0, 20)}`);
   }
   let at = 0;
   const peek = () => tokens[at]?.value;
-  const take = (v) => { if (peek() !== v) throw new Error(`Attendu ${v}`); at++; };
+  const take = (v) => {
+    if (peek() !== v) throw new Error(`Attendu ${v}`);
+    at++;
+  };
   const atom = () => {
     const t = tokens[at++];
     if (!t) throw new Error('Expression incomplète');
     if (t.type === 'literal') return { type: 'literal', value: t.value };
-    if (t.value === '(') { const x = or(); take(')'); return x; }
+    if (t.value === '(') {
+      const x = or();
+      take(')');
+      return x;
+    }
     if (t.value === '[') {
       const values = [];
-      if (peek() !== ']') { values.push(atom()); while (peek() === ',') { at++; values.push(atom()); } }
+      if (peek() !== ']') {
+        values.push(atom());
+        while (peek() === ',') {
+          at++;
+          values.push(atom());
+        }
+      }
       take(']');
       return { type: 'list', values };
     }
@@ -111,15 +170,35 @@ export function parseCondition(code) {
     let op = peek();
     if (['==', '!=', '<', '>', '<=', '>=', 'in', 'not', 'is'].includes(op)) {
       at++;
-      if (op === 'not') { take('in'); op = 'not in'; }
-      if (op === 'is' && peek() === 'not') { at++; op = 'is not'; }
+      if (op === 'not') {
+        take('in');
+        op = 'not in';
+      }
+      if (op === 'is' && peek() === 'not') {
+        at++;
+        op = 'is not';
+      }
       x = { type: 'compare', op, a: x, b: atom() };
     }
     return x;
   };
   const neg = () => (peek() === 'not' ? (at++, { type: 'not', a: neg() }) : cmp());
-  const and = () => { let x = neg(); while (peek() === 'and') { at++; x = { type: 'and', a: x, b: neg() }; } return x; };
-  const or = () => { let x = and(); while (peek() === 'or') { at++; x = { type: 'or', a: x, b: and() }; } return x; };
+  const and = () => {
+    let x = neg();
+    while (peek() === 'and') {
+      at++;
+      x = { type: 'and', a: x, b: neg() };
+    }
+    return x;
+  };
+  const or = () => {
+    let x = and();
+    while (peek() === 'or') {
+      at++;
+      x = { type: 'or', a: x, b: and() };
+    }
+    return x;
+  };
   const tree = or();
   if (at !== tokens.length) throw new Error('Fin non reconnue');
   return tree;
@@ -144,7 +223,8 @@ function asCond(v) {
   return unknown(String(v.path || ''));
 }
 function mergeCond(a, b) {
-  const x = asCond(a), y = asCond(b);
+  const x = asCond(a),
+    y = asCond(b);
   const parts = [x, y].filter(isSym);
   const rows = uniq(parts.flatMap((p) => p.rows));
   return sym(COND, {
@@ -187,20 +267,28 @@ function resolvePath(path, ctx) {
 
 function evalNode(t, ctx) {
   switch (t.type) {
-    case 'literal': return t.value;
-    case 'path': return resolvePath(t.value, ctx);
+    case 'literal':
+      return t.value;
+    case 'path':
+      return resolvePath(t.value, ctx);
     case 'list': {
       const vs = t.values.map((x) => evalNode(x, ctx));
       return vs.some(isSym) ? unknown('liste dynamique') : vs;
     }
     case 'not': {
       const a = evalNode(t.a, ctx);
-      if (isSym(a)) { const c = asCond(a); return c === false ? true : c; }
+      if (isSym(a)) {
+        const c = asCond(a);
+        return c === false ? true : c;
+      }
       return !a;
     }
-    case 'and': case 'or': {
-      const a = evalNode(t.a, ctx), b = evalNode(t.b, ctx);
-      const ca = isSym(a) ? asCond(a) : Boolean(a), cb = isSym(b) ? asCond(b) : Boolean(b);
+    case 'and':
+    case 'or': {
+      const a = evalNode(t.a, ctx),
+        b = evalNode(t.b, ctx);
+      const ca = isSym(a) ? asCond(a) : Boolean(a),
+        cb = isSym(b) ? asCond(b) : Boolean(b);
       if (t.type === 'and') {
         if (ca === false || cb === false) return false;
         if (ca === true) return cb;
@@ -212,26 +300,38 @@ function evalNode(t, ctx) {
       if (cb === false) return ca;
       return mergeCond(ca, cb);
     }
-    case 'compare': return compare(t.op, evalNode(t.a, ctx), evalNode(t.b, ctx));
-    default: return unknown('expression');
+    case 'compare':
+      return compare(t.op, evalNode(t.a, ctx), evalNode(t.b, ctx));
+    default:
+      return unknown('expression');
   }
 }
 
 function compare(op, a, b) {
-  const symA = isSym(a), symB = isSym(b);
+  const symA = isSym(a),
+    symB = isSym(b);
   if (!symA && !symB) {
     if (op === 'in' || op === 'not in') {
       if (!Array.isArray(b)) return unknown('appartenance hors liste');
       return op === 'in' ? b.includes(a) : !b.includes(a);
     }
     switch (op) {
-      case '==': case 'is': return a === b;
-      case '!=': case 'is not': return a !== b;
-      case '<': return a < b;
-      case '<=': return a <= b;
-      case '>': return a > b;
-      case '>=': return a >= b;
-      default: return unknown(`comparaison ${op}`);
+      case '==':
+      case 'is':
+        return a === b;
+      case '!=':
+      case 'is not':
+        return a !== b;
+      case '<':
+        return a < b;
+      case '<=':
+        return a <= b;
+      case '>':
+        return a > b;
+      case '>=':
+        return a >= b;
+      default:
+        return unknown(`comparaison ${op}`);
     }
   }
   const named = (x) => isSym(x) && x.symbolic === USERVAR && x.named;
@@ -242,7 +342,8 @@ function compare(op, a, b) {
   const uservar = (x) => isSym(x) && x.symbolic === USERVAR;
   // Ligne comparée à la personne : droit limité aux lignes de la personne (libellé côté user).
   if ((row(a) && uservar(b)) || (row(b) && uservar(a))) {
-    const u = uservar(a) ? a : b, r = row(a) ? a : b;
+    const u = uservar(a) ? a : b,
+      r = row(a) ? a : b;
     return sym(COND, { rows: [u.label], profile: [], unknown: false, sources: [`${r.path} ~ ${u.path}`] });
   }
   if ([a, b].some((x) => isSym(x) && x.symbolic === COND && x.unknown)) return mergeCond(a, b);
@@ -250,7 +351,12 @@ function compare(op, a, b) {
   if ((row(a) && constant(b)) || (row(b) && constant(a)) || (row(a) && row(b))) return mergeCond(row(a) ? a : null, row(b) ? b : null);
   // Critère de profil (user.Habilitation.Manager == True…) : reste variable dans le groupe.
   if ((uservar(a) && constant(b)) || (uservar(b) && constant(a)) || (uservar(a) && uservar(b))) {
-    return sym(COND, { rows: [], profile: uniq([a, b].filter(uservar).map((x) => x.label)), unknown: false, sources: [a, b].filter(uservar).map((x) => x.path) });
+    return sym(COND, {
+      rows: [],
+      profile: uniq([a, b].filter(uservar).map((x) => x.label)),
+      unknown: false,
+      sources: [a, b].filter(uservar).map((x) => x.path),
+    });
   }
   return mergeCond(a, b);
 }
@@ -262,7 +368,10 @@ function compare(op, a, b) {
 const ROLE_CONSTANTS = new Set(['OWNER', 'EDITOR', 'VIEWER']);
 /** Évalue une condition qui ne parle que du rôle de partage ; lève une erreur pour tout le reste. */
 function evalRole(t, role) {
-  const bool = (v) => { if (typeof v !== 'boolean') throw new Error('non booléen'); return v; };
+  const bool = (v) => {
+    if (typeof v !== 'boolean') throw new Error('non booléen');
+    return v;
+  };
   switch (t.type) {
     case 'path':
       if (t.value === 'user.Access') return role;
@@ -270,18 +379,30 @@ function evalRole(t, role) {
       if (t.value === 'True') return true;
       if (t.value === 'False') return false;
       throw new Error('hors du rôle');
-    case 'list': return t.values.map((v) => evalRole(v, role));
-    case 'not': return !bool(evalRole(t.a, role));
-    case 'and': { const a = bool(evalRole(t.a, role)), b = bool(evalRole(t.b, role)); return a && b; }
-    case 'or': { const a = bool(evalRole(t.a, role)), b = bool(evalRole(t.b, role)); return a || b; }
+    case 'list':
+      return t.values.map((v) => evalRole(v, role));
+    case 'not':
+      return !bool(evalRole(t.a, role));
+    case 'and': {
+      const a = bool(evalRole(t.a, role)),
+        b = bool(evalRole(t.b, role));
+      return a && b;
+    }
+    case 'or': {
+      const a = bool(evalRole(t.a, role)),
+        b = bool(evalRole(t.b, role));
+      return a || b;
+    }
     case 'compare': {
-      const a = evalRole(t.a, role), b = evalRole(t.b, role);
+      const a = evalRole(t.a, role),
+        b = evalRole(t.b, role);
       if (t.op === '==') return a === b;
       if (t.op === '!=') return a !== b;
       if ((t.op === 'in' || t.op === 'not in') && Array.isArray(b)) return t.op === 'in' ? b.includes(a) : !b.includes(a);
       throw new Error('comparaison hors du rôle');
     }
-    default: throw new Error('hors du rôle');
+    default:
+      throw new Error('hors du rôle');
   }
 }
 
@@ -306,7 +427,10 @@ function ruleDecision(rules, role, bit) {
   for (const r of rules || []) {
     if (!r.perms?.[bit]) continue;
     const c = conditionForRole(r.formula, role);
-    if (c === null) { uncertain = true; continue; }
+    if (c === null) {
+      uncertain = true;
+      continue;
+    }
     if (c) return uncertain ? null : r.perms[bit];
   }
   return uncertain ? null : undefined;

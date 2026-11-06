@@ -5,13 +5,43 @@ import path from 'node:path';
 
 const DSFR_VERSION = '1.15.4';
 const ICONS = [
-  'refresh-line', 'clipboard-line', 'download-line', 'external-link-line', 'database-line',
-  'code-s-slash-line', 'table-line', 'git-merge-line', 'search-line', 'zoom-in-line', 'zoom-out-line',
-  'save-line', 'information-line', 'warning-line', 'error-warning-line', 'checkbox-circle-line',
-  'delete-line', 'file-text-line', 'links-line', 'check-line', 'eye-line', 'edit-line',
-  'arrow-right-line', 'settings-5-line', 'lightbulb-line', 'file-download-line', 'fullscreen-line',
-  'layout-grid-line', 'focus-3-line', 'road-map-line', 'close-line', 'lock-line', 'user-line',
-  'list-unordered', 'subtract-line', 'question-line', 'line-chart-line',
+  'refresh-line',
+  'clipboard-line',
+  'download-line',
+  'external-link-line',
+  'database-line',
+  'code-s-slash-line',
+  'table-line',
+  'git-merge-line',
+  'search-line',
+  'zoom-in-line',
+  'zoom-out-line',
+  'save-line',
+  'information-line',
+  'warning-line',
+  'error-warning-line',
+  'checkbox-circle-line',
+  'delete-line',
+  'file-text-line',
+  'links-line',
+  'check-line',
+  'eye-line',
+  'edit-line',
+  'arrow-right-line',
+  'settings-5-line',
+  'lightbulb-line',
+  'file-download-line',
+  'fullscreen-line',
+  'layout-grid-line',
+  'focus-3-line',
+  'road-map-line',
+  'close-line',
+  'lock-line',
+  'user-line',
+  'list-unordered',
+  'subtract-line',
+  'question-line',
+  'line-chart-line',
 ];
 
 const pkg = process.argv[2];
@@ -21,7 +51,9 @@ const base = `https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@${DSFR_VERSION}/dist/`;
 
 const rules = [];
 for (const icon of ICONS) {
-  const re = new RegExp(`\\.fr-icon-${icon}:after,\\.fr-icon-${icon}:before\\{-webkit-mask-image:url\\(([^)]+)\\);mask-image:url\\([^)]+\\)\\}`);
+  const re = new RegExp(
+    `\\.fr-icon-${icon}:after,\\.fr-icon-${icon}:before\\{-webkit-mask-image:url\\(([^)]+)\\);mask-image:url\\([^)]+\\)\\}`,
+  );
   const m = re.exec(css);
   if (!m) throw new Error(`Icône introuvable : ${icon}`);
   const url = base + m[1].replace(/^(\.\.\/)+/, '');

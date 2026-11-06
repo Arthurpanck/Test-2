@@ -37,12 +37,26 @@ export function orthogonalPoints(sx, sy, sourceSide, tx, ty, targetSide, { offse
     const maxX = Math.max(sx + ds * offset, tx + dt * offset);
     if (ds > 0 && tx > sx) mx = Math.min(Math.max(mx, minX), maxX);
     if (ds < 0 && tx < sx) mx = Math.min(Math.max(mx, minX), maxX);
-    if (Math.abs(sy - ty) < 0.5) return [[sx, sy], [tx, ty]];
-    return [[sx, sy], [mx, sy], [mx, ty], [tx, ty]];
+    if (Math.abs(sy - ty) < 0.5)
+      return [
+        [sx, sy],
+        [tx, ty],
+      ];
+    return [
+      [sx, sy],
+      [mx, sy],
+      [mx, ty],
+      [tx, ty],
+    ];
   }
   // Même côté : on sort au-delà de la table la plus avancée, puis on revient.
   const mx = ds > 0 ? Math.max(sx, tx) + offset + shift : Math.min(sx, tx) - offset - shift;
-  return [[sx, sy], [mx, sy], [mx, ty], [tx, ty]];
+  return [
+    [sx, sy],
+    [mx, sy],
+    [mx, ty],
+    [tx, ty],
+  ];
 }
 
 const round = (n) => Math.round(n * 10) / 10;
@@ -58,7 +72,10 @@ export function roundedPath(points, radius = EDGE_RADIUS) {
     const inLen = Math.hypot(cx - px, cy - py);
     const outLen = Math.hypot(nx - cx, ny - cy);
     const r = Math.min(radius, inLen / 2, outLen / 2);
-    if (r < 0.5) { d += ` L${round(cx)},${round(cy)}`; continue; }
+    if (r < 0.5) {
+      d += ` L${round(cx)},${round(cy)}`;
+      continue;
+    }
     const ax = cx - ((cx - px) / inLen) * r;
     const ay = cy - ((cy - py) / inLen) * r;
     const bx = cx + ((nx - cx) / outLen) * r;
@@ -78,8 +95,10 @@ export function cardinalityMarker(x, y, side, kind, length = MARKER_LENGTH) {
   const tip = x + d * length;
   if (kind === 'many') {
     const spread = 6;
-    return `M${round(tip)},${round(y)} L${round(x)},${round(y - spread)} M${round(tip)},${round(y)} L${round(x)},${round(y)} `
-      + `M${round(tip)},${round(y)} L${round(x)},${round(y + spread)}`;
+    return (
+      `M${round(tip)},${round(y)} L${round(x)},${round(y - spread)} M${round(tip)},${round(y)} L${round(x)},${round(y)} ` +
+      `M${round(tip)},${round(y)} L${round(x)},${round(y + spread)}`
+    );
   }
   const bar = x + d * 8;
   return `M${round(bar)},${round(y - 6)} L${round(bar)},${round(y + 6)}`;
@@ -125,17 +144,27 @@ export function lookupGeometry(srcRect, srcY, tgtRect, tgtY, { shift = 0 } = {})
 export function loopGeometry(rect, srcY, tgtY, { shift = 0 } = {}) {
   const x = rect.x + rect.w;
   const o = 16 + shift;
-  const points = [[x, srcY], [x + o, srcY], [x + o, tgtY], [x, tgtY]];
+  const points = [
+    [x, srcY],
+    [x + o, srcY],
+    [x + o, tgtY],
+    [x, tgtY],
+  ];
   return { sides: { source: 'right', target: 'right' }, points, path: roundedPath(points), arrow: arrowHead(x, tgtY, 'right') };
 }
 
 /** Rectangle englobant d'un ensemble de rectangles. */
 export function boundsOf(rects) {
   if (!rects.length) return { x: 0, y: 0, w: 0, h: 0 };
-  let x1 = Infinity; let y1 = Infinity; let x2 = -Infinity; let y2 = -Infinity;
+  let x1 = Infinity;
+  let y1 = Infinity;
+  let x2 = -Infinity;
+  let y2 = -Infinity;
   for (const r of rects) {
-    x1 = Math.min(x1, r.x); y1 = Math.min(y1, r.y);
-    x2 = Math.max(x2, r.x + r.w); y2 = Math.max(y2, r.y + r.h);
+    x1 = Math.min(x1, r.x);
+    y1 = Math.min(y1, r.y);
+    x2 = Math.max(x2, r.x + r.w);
+    y2 = Math.max(y2, r.y + r.h);
   }
   return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
 }
@@ -166,7 +195,14 @@ export function buildElkGraph(nodes, edges, { aspectRatio = 1.6 } = {}) {
         const pid = `${n.id}::${e.column}::out`;
         if (!seen.has(pid)) {
           seen.add(pid);
-          ports.push({ id: pid, x: n.w, y: n.ports?.[e.column] ?? n.h / 2, width: 1, height: 1, layoutOptions: { 'elk.port.side': 'EAST' } });
+          ports.push({
+            id: pid,
+            x: n.w,
+            y: n.ports?.[e.column] ?? n.h / 2,
+            width: 1,
+            height: 1,
+            layoutOptions: { 'elk.port.side': 'EAST' },
+          });
         }
       }
       if (e.target === n.id && e.source !== n.id && ids.has(e.source)) {

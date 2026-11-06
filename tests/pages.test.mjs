@@ -5,13 +5,19 @@ import { buildPages, pageInsights, originText, typeCounts } from '../assets/page
 import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
 
 const SELF = 'https://raw.githack.com/Arthurpanck/Test-2/main/index.html?v=3.14.0';
-const model = () => { const m = metadataFromDefinition(definition); return buildPages({ pages: m.pages, views: m.views, sections: m.sections, tables: m.tables, selfUrl: SELF }); };
+const model = () => {
+  const m = metadataFromDefinition(definition);
+  return buildPages({ pages: m.pages, views: m.views, sections: m.sections, tables: m.tables, selfUrl: SELF });
+};
 
 test('les tableaux sont comptés mais pas détaillés', () => {
   const m = model();
   assert.ok(m.tableWidgetCount >= 8);
   assert.ok([...m.custom, ...m.views].every((w) => w.type !== 'record'));
-  assert.deepEqual(m.views.map((w) => w.typeLabel), ['Fiche', 'Graphique (barres)']);
+  assert.deepEqual(
+    m.views.map((w) => w.typeLabel),
+    ['Fiche', 'Graphique (barres)'],
+  );
   assert.equal(m.views[0].linkedTo, 'Clients');
   assert.ok(m.tableOnlyPages.includes('Commandes') && !m.tableOnlyPages.includes('Suivi clients'));
   assert.deepEqual(m.tablesWithoutPage, ['Brouillon', 'Test']);
@@ -31,10 +37,15 @@ test('widgets personnalisés : origine, auteur, accès, colonnes manquantes', ()
 
 test('constats sur les widgets', () => {
   const items = pageInsights(model());
-  assert.deepEqual(items.map((i) => [i.id, i.severity]), [
-    ['widget-unmapped', 'blocking'], ['page-default-name', 'improve'],
-    ['table-without-page', 'choice'], ['widget-in-document', 'info'],
-  ]);
-  assert.ok(!items.some(i=>['widget-full-access','widget-community'].includes(i.id)));
+  assert.deepEqual(
+    items.map((i) => [i.id, i.severity]),
+    [
+      ['widget-unmapped', 'blocking'],
+      ['page-default-name', 'improve'],
+      ['table-without-page', 'choice'],
+      ['widget-in-document', 'info'],
+    ],
+  );
+  assert.ok(!items.some((i) => ['widget-full-access', 'widget-community'].includes(i.id)));
   assert.ok(items.every((i) => i.area === 'pages'));
 });

@@ -35,7 +35,9 @@ export function findFormulaDeps(tables) {
     for (const a of attrs) {
       const ref = byName.get(table)?.get(col)?.ref?.table;
       if (!ref || !byName.get(ref)?.has(a)) break;
-      table = ref; col = a; via = 'ref';
+      table = ref;
+      col = a;
+      via = 'ref';
     }
     return { table, col, via };
   };

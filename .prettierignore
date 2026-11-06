@@ -1,0 +1,8 @@
+node_modules
+vendor
+assets/vendor
+*.min.js
+assets/icons
+captures
+assets/dsfr-icons.css
+tests/fixtures

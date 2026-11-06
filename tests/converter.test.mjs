@@ -9,8 +9,14 @@ import path from 'node:path';
 
 import { convertModelCorrected, schemaFromMetadata, modelFromSchema, computeStats, getGristTypeCode } from '../assets/converter.js';
 import {
-  convertCodeStrict, parseGristCodeStrict, PythonFormulaError, parseGristCodeCorrected,
-  generateCodeView, convertAll, analyze, convertTypeStrict,
+  convertCodeStrict,
+  parseGristCodeStrict,
+  PythonFormulaError,
+  parseGristCodeCorrected,
+  generateCodeView,
+  convertAll,
+  analyze,
+  convertTypeStrict,
 } from '../assets/converter-code.js';
 import { metadataFromModel } from './helpers.mjs';
 
@@ -19,7 +25,9 @@ const fixture = (name) => readFileSync(path.join(here, 'fixtures', name), 'utf8'
 
 function runPython(inputs) {
   const res = spawnSync('python3', [path.join(here, 'reference', 'run_reference.py')], {
-    input: JSON.stringify(inputs), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024,
+    input: JSON.stringify(inputs),
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
   });
   if (res.status !== 0) throw new Error(res.stderr);
   return JSON.parse(res.stdout);
@@ -48,10 +56,44 @@ function rng(seed) {
   };
 }
 
-const NAMES = ['Agents', 'Interventions', 'Dates', 'Textes', 'Choix', 'Choices', 'Numerics', 'Notes',
-  'Projet_lie', 'Été', '名前', 'Int', 'A', 'Reference', 'Attachments_x', 'Sujet', 'Document_lie', '_x', 'x1'];
-const TYPES = ['Text', 'Int', 'Numeric', 'Date', 'DateTime', 'Bool', 'Choice', 'ChoiceList', 'Any',
-  'Attachments', 'PositionNumber', 'Ref', 'RefList', 'Blob', 'ManualSortPos'];
+const NAMES = [
+  'Agents',
+  'Interventions',
+  'Dates',
+  'Textes',
+  'Choix',
+  'Choices',
+  'Numerics',
+  'Notes',
+  'Projet_lie',
+  'Été',
+  '名前',
+  'Int',
+  'A',
+  'Reference',
+  'Attachments_x',
+  'Sujet',
+  'Document_lie',
+  '_x',
+  'x1',
+];
+const TYPES = [
+  'Text',
+  'Int',
+  'Numeric',
+  'Date',
+  'DateTime',
+  'Bool',
+  'Choice',
+  'ChoiceList',
+  'Any',
+  'Attachments',
+  'PositionNumber',
+  'Ref',
+  'RefList',
+  'Blob',
+  'ManualSortPos',
+];
 const WS = ['', ' ', '  ', '\t', '\xa0', '\u3000', '\x1c', '\x85', '\ufeff'];
 
 function randomLine(r) {
@@ -112,13 +154,21 @@ function randomMetadata(r) {
   const cols = { id: [], parentId: [], parentPos: [], colId: [], type: [], isFormula: [], formula: [], reverseCol: [] };
   let colRef = 1;
   const addCol = (parentId, pos, colId, type, isFormula, formula, reverseCol = 0) => {
-    cols.id.push(colRef); cols.parentId.push(parentId); cols.parentPos.push(pos); cols.colId.push(colId);
-    cols.type.push(type); cols.isFormula.push(isFormula); cols.formula.push(formula); cols.reverseCol.push(reverseCol);
+    cols.id.push(colRef);
+    cols.parentId.push(parentId);
+    cols.parentPos.push(pos);
+    cols.colId.push(colId);
+    cols.type.push(type);
+    cols.isFormula.push(isFormula);
+    cols.formula.push(formula);
+    cols.reverseCol.push(reverseCol);
     return colRef++;
   };
   tableIds.forEach((tableId, i) => {
     const tref = i + 1;
-    tables.id.push(tref); tables.tableId.push(tableId); tables.summarySourceTable.push(0);
+    tables.id.push(tref);
+    tables.tableId.push(tableId);
+    tables.summarySourceTable.push(0);
     addCol(tref, 0.5, 'manualSort', 'ManualSortPos', false, '');
     const nCols = Math.floor(r() * 8);
     for (let k = 0; k < nCols; k++) {
@@ -126,7 +176,7 @@ function randomMetadata(r) {
       if (type === 'Ref' || type === 'RefList') type += ':' + pick(tableIds);
       if (type === 'DateTime') type += ':Europe/Paris';
       const isFormula = r() < 0.4;
-      const formula = isFormula ? pick(['', '$Nom', 'len($group)', 'x = 1\nx + 1', 'return 5', '# rien']) : (r() < 0.2 ? '$Nom' : '');
+      const formula = isFormula ? pick(['', '$Nom', 'len($group)', 'x = 1\nx + 1', 'return 5', '# rien']) : r() < 0.2 ? '$Nom' : '';
       addCol(tref, k + 1 + r(), `Col_${k}_${pick(['a', 'b', 'Note'])}`, type, isFormula, formula);
     }
     if (r() < 0.3) addCol(tref, 99, 'gristHelper_Display', 'Any', true, '$Col_0_a');
@@ -134,7 +184,9 @@ function randomMetadata(r) {
   if (r() < 0.5) {
     const src = 1 + Math.floor(r() * tableIds.length);
     const sref = tableIds.length + 1;
-    tables.id.push(sref); tables.tableId.push(`${tableIds[src - 1]}_summary`); tables.summarySourceTable.push(src);
+    tables.id.push(sref);
+    tables.tableId.push(`${tableIds[src - 1]}_summary`);
+    tables.summarySourceTable.push(src);
     addCol(sref, 1, 'group', `RefList:${tableIds[src - 1]}`, true, 'table.getSummarySourceGroup(rec)');
     addCol(sref, 2, 'count', 'Int', true, 'len($group)');
     if (r() < 0.5) addCol(sref, 3, 'Total', 'Numeric', true, 'SUM($group.Montant)');
@@ -178,12 +230,18 @@ test('différentiel : JS strict ≡ formule Python sur les fixtures et 3 000 ent
     if (!expected[i].ok) errors++;
     assert.deepEqual(got, expected[i], `Entrée n°${i} :\n${JSON.stringify(text).slice(0, 400)}`);
   });
-  assert.ok(errors > 10, 'le générateur doit aussi couvrir les cas d\'erreur Python');
+  assert.ok(errors > 10, "le générateur doit aussi couvrir les cas d'erreur Python");
 });
 
 test('cas limites : erreurs Python reproduites', () => {
-  assert.throws(() => parseGristCodeStrict('  def x(rec, table):'), (e) => e.pyType === 'KeyError');
-  assert.throws(() => parseGristCodeStrict('class _Summary:'), (e) => e.pyType === 'TypeError');
+  assert.throws(
+    () => parseGristCodeStrict('  def x(rec, table):'),
+    (e) => e.pyType === 'KeyError',
+  );
+  assert.throws(
+    () => parseGristCodeStrict('class _Summary:'),
+    (e) => e.pyType === 'TypeError',
+  );
 });
 
 test('convert_type : détection par sous-chaîne reproduite', () => {
@@ -213,9 +271,12 @@ test('mode « Ce document » : la Vue du code reconstituée donne le même DBML 
   // Les lignes structurelles sont identiques à la vraie Vue du code.
   // (Le code collé dans le document a des fins de ligne Windows ; les formules de valeur
   // par défaut `_default_*` ne sont pas reconstruites par cet aller-retour.)
-  const structural = (t) => t.replace(/\r/g, '').split('\n')
-    .filter((l) => /^(@grist|class |  class |\s*@grist\.formulaType|\s*def |\s*\w+ = grist\.)/.test(l))
-    .filter((l) => !l.includes('def _default_'));
+  const structural = (t) =>
+    t
+      .replace(/\r/g, '')
+      .split('\n')
+      .filter((l) => /^(@grist|class |  class |\s*@grist\.formulaType|\s*def |\s*\w+ = grist\.)/.test(l))
+      .filter((l) => !l.includes('def _default_'));
   assert.deepEqual(structural(view), structural(code));
 });
 
@@ -240,8 +301,16 @@ test('moteur corrigé ≡ moteur strict sur des schémas aléatoires, hors corre
     // Sans colonne piégeuse, les deux sorties coïncident.
     const strictT = result.strict.tables;
     const corrT = result.corrected.tables;
-    assert.deepEqual(strictT.map((t) => t.name), corrT.map((t) => t.name));
-    strictT.forEach((t, k) => assert.deepEqual(t.columns.map((c) => c.name), corrT[k].columns.map((c) => c.name)));
+    assert.deepEqual(
+      strictT.map((t) => t.name),
+      corrT.map((t) => t.name),
+    );
+    strictT.forEach((t, k) =>
+      assert.deepEqual(
+        t.columns.map((c) => c.name),
+        corrT[k].columns.map((c) => c.name),
+      ),
+    );
   }
 });
 
@@ -260,7 +329,8 @@ test('analyse des cas limites', () => {
     'missing-column:Agents.Sans_type',
     'summary:.',
     'two-way:.',
-  ]) assert.ok(strictCodes.includes(expected), `attendu : ${expected}\nobtenu : ${strictCodes.join(', ')}`);
+  ])
+    assert.ok(strictCodes.includes(expected), `attendu : ${expected}\nobtenu : ${strictCodes.join(', ')}`);
   const corrCodes = codes('corrected');
   assert.ok(corrCodes.includes('unknown-ref:Interventions.Categorie'));
   assert.ok(corrCodes.includes('unknown-ref:Interventions.Modele'));
@@ -274,8 +344,10 @@ test('analyse des cas limites', () => {
   assert.equal(types.Sans_type, '"formula[default]"');
   assert.equal(types.compter, undefined);
   assert.ok(!result.corrected.tables.some((t) => t.name === 'Brouillon'));
-  assert.deepEqual(result.corrected.tables.map((t) => t.name),
-    ['Agents', 'Dates_cles', 'Interventions', 'Interventions_Summary', 'Services', 'Vide']);
+  assert.deepEqual(
+    result.corrected.tables.map((t) => t.name),
+    ['Agents', 'Dates_cles', 'Interventions', 'Interventions_Summary', 'Services', 'Vide'],
+  );
 });
 
 test('statistiques', () => {
