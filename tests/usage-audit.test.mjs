@@ -6,7 +6,7 @@ import { runAudit, AUDIT_LIMITS } from '../assets/audit-engine.js';
 import { parseUsageLookup, usageContract, inspectUsage, USAGE_LIMITS } from '../assets/usage-audit.js';
 import { buildInsights } from '../assets/insights.js';
 import { buildReport, renderHtml } from '../assets/report.js';
-import { AUDIT_CATALOG } from '../assets/audit-catalog.js';
+import {AUDIT_CATALOG } from './audit-decisions.mjs';
 
 const col=(colId,type='Text',formula='',extra={})=>({colId,type,formula,isFormula:!!formula,...extra});
 function model(tables) {

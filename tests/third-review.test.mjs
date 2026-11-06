@@ -8,8 +8,8 @@ import {buildAccess,accessInsights} from '../assets/access.js';
 import {buildInsights} from '../assets/insights.js';
 import {runAudit} from '../assets/audit-engine.js';
 import {pageInsights} from '../assets/pages.js';
-import {REMOVED_FINDING_IDS} from '../assets/audit-policy.js';
-import {RETAINED_IDS} from '../assets/audit-catalog.js';
+import {REMOVED_FINDING_IDS} from './audit-decisions.mjs';
+import {RETAINED_IDS} from './audit-decisions.mjs';
 import {buildReport,renderHtml} from '../assets/report.js';
 
 function doc(columns, rows) {
@@ -66,7 +66,7 @@ test('les suppressions sortent des analyses, des validations positives et des ca
  const removed=['acl-hidden','duplicate-table','text-ref','summary','N17','N28','N57'];
  const x=doc([['Date_import','Numeric'],['Parent','Ref:T']],Array.from({length:6},(_,i)=>({Date_import:45000+i,Parent:i+1})));
  const ins=buildInsights(x.tables,null,{profiles:x.profiles,audit:{schema:x.schema,data:x.data}});
- for(const id of removed){assert.ok(REMOVED_FINDING_IDS.has(id),id);assert.ok(!ins.items.some(i=>i.id===id));assert.ok(!ins.checks.some(i=>i.id===id));}
+ for(const id of removed){assert.ok(REMOVED_FINDING_IDS.has(id),id);assert.ok(!ins.items.some(i=>i.id===id));}
  const engine=readFileSync(new URL('../assets/audit-engine.js',import.meta.url),'utf8');
  for(const id of ['N17','N28','N57']){assert.ok(!engine.includes("'"+id+"'"));assert.ok(!RETAINED_IDS.includes(id));}
  const data=readFileSync(new URL('../assets/datacheck.js',import.meta.url),'utf8');assert.doesNotMatch(data,/countByKey|keyIndex|sameBase|baseName|const dups/);

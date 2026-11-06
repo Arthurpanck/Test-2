@@ -13,7 +13,6 @@ import { accessInsights } from './access.js?v=3.17.0';
 import { structureSmells } from './datacheck.js?v=3.17.0';
 import { runAudit } from './audit-engine.js?v=3.17.0';
 import { pageInsights } from './pages.js?v=3.17.0';
-import { REMOVED_FINDING_IDS } from './audit-policy.js?v=3.17.0';
 
 
 export const SEVERITIES = {
@@ -38,7 +37,7 @@ export function insightKey(it) {
  * @param {Array} tables   tables de la conversion ({ name, kind, columns: [{ name, base, isFormula, ref }] })
  * @param {object} [access] buildAccess() : ajoute les constats sur les droits d'accès
  * @param {object} [opts]  { profiles: profileTables(), accepted: Set de insightKey() }
- * @returns {{ verdict, counts, items, accepted, checks }}
+ * @returns {{ verdict, counts, items, accepted, audit }}
  */
 export function buildInsights(tables, access = null, { profiles = null, accepted = null, pages = null, audit = null } = {}) {
   const items = [];
@@ -85,7 +84,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const auditResult = audit ? runAudit({ ...audit, access, pages }) : null;
   items.push(...pageInsights(pages).filter(i => !(auditResult && i.id === 'table-without-page')));
   if (auditResult) items.push(...auditResult.items);
-  for (let i=items.length-1;i>=0;i--) if(REMOVED_FINDING_IDS.has(items[i].id)) items.splice(i,1);
   items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
 
   const acceptedItems = accepted ? items.filter((it) => it.severity === 'choice' && accepted.has(insightKey(it))) : [];
@@ -93,16 +91,6 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const counts = Object.fromEntries(LEVELS.map((l) => [l, 0]));
   for (const it of active) counts[it.severity] += 1;
 
-  const has = (id) => items.some((i) => i.id === id);
-  const checks = [];
-  if (profiles) checks.push({ id: 'typed-as-text', label: 'Les nombres ont un type numérique' }, { id: 'boolean-as-text', label: 'Les oui/non ont un type booléen' }, { id: 'date-as-text', label: 'Les dates ont le type Date' });
-  if (profiles) checks.push({ id: 'choice-outside', label: 'Les listes de choix sont respectées' });
-  if (access && access.hasRules) {
-    if (access.restrictsRead) checks.push({ id: 'acl-bypass', label: 'Les données cachées ne sont pas lisibles par formule' });
-  }
-  if (pages) checks.push({ id: 'widget-unmapped', label: 'Les vues personnalisées ont leurs colonnes' });
-  // ok : aucun constat de ce contrôle (y compris les choix confirmés, qui restent des constats).
-  for (const c of checks) c.ok = !has(c.id);
 
   const blockingItems = active.filter((i) => i.severity === 'blocking');
   let verdict;
@@ -124,7 +112,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     ].filter(Boolean);
     verdict = { level: 'ready', title: 'Aucun problème bloquant détecté', text: rest.length ? `${rest.join(' et ')} dans les éléments analysés.` : 'Aucun problème détecté dans les éléments analysés.' };
   }
-  return { verdict, counts, items: active, accepted: acceptedItems, checks, audit: auditResult };
+  return { verdict, counts, items: active, accepted: acceptedItems, audit: auditResult };
 }
 
 /** Étapes affichées sous « Sinon » : sans le « Sinon : » de tête, qui ferait doublon. */

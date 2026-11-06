@@ -151,11 +151,6 @@ export function fitTransform(bounds, viewW, viewH, { padding = 32, minScale = 0.
   };
 }
 
-/** Deux rectangles se chevauchent-ils (marge comprise) ? */
-export function overlaps(a, b, margin = 0) {
-  return a.x < b.x + b.w + margin && b.x < a.x + a.w + margin && a.y < b.y + b.h + margin && b.y < a.y + a.h + margin;
-}
-
 /**
  * Graphe ELK : une table = un nœud, une relation = une arête entre le port de la colonne
  * source (à droite) et le port de la clé de la table cible (à gauche). ELK place ainsi les

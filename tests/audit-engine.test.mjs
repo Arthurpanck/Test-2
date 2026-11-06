@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { runAudit, sampleAuditData, conditionForRole, effectivePermission, simpleLookups, AUDIT_LIMITS } from '../assets/audit-engine.js';
 import { maskPython } from '../assets/python-text.js';
-import { AUDIT_CATALOG, RETAINED_IDS } from '../assets/audit-catalog.js';
+import {AUDIT_CATALOG, RETAINED_IDS } from './audit-decisions.mjs';
 import { buildInsights, insightKey } from '../assets/insights.js';
 import { buildAccess } from '../assets/access.js';
 import { buildReport, renderHtml } from '../assets/report.js';

@@ -17,35 +17,15 @@ import { maskPython } from './python-text.js?v=3.17.0';
 
 export { PERMISSIONS, PERMISSION_LABEL, parsePermissions };
 
-/** Réglages spéciaux (`*SPECIAL`) connus. */
-export const SPECIAL = {
-  FullCopies: {
-    label: 'Copier le document entier',
-    allowed: 'Les personnes visées peuvent copier tout le document ou l\'ouvrir en mode bac à sable, données protégées comprises.',
-    byDefault: 'Seuls les propriétaires peuvent copier le document entier.',
-  },
-  AccessRules: {
-    label: 'Voir les droits d’accès',
-    allowed: 'Les personnes visées peuvent lire les règles d\'accès du document.',
-    byDefault: 'Seuls les propriétaires voient les règles d\'accès.',
-  },
-  DocCopies: {
-    label: 'Copies du document',
-    allowed: 'Réglage spécial « DocCopies » activé pour les personnes visées.',
-    byDefault: 'Réglage spécial « DocCopies » non utilisé.',
-  },
-  SchemaEdit: {
-    label: 'Modifier la structure (ancien réglage)',
-    allowed: 'Réglage spécial « SchemaEdit » défini.',
-    byDefault: '',
-  },
-  SeedRule: {
-    label: 'Règles ajoutées d\'office',
-    allowed: 'Case « Ajouter automatiquement une règle pour les propriétaires » des règles d\'accès : quand on crée des règles pour une table ou une colonne, Grist les fait précéder de celles-ci.',
-    byDefault: '',
-  },
+/** Libellés des réglages spéciaux (`*SPECIAL`), pour la liste des règles. */
+export const SPECIAL_LABELS = {
+  FullCopies: 'Copier le document entier',
+  AccessRules: 'Voir les droits d’accès',
+  DocCopies: 'Copies du document',
+  SchemaEdit: 'Modifier la structure (ancien réglage)',
+  SeedRule: 'Règles ajoutées d\'office',
+  SeedRules: 'Règles ajoutées d\'office', // orthographe des anciens documents
 };
-SPECIAL.SeedRules = SPECIAL.SeedRule; // orthographe des anciens documents
 
 /**
  * Réglages généraux à signaler : l'état des permissions avancées, puis les trois cases de la page
@@ -195,9 +175,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     if (res.tableId === '*') {
       defaults.push(...makeRules(res, list, DEFAULT_BITS));
     } else if (res.tableId === '*SPECIAL') {
-      const info = SPECIAL[res.colIds] || { label: res.colIds, allowed: `Réglage spécial « ${res.colIds} ».`, byDefault: '' };
-      const rs = makeRules(res, list, DEFAULT_BITS);
-      special.push({ id: res.colIds, ...info, rules: rs, allowedForAll: rs.some((x) => !x.formula && Object.values(x.perms).includes('allow')) });
+      special.push({ id: res.colIds, label: SPECIAL_LABELS[res.colIds] || res.colIds, rules: makeRules(res, list, DEFAULT_BITS) });
     } else {
       if (!tableMap.has(res.tableId)) tableMap.set(res.tableId, { tableId: res.tableId, missing: !tableExists(res.tableId), rules: [], columns: [] });
       const entry = tableMap.get(res.tableId);
@@ -301,10 +279,6 @@ export function accessInsights(access) {
   return items;
 }
 
-/** Lignes du tableau des règles (pour l'aperçu, le CSV et le rapport). */
-export function permissionCells(rule, bits) {
-  return bits.map((bit) => ({ bit, state: rule.perms[bit] || null }));
-}
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
 
 

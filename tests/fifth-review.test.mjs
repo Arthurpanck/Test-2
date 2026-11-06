@@ -5,8 +5,8 @@ import {structureSmells,profileTables} from '../assets/datacheck.js';
 import {buildInsights} from '../assets/insights.js';
 import {buildAccess,accessInsights} from '../assets/access.js';
 import {runAudit} from '../assets/audit-engine.js';
-import {AUDIT_CATALOG,RETAINED_IDS} from '../assets/audit-catalog.js';
-import {REMOVED_FINDING_IDS} from '../assets/audit-policy.js';
+import {AUDIT_CATALOG,RETAINED_IDS} from './audit-decisions.mjs';
+import {REMOVED_FINDING_IDS} from './audit-decisions.mjs';
 import {schemaFromMetadata} from '../assets/converter.js';
 import {convertAll} from '../assets/converter-code.js';
 import {definition,metadataFromDefinition} from './fixtures/mal-structure.mjs';
@@ -25,7 +25,7 @@ test('les quatre retraits sont absents des constats, des confirmations et des va
  const m=metadataFromDefinition(definition),schema=schemaFromMetadata(m.tables,m.cols),tables=convertAll({schema}).corrected.tables,access=buildAccess({schema,resources:m.aclResources,rules:m.aclRules});
  const ins=buildInsights(tables,access,{profiles:profileTables(m.records),audit:{schema,data:m.records}});
  const removed=['N41','acl-attribute','acl-unknown-attribute','acl-attr-unused'];
- for(const id of removed){assert.ok(REMOVED_FINDING_IDS.has(id));assert.ok(![...ins.items,...ins.accepted,...ins.checks,...ins.audit.checks].some(i=>i.id===id),id);}
+ for(const id of removed){assert.ok(REMOVED_FINDING_IDS.has(id));assert.ok(![...ins.items,...ins.accepted,...ins.audit.checks].some(i=>i.id===id),id);}
  const html=renderHtml(buildReport({tables,insights:ins,stats:{tables:tables.length,relations:0},docName:'Revue',date:new Date()},['analysis']));
  assert.doesNotMatch(html,/Des années sont réparties|Attribut utilisateur inexistant|Attribut utilisateur inutilisé|Condition de droit d’accès utilisant un attribut inconnu/);
  assert.ok(access.attributes.length>0,'les déclarations restent dans le modèle des droits pour la matrice');

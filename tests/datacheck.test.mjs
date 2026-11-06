@@ -86,7 +86,6 @@ test('aucun texte d\'analyse ne parle du DBML', () => {
   for (const it of [...ins.items, { title: ins.verdict.title, summary: ins.verdict.text, why: '', steps: [] }]) {
     assert.ok(!/DBML/i.test([it.title, it.summary, it.why, it.intended || '', ...it.steps].join(' ')), it.title);
   }
-  for (const c of ins.checks) assert.ok(!/DBML/i.test(c.label), c.label);
 });
 
 test('vu par le propriétaire : tables entièrement masquées (nom effacé par Grist)', () => {

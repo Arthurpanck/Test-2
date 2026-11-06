@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {annualColumnFamilies} from '../assets/annual-columns.js';
 import {runAudit} from '../assets/audit-engine.js';
-import {AUDIT_CATALOG,RETAINED_IDS} from '../assets/audit-catalog.js';
-import {REMOVED_FINDING_IDS} from '../assets/audit-policy.js';
+import {AUDIT_CATALOG,RETAINED_IDS} from './audit-decisions.mjs';
+import {REMOVED_FINDING_IDS} from './audit-decisions.mjs';
 import {buildAccess,accessInsights} from '../assets/access.js';
 import {buildInsights} from '../assets/insights.js';
 import {schemaFromMetadata} from '../assets/converter.js';
@@ -15,20 +14,10 @@ import {definition,metadataFromDefinition} from './fixtures/mal-structure.mjs';
 const cols=names=>names.map(colId=>({colId,label:colId,type:'Numeric',isFormula:false}));
 const context=columns=>({schema:new Map([['T',{tableId:'T',columns:new Map(columns.map(c=>[c.colId,c]))}]]),data:{}});
 
-test('N41 est retiré de l’audit ; l’ancien helper reste indépendant',()=>{
+test('N41 est retiré de l’audit (et son module de détection supprimé)',()=>{
  const c=cols(['Cotisation_Annee_1','Cotisation_Annee_2','Cotisation_Annee_3']);
- assert.equal(annualColumnFamilies(c).length,1);assert.ok(!runAudit(context(c)).items.some(i=>i.id==='N41'));
+ assert.ok(!runAudit(context(c)).items.some(i=>i.id==='N41'));
  assert.ok(!RETAINED_IDS.includes('N41'));assert.ok(REMOVED_FINDING_IDS.has('N41'));
- const emptyAny=c.map(x=>({...x,type:'Any',isFormula:true,formula:''}));assert.equal(annualColumnFamilies(emptyAny).length,1,'Any vide n’est pas une formule calculée');
-});
-test('N41 : années calendaires et libellés accentués sont reconnus, sans doublonner les noms',()=>{
- const calendar=cols(['Budget_2024','Budget_2025','Budget_2026']);assert.equal(annualColumnFamilies(calendar).length,1);
- const labels=cols(['A','B','C']).map((c,i)=>({...c,label:'Année '+(i+1)}));assert.equal(annualColumnFamilies(labels).length,1);
- const duplicateNames=calendar.map(c=>({...c,label:c.colId.replace('_',' ')}));assert.equal(annualColumnFamilies(duplicateNames).length,1);
-});
-test('N41 : pas de faux rapprochement de sujets différents ni de simples numéros',()=>{
- for(const names of [['Creation_2024','Validation_2025','Budget_2026'],['Telephone_1','Telephone_2','Telephone_3'],['Budget_2024','Budget_2025'],['Annee_0','Annee_1','Annee_2']])assert.equal(annualColumnFamilies(cols(names)).length,0,names.join(','));
- assert.equal(annualColumnFamilies(cols(['Budget_2024','Budget_2025','Budget_2026']).map(c=>({...c,isFormula:true,formula:'$Montant'}))).length,0);
 });
 test('deuxième revue : niveaux des contrôles enrichis et absence des calculs supprimés',()=>{
  for(const id of ['N06','N09','N31','N50','N53','N57'])assert.equal(AUDIT_CATALOG.find(x=>x.id===id).severity,'blocking',id);
