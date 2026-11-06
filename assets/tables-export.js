@@ -5,6 +5,7 @@
  * Module pur.
  */
 import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.17.0';
+import { frenchDateTime as fmtDate } from './util.js?v=3.17.0';
 import { writeXlsx, cellRef } from './xlsx.js?v=3.17.0';
 
 const GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD';
@@ -29,7 +30,6 @@ const STYLES = {
 const STYLE_OF = ['name', 'text', 'sql', 'type', 'text', 'computed', 'formula', 'doc'];
 const styleOf = (r, v, i) => (r.isKey && i === 0 ? 'key' : v === 'Non calculé' || v === 'Non concerné' ? 'muted' : v === 'Pas de documentation' ? 'noDoc' : STYLE_OF[i]);
 const cells = (r) => rowValues(r).map((v, i) => ({ v, s: styleOf(r, v, i) }));
-const fmtDate = (d) => `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 
 /** @param {Array} tables  tables de sortie du convertisseur */
 export function tablesWorkbook(tables, { docName = '', date = new Date() } = {}) {

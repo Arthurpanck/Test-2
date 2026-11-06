@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.17.0';
+import { columnarToRows, fold, isVisibleColumn } from './util.js?v=3.17.0';
 
 const MAX_DISTINCT = 2000;
 
@@ -58,7 +58,7 @@ export function profileTables(data) {
     const ids = Array.isArray(columnar.id) ? columnar.id : columnarToRows(columnar).map((r) => r.id);
     const columns = new Map();
     for (const [colId, values] of Object.entries(columnar)) {
-      if (colId === 'id' || colId === 'manualSort' || colId.startsWith('gristHelper_')) continue;
+      if (!isVisibleColumn(colId)) continue;
       if (Array.isArray(values)) columns.set(colId, profileValues(values));
     }
     out.set(tableId, { rows: ids.length, columns });
@@ -66,7 +66,6 @@ export function profileTables(data) {
   return out;
 }
 
-const fold = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 // Codes qui ressemblent à des nombres mais doivent rester du texte (zéros en tête, pas de calcul).
 const CODE_NAME = /^(cp|code.*|.*postal.*|tel|tel_.*|telephone.*|portable|mobile|siret|siren|iban|zip|numero.*|num_.*|ref|reference.*|matricule)$/;
 const DEFAULT_COLUMN = /^([A-Z]|(Colonne|Column|Col|Champ)_?\d+|Col_[A-Z])$/;

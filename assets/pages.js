@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows } from './converter.js?v=3.17.0';
+import { columnarToRows, fold, parseJsonObject as parseJson } from './util.js?v=3.17.0';
 
 /** Types de vues, avec les libellés de Grist. */
 export const WIDGET_TYPES = {
@@ -43,11 +43,6 @@ export function columnLines(c) {
 
 export const ORIGIN_LABELS = { gallery: 'Galerie Grist', external: 'Site externe', document: 'Code dans le document', self: 'Cette vue d\'audit' };
 
-function parseJson(value) {
-  if (value && typeof value === 'object') return value;
-  if (typeof value !== 'string' || !value.trim()) return {};
-  try { return JSON.parse(value) || {}; } catch { return {}; }
-}
 
 const hostOf = (url) => { try { return url ? new URL(url).host : ''; } catch { return ''; } };
 const bareUrl = (url) => String(url || '').split(/[?#]/)[0].replace(/\/index\.html$/, '/').replace(/\/+$/, '');
@@ -186,7 +181,7 @@ export function pageInsights(model) {
       targets: unmapped.map((w) => ({ table: w.page, note: `${widgetName(w)} — à associer : ${w.custom.missingColumns.join(', ')}` })),
     });
   }
-  const pageNameKey = (name) => String(name || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const pageNameKey = (name) => fold(String(name || '').trim());
   const defaults = model.pages.flatMap((p) => {
     const name = String(p.name || '').trim();
     const sameTable = p.widgets.find((w) => w.table && name && pageNameKey(name) === pageNameKey(w.table));

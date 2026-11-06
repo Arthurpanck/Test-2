@@ -13,6 +13,7 @@
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
 import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.17.0';
+import { esc, plural, frenchDateTime } from './util.js?v=3.17.0';
 import { AUDIT_CATALOG } from './audit-catalog.js?v=3.17.0';
 import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.17.0';
 import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.17.0';
@@ -56,7 +57,6 @@ const hex = (c) => String(c).replace('#', '').toUpperCase();
 // Contenu : registre des sections
 // ---------------------------------------------------------------------------
 
-const plural = (n, one, many) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : one}`;
 
 function relationsOf(tables) {
   const out = [];
@@ -409,7 +409,7 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
     type: 'title',
     text: sectionIds.includes('access') ? 'Structure et droits d\'accès' : 'Structure du document',
     subtitle: ctx.docName || 'Document Grist',
-    meta: `Rapport généré le ${ctx.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${ctx.date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${plural(ctx.stats.tables, 'table', 'tables')}, ${plural(ctx.stats.relations, 'relation', 'relations')}`,
+    meta: `Rapport généré le ${frenchDateTime(ctx.date)} · ${plural(ctx.stats.tables, 'table', 'tables')}, ${plural(ctx.stats.relations, 'relation', 'relations')}`,
   }];
   const body = [];
   chosen.forEach((s, i) => {
@@ -436,8 +436,6 @@ export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) 
 // Rendu HTML (aperçu)
 // ---------------------------------------------------------------------------
 
-const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const cellOf = (c) => (typeof c === 'object' && c !== null ? c : { text: String(c ?? '') });
 const lineClass = (l) => [l.mono ? 'doc__mono' : '', l.color ? `doc--${l.color}` : '', l.bold ? 'doc__b' : '', l.fill ? `doc__fill doc__fill--${l.fill}` : '', l.align === 'center' ? 'doc__center' : '', l.indent ? 'doc__indent' : ''].join(' ').trim();
 /** Colonnes où commence un groupe d'en-tête (sauf le premier) : un trait épais les sépare. */

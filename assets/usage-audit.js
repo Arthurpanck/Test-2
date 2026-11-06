@@ -1,11 +1,11 @@
 /** Références, recherches et récapitulations. Grammaire fermée : aucun Python exécuté. */
 export const USAGE_IDS = ['U01', 'U02', 'U03', 'U06', 'U07'];
 export const USAGE_LIMITS = Object.freeze({ tables: 200, columns: 10000, calls: 100, sourceRows: 200, targetRows: 2000, indexCells: 100000, formulaChars: 200000, targets: 100 });
-const TECH = /^(id|manualSort|gristHelper_.*|#.*)$/;
+import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js?v=3.17.0';
 const NAME = /^[A-Za-z_]\w*$/;
 const isFormula = c => Boolean(c.isFormula && String(c.formula || '').trim());
-const type = c => String(c.type || '').split(':')[0];
-const destination = c => String(c.type || '').split(':').slice(1).join(':');
+const type = c => splitColType(c.type).base;
+const destination = c => splitColType(c.type).arg;
 const list = v => Array.isArray(v) && v[0] === 'L' ? v.slice(1) : Array.isArray(v) && v[0] === 'r' && Array.isArray(v[2]) ? v[2] : null;
 const scalar = v => Array.isArray(v) && v[0] === 'R' ? v[2] : v;
 const usable = v => v !== null && v !== undefined && v !== '' && !Array.isArray(v) && (typeof v !== 'number' || Number.isFinite(v));
@@ -67,11 +67,6 @@ export function usageContract(description) {
     const entries = Object.entries(c.criteria); if (!entries.length || entries.length > 8 || entries.some(([a,b]) => !NAME.test(a) || !NAME.test(b))) return null;
     return { table:c.table, selection:c.selection, aggregate:c.aggregate, field:c.field || null, criteria:entries };
   } catch { return null; }
-}
-function metadataRows(d) {
-  if (Array.isArray(d)) return d;
-  if (!d || !Array.isArray(d.id)) return [];
-  return d.id.map((_,i) => Object.fromEntries(Object.keys(d).map(k => [k,d[k]?.[i]])));
 }
 
 export function inspectUsage({ schema = new Map(), data = {}, coverage = [], meta = {}, access = null, limits = USAGE_LIMITS } = {}) {

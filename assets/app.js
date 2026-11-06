@@ -1,4 +1,5 @@
 import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.17.0';
+import { esc, plural } from './util.js?v=3.17.0';
 import { ErdViewer } from './erd.js?v=3.17.0';
 import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.17.0';
 import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.17.0';
@@ -79,9 +80,6 @@ const state = {
 // Utilitaires
 // ---------------------------------------------------------------------------
 
-const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
-const plural = (n, one, many) => `${n.toLocaleString('fr-FR')} ${n > 1 ? many : one}`;
 
 function debounce(fn, ms) {
   let t;

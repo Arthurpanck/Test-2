@@ -4,6 +4,7 @@
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
 import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.17.0';
+import { frenchDateTime as fmtDate } from './util.js?v=3.17.0';
 import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.17.0';
 
 const BLUE = '000091', GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD', WHITE = 'FFFFFF';
@@ -51,7 +52,6 @@ const fullText = (c) => ({ allow: 'Oui', deny: 'Non', unknown: '?', na: '—' }[
 const tone = (c) => (c.state === 'allow' || c.state === 'rows-allow' ? 'ok' : c.state === 'deny' || c.state === 'rows-deny' ? 'ko' : c.state === 'na' ? 'na' : 'uk');
 /** Case de la matrice, en badge (MAJUSCULES comme dans la vue). */
 const badgeCell = (c, edge) => (c.state === 'na' ? { v: '—', s: edge ? 'naEdge' : 'na' } : { v: fullText(c).toUpperCase(), s: tone(c) });
-const fmtDate = (d) => `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 
 export const MATRIX_HELP = 'Pour chaque rôle métier, ce que permettent les règles. Une case verte qui nomme une colonne : oui, mais seulement sur les lignes où cette colonne correspond à la personne. En rouge : oui, sauf sur ces lignes. « ? » : condition que la vue ne sait pas lire, à vérifier dans Grist. « — » : sans objet pour une colonne.';
 export const MATRIX_WARNING = 'Lecture des règles, sans connexion réelle : pour un cas sensible, vérifiez avec « Voir en tant que » dans Grist.';

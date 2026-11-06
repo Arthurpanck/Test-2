@@ -12,6 +12,7 @@ import {
   edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph,
 } from './erd-geometry.js?v=3.17.0';
 import { readTheme } from './report.js?v=3.17.0';
+import { esc, plural } from './util.js?v=3.17.0';
 import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.17.0';
 
 const ELK_VERSION = '0.12.0';
@@ -28,10 +29,7 @@ const ICON_KEY = 'M7 7a5 5 0 1 1 0 10a5 5 0 1 1 0-10ZM7 9.5a2.5 2.5 0 1 0 0 5a2.
 const ICON_LOCK = 'M6 10V8a6 6 0 1 1 12 0v2h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1h1Zm2 0h8V8a4 4 0 1 0-8 0v2Z';
 const ICON_LINK = 'm12.89 7.939 1.414 1.415a7 7 0 0 1 0 9.9l-.354.353a7 7 0 0 1-9.9-9.9l1.415 1.415a5 5 0 1 0 7.071 7.07l.354-.353a5 5 0 0 0 0-7.07l-1.415-1.415L12.89 7.94v-.001Zm6.717 6.01-1.414-1.413a5 5 0 1 0-7.07-7.071l-.355.354a5 5 0 0 0 0 7.07l1.415 1.415-1.415 1.414-1.414-1.414a7 7 0 0 1 0-9.9l.354-.353a7 7 0 1 1 9.9 9.9v-.001Z';
 
-const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
 const icon = (d, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
-const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 
 function loadScript(url) {
   return new Promise((resolve, reject) => {

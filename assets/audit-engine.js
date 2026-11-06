@@ -1,13 +1,11 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
 import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.17.0';
-import { columnarToRows } from './converter.js?v=3.17.0';
+import { columnarToRows, fold, TECHNICAL_COLUMN as TECH } from './util.js?v=3.17.0';
 import { inspectVisibleFilters } from './filter-audit.js?v=3.17.0';
 import { inspectUsage } from './usage-audit.js?v=3.17.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
-const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const clean = x => String(x).normalize('NFC').trim().replace(/[\s\u200b]+/g, ' ').toLowerCase();
-const TECH = /^(id|manualSort|gristHelper_.*|#.*)$/;
 export const isCensored = v => Array.isArray(v) && v[0] === 'C';
 export const isErrorValue = v => Array.isArray(v) && v[0] === 'E';
 export const isBlank = v => v == null || v === '' || (Array.isArray(v) && (v.length === 0 || (v[0] === 'L' && v.length === 1)));

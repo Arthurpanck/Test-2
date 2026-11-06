@@ -10,6 +10,7 @@
  *
  * Le module est sans dépendance et fonctionne dans le navigateur comme sous Node.
  */
+import { columnarToRows, parseJsonObject, isVisibleColumn } from './util.js?v=3.17.0';
 
 // ---------------------------------------------------------------------------
 // Compatibilité Python
@@ -299,32 +300,6 @@ export function convertTypeCorrected(gristType, isFormula) {
 // Métadonnées du document → schéma (portage de schema.py / gencode.py)
 // ---------------------------------------------------------------------------
 
-/** Données colonnaires renvoyées par `grist.docApi.fetchTable()` → tableau de lignes. */
-export function columnarToRows(data) {
-  if (Array.isArray(data)) return data;
-  const keys = Object.keys(data || {});
-  const n = keys.length ? data[keys[0]].length : 0;
-  const rows = [];
-  for (let i = 0; i < n; i++) {
-    const row = {};
-    for (const k of keys) row[k] = data[k][i];
-    rows.push(row);
-  }
-  return rows;
-}
-
-/** Options d'affichage d'une colonne (`widgetOptions`) : chaîne JSON ou objet. */
-export function parseWidgetOptions(value) {
-  if (value && typeof value === 'object') return value;
-  if (typeof value !== 'string' || !value.trim()) return {};
-  try {
-    const v = JSON.parse(value);
-    return v && typeof v === 'object' ? v : {};
-  } catch {
-    return {};
-  }
-}
-
 /** Liste de références des métadonnées : ['L', 1, 2], [1, 2] ou "[1, 2]" → [1, 2] (null si absente). */
 export function refListValue(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -369,7 +344,7 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
         summarySourceColId: colIdByRef.get(c.summarySourceCol || 0) || null,
         label: c.label || '',
         description: c.description || '',
-        widgetOptions: parseWidgetOptions(c.widgetOptions),
+        widgetOptions: parseJsonObject(c.widgetOptions),
         recalcWhen: Number(c.recalcWhen) || 0,
         recalcDeps: deps ? deps.map((id) => colIdByRef.get(id)).filter(Boolean) : null,
       });
@@ -417,10 +392,6 @@ export function decodeSummaryTableName(tableInfo) {
   return null;
 }
 
-/** Portage de `column.is_visible_column()`. */
-export function isVisibleColumn(colId) {
-  return colId !== 'id' && colId !== 'manualSort' && !colId.startsWith('#') && !colId.startsWith('gristHelper_');
-}
 
 const byCodePoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 

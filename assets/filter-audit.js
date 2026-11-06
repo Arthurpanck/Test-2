@@ -1,8 +1,7 @@
 /** Filtres enregistrés affichés dans les vues Tableau ; aucun accès aux lignes métier. */
-import { columnarToRows } from './converter.js?v=3.17.0';
+import { columnarToRows, TECHNICAL_COLUMN as technical } from './util.js?v=3.17.0';
 
 export const VISIBLE_FILTER_THRESHOLD = 3;
-const technical = /^(id|manualSort|gristHelper_.*|#.*)$/;
 
 export function inspectVisibleFilters(schema, meta = {}) {
   const required = ['filters', 'sections', 'tables', 'columns'];
