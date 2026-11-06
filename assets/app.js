@@ -64,7 +64,7 @@ const state = {
   tab: 'schema',
   filter: '',
   cols: 'all',
-  level: 'all',
+  level: 'blocking',
   analysisFilter: '',
   widgetsFilter: '',
   wkind: 'all',
@@ -1476,8 +1476,8 @@ function bindEvents() {
     }
     else if (target.dataset.gotoAccess) gotoAccess(target.dataset.gotoAccess);
     else if (target.dataset.gotoAnalysis) {
-      // « N points d'attention » : l'analyse s'ouvre sur tous les constats.
-      state.level = 'all';
+      // « N points d'attention » : l'analyse s'ouvre sur les constats à corriger.
+      state.level = 'blocking';
       renderAnalysis();
       selectTab('analysis', { focus: true });
     }

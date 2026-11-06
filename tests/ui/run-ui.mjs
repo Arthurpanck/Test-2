@@ -84,6 +84,9 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   // Analyse
   await frame.locator('#tab-analysis').click();
+  const blocking = Number(await frame.locator('#level-blocking .tile__n').textContent());
+  check(await frame.locator('#level-blocking').getAttribute('aria-pressed') === 'true' && await frame.locator('.insight').count() === blocking, 'analyse : filtre « À corriger » sélectionné par défaut');
+  await frame.locator('#level-all').click();
   const analysis = await frame.locator('#analysis-body').textContent();
   check(analysis.includes('Aucun problème bloquant'), 'analyse : verdict « Aucun problème bloquant »');
   const total = Number(await frame.locator('#level-all .tile__n').textContent());
