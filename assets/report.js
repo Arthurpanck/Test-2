@@ -12,13 +12,13 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.16.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.16.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.16.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.16.0';
-import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.16.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.16.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.16.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.17.0';
+import { AUDIT_CATALOG } from './audit-catalog.js?v=3.17.0';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.17.0';
+import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.17.0';
+import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.17.0';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.17.0';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.17.0';
 
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 

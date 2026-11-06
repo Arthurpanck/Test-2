@@ -1,7 +1,8 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.16.0';
-import { columnarToRows } from './converter.js?v=3.16.0';
-import { inspectVisibleFilters } from './filter-audit.js?v=3.16.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.17.0';
+import { columnarToRows } from './converter.js?v=3.17.0';
+import { inspectVisibleFilters } from './filter-audit.js?v=3.17.0';
+import { inspectUsage } from './usage-audit.js?v=3.17.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
 const fold = x => String(x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -94,7 +95,7 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
  const sampled=sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
  const items=[],hits=new Map(),counts=new Map(),signatures=new Map();
  const status=new Map(RETAINED_IDS.map(id=>[id,{id,state:'checked',reason:'Aucun signal dans les éléments examinés.'}]));
- const metadataOnly=new Set(['N47','N53','N69','X13']);
+ const metadataOnly=new Set(['N47','N53','N69','X13','U01']);
  const unavailable=(id,reason)=>status.set(id,{id,state:'unavailable',reason});
  const limited=(id,reason)=>{if(status.get(id)?.state==='checked')status.set(id,{id,state:'limited',reason});};
  if(!access)unavailable('N53','Droits d’accès indisponibles.');
@@ -159,13 +160,23 @@ export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={
    for(const c of new Set([a.lookupColId,...uses]))if(target.columns.has(c)&&!target.columns.get(c).isFormula&&(canWrite(a.tableId,c)||['EDITOR','VIEWER'].some(role=>effectivePermission(access,a.tableId,null,role,'C')==='allow')))emit('N53',a.tableId,c,[],'Champ de la table d’habilitation : modification ou création reconnue pour un rôle non propriétaire');
   }
  }
+ const usage = inspectUsage({schema,data:sd,coverage:sampled.coverage,meta,access,limits:{formulaChars:limits.formulaChars}});
+ for(const check of usage.checks)status.set(check.id,check);
+ for(const signal of usage.signals)emit(signal.id,signal.table,signal.column,signal.rows,signal.note);
+ // Une seule cause par colonne : le champ rapporté remplace le doublon de lookupOne.
+ const redundant = hits.get('U02');
+ if(redundant && hits.has('N31')) {
+  const remaining=hits.get('N31').filter(t=>!redundant.some(u=>u.table===t.table&&u.column===t.column));
+  if(remaining.length){hits.set('N31',remaining);counts.set('N31',remaining.length);signatures.set('N31',hash(serial(remaining)));}
+  else {hits.delete('N31');limited('N31','La recherche redondante est expliquée par U02, sans seconde carte pour la même colonne.');}
+ }
  for(const [id,targets]of hits){const def=infoById.get(id),isSample=!metadataOnly.has(id)&&(targets.some(t=>byCoverage.get(t.table)?.sampled)||id==='N06'&&targets.some(t=>(values(t.table,t.column).length||0)>200)||id==='N31'&&(sampled.coverage.some(c=>c.sampled)||targets.some(t=>values(t.table,'id').length>200)));
   items.push({id,severity:def.severity,area:def.area,title:def.title,summary:def.summary,why:def.why,...(def.intended?{intended:def.intended}:{}),steps:def.steps,targets,method:def.detection,limitations:def.false_positives,evidence:{version:def.ruleVersion||1,signature:signatures.get(id),coverage:isSample?'sample':'visible',targetCount:counts.get(id),rowExamples:targets.flatMap(t=>t.note.match(/lignes ([\d, ]+)/)?.[1]?.split(',').map(s=>s.trim())||[]).slice(0,3)},calculation:targets.map(t=>t.note).filter(Boolean).slice(0,3).join(' ; ')});
   status.set(id,{id,state:'detected',reason:isSample?'Signal observé sur un échantillon de lignes lisibles.':'Signal observé sur les éléments lisibles examinés.'});
  }
  if(formulaTruncated)for(const id of ['N31','N34'])limited(id,'Budget de formules atteint ; contrôle incomplet.');
  const truncated=sampled.coverage.some(c=>c.sampled);if(truncated||failedTables.length)for(const id of RETAINED_IDS)if(!metadataOnly.has(id))limited(id,'Vérification limitée à l’échantillon ou aux tables chargées.');
- return {items,checks:[...status.values()],coverage:sampled.coverage,failedTables,configurationError:'',cells:sampled.cells,formulaChars:chars,sampled:truncated,profilesData:sd};
+ return {items,checks:[...status.values()],coverage:sampled.coverage,failedTables,configurationError:'',cells:sampled.cells,formulaChars:chars,sampled:truncated,profilesData:sd,usage:usage.counters};
 }
 
 

@@ -34,7 +34,7 @@ test('deuxième revue : niveaux des contrôles enrichis et absence des calculs s
  assert.equal(AUDIT_CATALOG.find(x=>x.id==='N34').severity,'blocking');
  const engine=readFileSync(new URL('../assets/audit-engine.js',import.meta.url),'utf8');
  for(const id of ['N07','N10','N13','N14','N36','N38']){assert.ok(!RETAINED_IDS.includes(id));assert.ok(!engine.includes("'"+id+"'"));}
- assert.equal(RETAINED_IDS.length,10);
+ assert.equal(RETAINED_IDS.length,15);
 });
 test('deuxième revue : attribut inutilisé, table vide et colonne vide sont À corriger ; courriels retirés',()=>{
  const m=metadataFromDefinition(definition),schema=schemaFromMetadata(m.tables,m.cols),access=buildAccess({resources:m.aclResources,rules:m.aclRules,schema});

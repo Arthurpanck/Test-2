@@ -344,6 +344,7 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
   const cols = columnarToRows(metaColumns);
   const sectionDescription = new Map(columnarToRows(sections || []).map((s) => [s.id, s.description || '']));
   const colIdByRef = new Map(cols.map((c) => [c.id, c.colId]));
+  const tableIdByRef = new Map(tables.map(t => [t.id, t.tableId]));
   const sorted = cols.slice().sort((a, b) => (a.parentId - b.parentId) || (a.parentPos - b.parentPos));
   const byTable = new Map();
   for (const c of sorted) {
@@ -365,6 +366,7 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
         isFormula: Boolean(c.isFormula),
         formula: c.formula || '',
         reverseColId: colIdByRef.get(c.reverseCol || 0) || null,
+        summarySourceColId: colIdByRef.get(c.summarySourceCol || 0) || null,
         label: c.label || '',
         description: c.description || '',
         widgetOptions: parseWidgetOptions(c.widgetOptions),
@@ -376,6 +378,7 @@ export function schemaFromMetadata(metaTables, metaColumns, { sections } = {}) {
       tableId: t.tableId,
       columns,
       summarySourceTable: t.summarySourceTable || 0,
+      summarySourceTableId: tableIdByRef.get(t.summarySourceTable) || null,
       description: sectionDescription.get(t.rawViewSectionRef) || '',
     });
   }

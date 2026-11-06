@@ -342,3 +342,26 @@ Validation : 202 tests. Métadonnées Grist relues : 31 tables ; constats retir�
 ## Sans « Vérifications principales » — 3.16.0
 
 - L'onglet Analyse n'affiche plus le panneau « Vérifications principales » : la liste des constats prend toute la largeur. Le rapport Word perd la liste correspondante (« Ce qui a été vérifié »).
+
+
+## 3.17.0 — Références, recherches et récapitulations
+
+Cinq contrôles validés sont intégrés, tous classés À corriger : U01 (utiliser les lignes du groupe), U02 (champ rapporté plutôt que recherche redondante), U03 (bilan manuel de groupes), U06 (table utilisée uniquement comme liste de choix), U07 (sélection manuelle pour un calcul par critères déclarés). U04 reste retiré. Les messages ne comportent pas d’exemples de données.
+
+Le parseur accepte seulement des expressions complètes et des égalités simples. Les commentaires et chaînes ne sont jamais pris pour du code ; aucune formule Python n’est exécutée dans le navigateur. Les critères supplémentaires, recherches ordonnées, tables avec des informations propres, référentiels partagés ou protégés et références calculées sont exclus selon le contrôle. U01 ne réécrit pas automatiquement un lookupOne destiné à sélectionner une ligne ; le constat N31 reste responsable des recherches ambiguës.
+
+Les budgets sont explicites : 200 tables, 10 000 colonnes, 100 index, 200 lignes de départ et 2 000 lignes cibles par index, 100 000 cellules d’index et 200 000 caractères de formules. Les index identiques sont réutilisés. Les contrôles utilisent l’échantillon déjà préparé par l’audit et n’ajoutent aucune lecture réseau.
+
+### Déclarer l’intention pour U07
+
+Une sélection manuelle peut être volontaire : sans critères déclarés, U07 est **non vérifiable**, pas validé par défaut. Pour une colonne calculant uniquement un résultat attendu par critères, une ligne de sa description peut préciser ce contrat :
+
+```text
+@audit-lookup {"table":"Operations","selection":"Selection_manuelle","criteria":{"Annee":"Annee","Region":"Region"},"aggregate":"SUM","field":"Montant"}
+```
+
+Les clés de `criteria` sont les colonnes de la table recherchée ; les valeurs sont les colonnes de la table courante. La déclaration est strictement validée et ne contient aucun code exécutable. La formule doit être une agrégation reconnue sur cette sélection. Une formule utilisant déjà la recherche correspondant au contrat ou une référence calculée n’est pas signalée. Ce mécanisme n’invente jamais les critères à partir des noms de colonnes.
+
+L’aperçu et le rapport Word utilisent les mêmes constats. « Code DBML » est décoché au démarrage du rapport et reste sélectionnable. Les évolutions 3.15/3.16 sont conservées, notamment le retrait des vérifications principales de l’analyse et du rapport.
+
+Validation 3.17.0 : 234 tests réussis, dont 32 tests des usages. Les cinq contrôles ont été observés via MCP dans le laboratoire Grist. Les corrections U01/U02/U06/U07 ont supprimé les cibles concernées, puis les cas ont été rétablis et relus. Pour U03, la vraie synthèse issue de la même source est un contre-exemple sans alerte ; le bilan manuel reste disponible pour démonstration.
