@@ -1,5 +1,9 @@
 import { convertSchema, computeStats, schemaFromMetadata } from './converter.js?v=3.18.0';
 import { esc, plural } from './util.js?v=3.18.0';
+import { applyDocTheme } from './theme.js?v=3.18.0';
+
+// Couleurs des documents (variables --doc-*) : posées avant tout affichage.
+applyDocTheme();
 import { ErdViewer } from './erd.js?v=3.18.0';
 import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.18.0';
 import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.18.0';

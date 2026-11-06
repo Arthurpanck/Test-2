@@ -150,8 +150,8 @@ body { margin: 0; background: var(--background-default-grey); color: var(--text-
 .links__swatch--table { background: var(--background-action-high-blue-france); }
 .links__swatch--summary { background: var(--background-flat-purple-glycine); }
 .links__swatch--acl { background: var(--doc-acl); }
-.links__line--lookup { border-top: 2px dashed var(--lookup-one, #d64d00); }
-.links__line--calc { height: 2px; background: repeating-linear-gradient(90deg, var(--calc, #a558a0) 0 6px, transparent 6px 8px, var(--calc, #a558a0) 8px 9.5px, transparent 9.5px 11.5px); }
+.links__line--lookup { border-top: 2px dashed var(--lookup-one); }
+.links__line--calc { height: 2px; background: repeating-linear-gradient(90deg, var(--calc) 0 6px, transparent 6px 8px, var(--calc) 8px 9.5px, transparent 9.5px 11.5px); }
 .links__text { flex: 1; min-width: 0; font-size: .875rem; line-height: 1.25rem; color: var(--text-title-grey); }
 .links__text strong { display: block; font-weight: 500; }
 .links__text span { display: block; font-size: .75rem; line-height: 1rem; color: var(--text-mention-grey); }
@@ -704,35 +704,10 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .snapshot-host { position: fixed; left: -20000px; top: 0; width: 1600px; height: 1000px; visibility: hidden; pointer-events: none; }
 
 
-/* Couleurs et polices du rapport Word et des exports (lues par report.js → readTheme).
-   Changer une valeur ici change l'aperçu, le fichier Word et l'export SVG du schéma. */
-:root {
-  --doc-font: Calibri, Carlito, "Marianne", Arial, sans-serif;
-  --doc-mono: Consolas, "Courier New", monospace;
-  --doc-primary: #000091;
-  --doc-on-primary: #ffffff;
-  --doc-summary: #6e445a;
-  --doc-text: #161616;
-  --doc-muted: #666666;
-  --doc-border: #dddddd;
-  --doc-surface: #f6f6f6;
-  --doc-type: #18753c;
-  --doc-formula: #a558a0;
-  --doc-key: #b34000;
-  --doc-blocking: #ce0500;
-  --doc-improve: #b34000;
-  --doc-choice: #a558a0;
-  --doc-info: #0063cb;
-  --doc-ready: #18753c;
-  --doc-neutral: #3a3a3a;
-  --doc-fill-ok: #dffee6;
-  --doc-fill-ko: #ffe9e9;
-  --doc-fill-uk: #eeeeee;
-  --doc-lookup-one: #d64d00;
-  --doc-lookup-records: #009081;
-  --doc-acl: #c9191e;
-  --doc-calc: #a558a0;
-}
+/* Couleurs et polices des documents : variables --doc-*, posées au démarrage depuis assets/theme.js
+   (seule source des valeurs). Liens du schéma à l'écran : ces couleurs, avec des variantes pour le thème sombre. */
+:root { --lookup-one: var(--doc-lookup-one); --lookup-records: var(--doc-lookup-records); --calc: var(--doc-calc); }
+:root[data-fr-theme="dark"] { --lookup-one: #ff8d5c; --lookup-records: #34cbb8; --calc: #e29bdc; }
 
 /* ===================================================================
    Visualiseur de schéma (assets/erd.js)
@@ -788,7 +763,7 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 }
 .erd-node--summary .erd-node__head { background: var(--background-flat-purple-glycine); color: var(--text-inverted-purple-glycine); }
 /* Table de droits (attribut utilisateur des règles d'accès) : brun, avec un cadenas */
-.erd-node--acl .erd-node__head { background: var(--doc-acl); color: #ffffff; }
+.erd-node--acl .erd-node__head { background: var(--doc-acl); color: var(--doc-on-primary); }
 .erd-node__lock { display: inline-flex; flex: none; }
 .erd-node__lock-icon { width: .875rem; height: .875rem; fill: currentColor; }
 .erd-node--ghost { border-style: dashed; box-shadow: none; }
@@ -838,8 +813,6 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .erd-edge__line { fill: none; stroke: var(--text-mention-grey); stroke-width: 1.5; transition: stroke .15s ease, opacity .15s ease; }
 .erd-edge__mark { fill: none; stroke: var(--text-mention-grey); stroke-width: 1.5; transition: stroke .15s ease, opacity .15s ease; }
 /* Lookups (case « Lookups » de la barre d'outils) : orange tireté pour lookupOne, vert pointillé pour lookupRecords */
-.erd { --lookup-one: #d64d00; --lookup-records: #009081; }
-:root[data-fr-theme="dark"] .erd { --lookup-one: #ff8d5c; --lookup-records: #34cbb8; }
 .erd-lookup { display: none; }
 .erd--no-refs .erd-edge { display: none; }
 .erd--lookups .erd-lookup { display: inline; }
@@ -852,8 +825,6 @@ button.chip:hover { background: var(--background-action-low-blue-france-hover); 
 .erd-lookup.is-active .erd-lookup__line { stroke-width: 3; }
 .erd.has-focus .erd-lookup:not(.is-active) { opacity: .15; }
 /* Calculs (menu « Liens ») : de la colonne calculée vers les colonnes lues, violet des formules, trait mixte */
-.erd { --calc: #a558a0; }
-:root[data-fr-theme="dark"] .erd { --calc: #e29bdc; }
 .erd-calc { display: none; }
 .erd--calc .erd-calc { display: inline; }
 .erd-node.is-filtered, .erd .is-filtered { display: none !important; }

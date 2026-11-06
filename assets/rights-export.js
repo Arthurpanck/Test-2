@@ -5,37 +5,38 @@
  */
 import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.18.0';
 import { frenchDateTime as fmtDate } from './util.js?v=3.18.0';
+import { xlsxColor as X } from './theme.js?v=3.18.0';
 import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.18.0';
 
-const BLUE = '000091', GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD', WHITE = 'FFFFFF';
-const TONE = { ok: ['DFFEE6', '18753C'], ko: ['FFE9E9', 'CE0500'], uk: ['EEEEEE', '3A3A3A'] };
+const BLUE = X('primary'), GREY = X('surface'), LINE = X('subtle'), EDGE = X('border'), WHITE = X('onPrimary');
+const TONE = { ok: [X('fillOk'), X('ready')], ko: [X('fillKo'), X('blocking')], uk: [X('subtle'), X('neutral')] };
 
 // Feuille « Qui peut faire quoi » : le rendu de la vue « Par table et par colonne » de l'onglet Accès
 // (en-têtes gris, colonnes en retrait, cases en badges séparés par un liseré blanc).
 const STYLES = {
-  title: { font: { bold: true, size: 16, color: '161616' } },
-  subtitle: { font: { size: 10, color: '666666' } },
-  note: { font: { size: 10, color: '666666' }, align: { wrap: true, v: 'top' } },
-  hGroup: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { top: EDGE } },
-  hGroupEdge: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { top: EDGE, left: EDGE } },
-  hSub: { font: { size: 9, color: '666666' }, fill: GREY },
-  hSubEdge: { font: { size: 9, color: '666666' }, fill: GREY, border: { left: EDGE } },
-  hLabel: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'bottom' } },
-  hAction: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE }, align: { h: 'center', v: 'center' } },
-  hActionEdge: { font: { bold: true, size: 9, color: '3A3A3A' }, fill: GREY, border: { bottom: EDGE, left: EDGE }, align: { h: 'center', v: 'center' } },
-  sLabel: { font: { bold: true, size: 11, color: '161616' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
-  sSub: { font: { size: 9, color: '666666' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
-  table: { font: { bold: true, size: 11, color: '161616' }, border: { bottom: LINE }, align: { v: 'center' } },
-  tableFaint: { font: { size: 9, color: '929292' }, border: { bottom: LINE }, align: { v: 'center' } },
-  column: { font: { size: 10, color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'center', indent: 2 } },
+  title: { font: { bold: true, size: 16, color: X('text') } },
+  subtitle: { font: { size: 10, color: X('muted') } },
+  note: { font: { size: 10, color: X('muted') }, align: { wrap: true, v: 'top' } },
+  hGroup: { font: { bold: true, size: 11, color: X('text') }, fill: GREY, border: { top: EDGE } },
+  hGroupEdge: { font: { bold: true, size: 11, color: X('text') }, fill: GREY, border: { top: EDGE, left: EDGE } },
+  hSub: { font: { size: 9, color: X('muted') }, fill: GREY },
+  hSubEdge: { font: { size: 9, color: X('muted') }, fill: GREY, border: { left: EDGE } },
+  hLabel: { font: { bold: true, size: 9, color: X('neutral') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'bottom' } },
+  hAction: { font: { bold: true, size: 9, color: X('neutral') }, fill: GREY, border: { bottom: EDGE }, align: { h: 'center', v: 'center' } },
+  hActionEdge: { font: { bold: true, size: 9, color: X('neutral') }, fill: GREY, border: { bottom: EDGE, left: EDGE }, align: { h: 'center', v: 'center' } },
+  sLabel: { font: { bold: true, size: 11, color: X('text') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
+  sSub: { font: { size: 9, color: X('muted') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center' } },
+  table: { font: { bold: true, size: 11, color: X('text') }, border: { bottom: LINE }, align: { v: 'center' } },
+  tableFaint: { font: { size: 9, color: X('line') }, border: { bottom: LINE }, align: { v: 'center' } },
+  column: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { v: 'center', indent: 2 } },
   blank: { border: { bottom: LINE } },
-  na: { font: { size: 10, color: '929292' }, border: { bottom: LINE }, align: { h: 'center', v: 'center' } },
-  naEdge: { font: { size: 10, color: '929292' }, border: { bottom: LINE, left: EDGE }, align: { h: 'center', v: 'center' } },
+  na: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { h: 'center', v: 'center' } },
+  naEdge: { font: { size: 10, color: X('line') }, border: { bottom: LINE, left: EDGE }, align: { h: 'center', v: 'center' } },
   // Feuilles « Détail par case » et « Paramètres »
-  head: { font: { bold: true, size: 10, color: '161616' }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center', wrap: true } },
+  head: { font: { bold: true, size: 10, color: X('text') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center', wrap: true } },
   text: { font: { size: 10 }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  textMuted: { font: { size: 10, color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  mono: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  textMuted: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  mono: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
   key: { font: { bold: true, size: 10 }, border: { bottom: LINE }, fill: GREY, align: { v: 'top', wrap: true } },
   ...Object.fromEntries(Object.entries(TONE).flatMap(([k, [fill, color]]) => {
     const font = { bold: true, size: 9, color };
@@ -131,7 +132,7 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
     });
   }
   const detailSheet = {
-    name: 'Détail par case', tabColor: '18753C', landscape: true,
+    name: 'Détail par case', tabColor: X('ready'), landscape: true,
     cols: [16, 11, 26, 20, 20, 16, 22, 60, 30, 80],
     rows: detail,
     freeze: { rows: 1, cols: 0 },
@@ -167,7 +168,7 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
   }
   p.push({ height: 6, cells: [] });
   kv('Avertissement', MATRIX_WARNING, 'note');
-  const params = { name: 'Paramètres', tabColor: '666666', showGrid: false, cols: [34, 100], rows: p };
+  const params = { name: 'Paramètres', tabColor: X('muted'), showGrid: false, cols: [34, 100], rows: p };
 
   return { title: `Qui peut faire quoi ? · ${docName || 'Document Grist'}`, creator: 'Widget Grist « Audit de structure »', date, styles: STYLES, sheets: [matrix, detailSheet, params] };
 }

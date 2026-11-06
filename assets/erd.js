@@ -11,7 +11,7 @@
 import {
   edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph,
 } from './erd-geometry.js?v=3.18.0';
-import { readTheme } from './report.js?v=3.18.0';
+import { readTheme } from './theme.js?v=3.18.0';
 import { esc, plural } from './util.js?v=3.18.0';
 import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.18.0';
 
@@ -880,16 +880,15 @@ export class ErdViewer {
   // Export
   // -------------------------------------------------------------------------
 
-  /** SVG autonome du schéma (couleurs du thème clair DSFR). */
+  /** SVG autonome du schéma (couleurs des documents, voir theme.js). */
   toSvg() {
     const b = this.bounds();
     const pad = 32;
-    // Couleurs du thème clair DSFR, quel que soit le thème affiché (document destiné à être partagé).
-    // Couleurs du document (variables --doc-*), identiques à celles du rapport Word.
+    // Couleurs des documents (theme.js), identiques à celles du rapport Word, quel que soit le thème affiché.
     const t = readTheme();
     const c = {
-      bg: '#ffffff', border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
-      ghost: '#eeeeee', text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: '#929292', key: t.key,
+      bg: t.background, border: t.border, head: t.primary, headText: t.onPrimary, summary: t.summary,
+      ghost: t.subtle, text: t.text, mention: t.muted, type: t.type, formula: t.formula, line: t.line, key: t.key,
       lookupOne: t.lookupOne, lookupRecords: t.lookupRecords, acl: t.acl, calc: t.calc,
     };
     const font = `${t.font}, 'Segoe UI', Arial, sans-serif`;
@@ -926,7 +925,7 @@ export class ErdViewer {
         const isPk = row.classList.contains('erd-row--pk');
         const isFk = row.classList.contains('erd-row--fk');
         const isFx = row.classList.contains('erd-row--formula');
-        parts.push(`<line x1="0" x2="${n.w}" y1="${row.offsetTop}" y2="${row.offsetTop}" stroke="#eeeeee"/>`);
+        parts.push(`<line x1="0" x2="${n.w}" y1="${row.offsetTop}" y2="${row.offsetTop}" stroke="${c.ghost}"/>`);
         if (isPk || isFk) parts.push(`<path transform="translate(10,${y - 7}) scale(0.58)" d="${isPk ? ICON_KEY : ICON_LINK}" fill="${isPk ? c.key : c.head}"/>`);
         if (isFx && !isFk) parts.push(`<text x="17" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-size="13" fill="${c.formula}">ƒ</text>`);
         parts.push(`<text x="30" y="${y}" dominant-baseline="central" font-family="${font}" font-size="13" font-weight="${isPk ? 700 : 400}" fill="${row.classList.contains('erd-row--more') ? c.mention : c.text}">${esc(name)}</text>`);

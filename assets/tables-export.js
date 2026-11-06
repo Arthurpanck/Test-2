@@ -6,26 +6,27 @@
  */
 import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.18.0';
 import { frenchDateTime as fmtDate } from './util.js?v=3.18.0';
+import { xlsxColor as X } from './theme.js?v=3.18.0';
 import { writeXlsx, cellRef } from './xlsx.js?v=3.18.0';
 
-const GREY = 'F6F6F6', LINE = 'EEEEEE', EDGE = 'DDDDDD';
+const GREY = X('surface'), LINE = X('subtle'), EDGE = X('border');
 const STYLES = {
-  title: { font: { bold: true, size: 16, color: '161616' } },
-  subtitle: { font: { size: 10, color: '666666' } },
-  table: { font: { bold: true, size: 13, color: '000091' } },
-  summary: { font: { bold: true, size: 13, color: '6E445A' } },
-  desc: { font: { size: 10, color: '666666' }, align: { wrap: false } },
-  head: { font: { bold: true, size: 10, color: '161616' }, fill: GREY, border: { bottom: EDGE, top: EDGE }, align: { v: 'center', wrap: true } },
-  name: { font: { size: 10, color: '161616' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  key: { font: { bold: true, size: 10, color: '161616' }, border: { bottom: LINE }, align: { v: 'top' } },
-  text: { font: { size: 10, color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  sql: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top' } },
-  type: { font: { size: 10, color: '18753C' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  computed: { font: { bold: true, size: 10, color: 'A558A0' }, border: { bottom: LINE }, align: { v: 'top' } },
-  formula: { font: { size: 9, name: 'Consolas', color: '3A3A3A' }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  muted: { font: { size: 10, color: '929292' }, border: { bottom: LINE }, align: { v: 'top' } },
-  doc: { font: { bold: true, size: 10, color: '18753C' }, border: { bottom: LINE }, align: { v: 'top' } },
-  noDoc: { font: { bold: true, size: 10, color: 'B34000' }, border: { bottom: LINE }, align: { v: 'top' } },
+  title: { font: { bold: true, size: 16, color: X('text') } },
+  subtitle: { font: { size: 10, color: X('muted') } },
+  table: { font: { bold: true, size: 13, color: X('primary') } },
+  summary: { font: { bold: true, size: 13, color: X('summary') } },
+  desc: { font: { size: 10, color: X('muted') }, align: { wrap: false } },
+  head: { font: { bold: true, size: 10, color: X('text') }, fill: GREY, border: { bottom: EDGE, top: EDGE }, align: { v: 'center', wrap: true } },
+  name: { font: { size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  key: { font: { bold: true, size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top' } },
+  text: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  sql: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top' } },
+  type: { font: { size: 10, color: X('type') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  computed: { font: { bold: true, size: 10, color: X('formula') }, border: { bottom: LINE }, align: { v: 'top' } },
+  formula: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  muted: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { v: 'top' } },
+  doc: { font: { bold: true, size: 10, color: X('type') }, border: { bottom: LINE }, align: { v: 'top' } },
+  noDoc: { font: { bold: true, size: 10, color: X('improve') }, border: { bottom: LINE }, align: { v: 'top' } },
 };
 const STYLE_OF = ['name', 'text', 'sql', 'type', 'text', 'computed', 'formula', 'doc'];
 const styleOf = (r, v, i) => (r.isKey && i === 0 ? 'key' : v === 'Non calculé' || v === 'Non concerné' ? 'muted' : v === 'Pas de documentation' ? 'noDoc' : STYLE_OF[i]);
@@ -52,8 +53,8 @@ export function tablesWorkbook(tables, { docName = '', date = new Date() } = {})
   return {
     title: `Tables et colonnes · ${docName || 'Document Grist'}`, creator: 'Widget Grist « Audit de structure »', date, styles: STYLES,
     sheets: [
-      { name: 'Tables', tabColor: '000091', showGrid: false, landscape: true, cols: widths, rows },
-      { name: 'Toutes les colonnes', tabColor: '18753C', landscape: true, cols: [26, ...widths], rows: flat, freeze: { rows: 1, cols: 0 },
+      { name: 'Tables', tabColor: X('primary'), showGrid: false, landscape: true, cols: widths, rows },
+      { name: 'Toutes les colonnes', tabColor: X('type'), landscape: true, cols: [26, ...widths], rows: flat, freeze: { rows: 1, cols: 0 },
         table: { name: 'Colonnes', ref: `A1:${cellRef(flat.length - 1, TABLE_COLUMNS.length)}`, style: 'TableStyleLight1' } },
     ],
   };

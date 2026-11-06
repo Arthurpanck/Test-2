@@ -21,36 +21,17 @@ import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.18.0';
 import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.18.0';
 import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.18.0';
 
+import { readTheme } from './theme.js?v=3.18.0';
+
+export { readTheme };
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
 
 // ---------------------------------------------------------------------------
-// Thème : variables CSS --doc-*
+// Thème : couleurs et polices de theme.js (variables CSS --doc-*)
 // ---------------------------------------------------------------------------
 
-export const THEME_KEYS = {
-  font: 'Calibri', mono: 'Consolas',
-  primary: '#000091', onPrimary: '#ffffff', summary: '#6e445a',
-  text: '#161616', muted: '#666666', border: '#dddddd', surface: '#f6f6f6',
-  type: '#18753c', formula: '#a558a0', key: '#b34000',
-  blocking: '#ce0500', improve: '#b34000', choice: '#a558a0', info: '#0063cb', ready: '#18753c',
-  neutral: '#3a3a3a', fillOk: '#dffee6', fillKo: '#ffe9e9', fillUk: '#eeeeee',
-  lookupOne: '#d64d00', lookupRecords: '#009081', acl: '#c9191e', calc: '#a558a0',
-};
 /** Cases colorées (matrice des droits) : fond et texte. */
 const FILLS = { ok: ['fillOk', 'ready'], ko: ['fillKo', 'blocking'], uk: ['fillUk', 'neutral'], surface: ['surface', 'text'] };
-
-const toKebab = (k) => k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
-
-/** Lit les variables --doc-* (repli sur les valeurs par défaut hors navigateur). */
-export function readTheme(style = typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null) {
-  const theme = {};
-  for (const [key, fallback] of Object.entries(THEME_KEYS)) {
-    let v = style ? style.getPropertyValue(`--doc-${toKebab(key)}`).trim() : '';
-    if (key === 'font' || key === 'mono') v = (v || fallback).split(',')[0].replace(/["']/g, '').trim();
-    theme[key] = v || fallback;
-  }
-  return theme;
-}
 const hex = (c) => String(c).replace('#', '').toUpperCase();
 
 // ---------------------------------------------------------------------------
