@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { sqliteType, declaredType, columnRole, tableRows, rowValues, TABLE_COLUMNS } from '../assets/table-format.js';
 import { findLookups } from '../assets/lookups.js';
 import { findFormulaDeps } from '../assets/formula-deps.js';
-import { gristTypeFromColType, schemaFromMetadata, convertAll } from '../assets/converter.js';
+import { gristTypeFromColType, schemaFromMetadata } from '../assets/converter.js';
+import { convertAll } from '../assets/converter-code.js';
 import { lookupGeometry } from '../assets/erd-geometry.js';
 import { readFileSync } from 'node:fs';
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schemaFromMetadata, convertAll, computeStats } from '../assets/converter.js';
+import { schemaFromMetadata, computeStats } from '../assets/converter.js';
+import { convertAll } from '../assets/converter-code.js';
 import { runAudit, AUDIT_LIMITS } from '../assets/audit-engine.js';
 import { parseUsageLookup, usageContract, inspectUsage, USAGE_LIMITS } from '../assets/usage-audit.js';
 import { buildInsights } from '../assets/insights.js';

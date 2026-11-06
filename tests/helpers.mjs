@@ -38,4 +38,4 @@ export function metadataFromModel(model) {
 }
 
 /** Exporte les métadonnées d'un code (via le modèle corrigé) au format docApi.fetchTable. */
-export { parseGristCodeCorrected } from '../assets/converter.js';
+export { parseGristCodeCorrected } from '../assets/converter-code.js';

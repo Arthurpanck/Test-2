@@ -7,7 +7,8 @@ import {buildAccess,accessInsights} from '../assets/access.js';
 import {runAudit} from '../assets/audit-engine.js';
 import {AUDIT_CATALOG,RETAINED_IDS} from '../assets/audit-catalog.js';
 import {REMOVED_FINDING_IDS} from '../assets/audit-policy.js';
-import {schemaFromMetadata,convertAll} from '../assets/converter.js';
+import {schemaFromMetadata} from '../assets/converter.js';
+import {convertAll} from '../assets/converter-code.js';
 import {definition,metadataFromDefinition} from './fixtures/mal-structure.mjs';
 import {buildReport,renderHtml} from '../assets/report.js';
 

@@ -21,6 +21,34 @@ function hash(s) { let h = 2166136261; for (const c of String(s)) h = Math.imul(
 const PRESAMPLE = Symbol.for('grist-audit.presample');
 const byHash = (a, b) => a.h - b.h || a.i - b.i;
 /**
+ * Les `take` lignes dont l'id a le plus petit hachage (« table:id »), en { i, h } : une file bornée
+ * (tas) évite de trier toutes les lignes d'une grande table. Toutes les lignes si `take` les couvre.
+ */
+function smallestByHash(name, ids, take) {
+  if (take >= ids.length) return ids.map((id, i) => ({ i, h: hash(name + ':' + id) }));
+  const heap = [];
+  const worse = (a, b) => a.h > b.h || (a.h === b.h && a.i > b.i);
+  const swap = (x, y) => { [heap[x], heap[y]] = [heap[y], heap[x]]; };
+  const up = (p) => { while (p) { const q = (p - 1) >> 1; if (!worse(heap[p], heap[q])) break; swap(p, q); p = q; } };
+  const down = () => {
+    let p = 0;
+    for (;;) {
+      let a = p * 2 + 1;
+      if (a >= heap.length) break;
+      const b = a + 1;
+      if (b < heap.length && worse(heap[b], heap[a])) a = b;
+      if (!worse(heap[a], heap[p])) break;
+      swap(a, p); p = a;
+    }
+  };
+  for (let i = 0; take && i < ids.length; i++) {
+    const x = { i, h: hash(name + ':' + ids[i]) };
+    if (heap.length < take) { heap.push(x); up(heap.length - 1); }
+    else if (worse(heap[0], x)) { heap[0] = x; down(); }
+  }
+  return heap;
+}
+/**
  * Prépare l'échantillon d'une table dès sa lecture, pour libérer aussitôt la table complète :
  * garde les ids (intégrité des références, nombre de lignes) et les `limits.rows` lignes de plus
  * petit hachage, triées par hachage. sampleAuditData() en tire ensuite exactement les mêmes
@@ -30,10 +58,7 @@ export function presampleTable(name, d, limits = AUDIT_LIMITS) {
   if (!Array.isArray(d?.id) || d[PRESAMPLE]) return d;
   const cols = Object.keys(d).filter(c => c !== 'id' && Array.isArray(d[c]) && !TECH.test(c));
   const n = d.id.length, keep = Math.min(n, limits.rows);
-  let picked;
-  if (keep === n) picked = d.id.map((id, i) => ({ i, h: hash(name+':'+id) }));
-  else { const heap = []; const worse = (a,b) => a.h > b.h || (a.h === b.h && a.i > b.i); const down = () => { let p=0; for (;;) { let a=p*2+1; if(a>=heap.length)break;let b=a+1;if(b<heap.length&&worse(heap[b],heap[a]))a=b;if(!worse(heap[a],heap[p]))break;[heap[a],heap[p]]=[heap[p],heap[a]];p=a; } }; for(let i=0;keep&&i<n;i++){const x={i,h:hash(name+':'+d.id[i])};if(heap.length<keep){heap.push(x);let p=heap.length-1;while(p){let q=(p-1)>>1;if(!worse(heap[p],heap[q]))break;[heap[p],heap[q]]=[heap[q],heap[p]];p=q;}}else if(worse(heap[0],x)){heap[0]=x;down();}} picked = heap; }
-  picked.sort(byHash);
+  const picked = smallestByHash(name, d.id, keep).sort(byHash);
   const rows = picked.map(x => x.i);
   const out = { id: d.id };
   Object.defineProperty(out, PRESAMPLE, { value: { cols, rows, values: Object.fromEntries(cols.map(c => [c, rows.map(i => d[c][i])])) } });
@@ -55,10 +80,7 @@ export function sampleAuditData(data, limits = AUDIT_LIMITS) {
       coverage.push({ table:name, visibleRows:d.id.length, inspectedRows:take, cells, sampled:take<d.id.length });
       continue;
     }
-    // Une file triée bornée évite un tri de toutes les lignes d'une grande table.
-    let idx;
-    if (take === d.id.length) idx = d.id.map((_,i) => i);
-    else { const heap = []; const worse = (a,b) => a.h > b.h || (a.h === b.h && a.i > b.i); const down = () => { let p=0; for (;;) { let a=p*2+1; if(a>=heap.length)break;let b=a+1;if(b<heap.length&&worse(heap[b],heap[a]))a=b;if(!worse(heap[a],heap[p]))break;[heap[a],heap[p]]=[heap[p],heap[a]];p=a; } }; for(let i=0;take&&i<d.id.length;i++){const x={i,h:hash(name+':'+d.id[i])};if(heap.length<take){heap.push(x);let p=heap.length-1;while(p){let q=(p-1)>>1;if(!worse(heap[p],heap[q]))break;[heap[p],heap[q]]=[heap[q],heap[p]];p=q;}}else if(worse(heap[0],x)){heap[0]=x;down();}}idx=heap.map(x=>x.i).sort((a,b)=>a-b); }
+    const idx = smallestByHash(name, d.id, take).map(x => x.i).sort((a, b) => a - b);
     result[name] = Object.fromEntries(['id',...cols].map(c => [c,idx.map(i => d[c][i])]));
     const cells=take*cols.length; remaining-=cells;
     coverage.push({ table:name, visibleRows:d.id.length, inspectedRows:take, cells, sampled:take<d.id.length });
@@ -88,8 +110,9 @@ export function simpleLookups(code) {
   return out;
 }
 const ratio=(a,b)=>b?a/b:0;
-export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={},failedTables=[],limits=AUDIT_LIMITS}={}) {
- const sampled=sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
+export function runAudit({schema=new Map(),data={},sampled:given=null,access=null,pages=null,meta={},failedTables=[],limits=AUDIT_LIMITS}={}) {
+ // Échantillon déjà tiré par l'appelant (mêmes limites) ou tiré ici.
+ const sampled=given&&limits===AUDIT_LIMITS?given:sampleAuditData(data,limits),sd=sampled.data,byCoverage=new Map(sampled.coverage.map(x=>[x.table,x]));
  const items=[],hits=new Map(),counts=new Map(),signatures=new Map();
  const status=new Map(RETAINED_IDS.map(id=>[id,{id,state:'checked',reason:'Aucun signal dans les éléments examinés.'}]));
  const metadataOnly=new Set(['N47','N53','N69','X13','U01']);

@@ -7,11 +7,11 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+import { convertModelCorrected, schemaFromMetadata, modelFromSchema, computeStats, getGristTypeCode } from '../assets/converter.js';
 import {
   convertCodeStrict, parseGristCodeStrict, PythonFormulaError, parseGristCodeCorrected,
-  convertModelCorrected, schemaFromMetadata, generateCodeView, modelFromSchema, convertAll,
-  analyze, computeStats, convertTypeStrict, getGristTypeCode,
-} from '../assets/converter.js';
+  generateCodeView, convertAll, analyze, convertTypeStrict,
+} from '../assets/converter-code.js';
 import { metadataFromModel } from './helpers.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

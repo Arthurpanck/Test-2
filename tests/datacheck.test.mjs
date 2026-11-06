@@ -1,7 +1,8 @@
 // Détection des défauts d'un document mal structuré : node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { schemaFromMetadata, convertAll } from '../assets/converter.js';
+import { schemaFromMetadata } from '../assets/converter.js';
+import { convertAll } from '../assets/converter-code.js';
 import { buildAccess } from '../assets/access.js';
 import { buildInsights, insightKey } from '../assets/insights.js';
 import { profileTables, profileValues } from '../assets/datacheck.js';

@@ -1,4 +1,4 @@
-import { convertAll, computeStats, schemaFromMetadata } from './converter.js?v=3.17.0';
+import { convertSchema, computeStats, schemaFromMetadata } from './converter.js?v=3.17.0';
 import { esc, plural } from './util.js?v=3.17.0';
 import { ErdViewer } from './erd.js?v=3.17.0';
 import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.17.0';
@@ -150,13 +150,14 @@ darkQuery?.addEventListener?.('change', syncTheme);
 // ---------------------------------------------------------------------------
 
 function recompute() {
-  state.out = state.schema ? convertAll({ schema: state.schema }).corrected : null;
+  state.out = state.schema ? convertSchema(state.schema) : null;
+  state.stats = state.out ? computeStats(state.out.tables) : null; // calculées une fois par lecture
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
   state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
-  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, meta: state.auditMeta, failedTables: state.failedTables} }) : null;
+  state.insights = state.out ? buildInsights(state.out.tables, state.access, { profiles: state.profiles, accepted: state.accepted, pages: state.pages, audit: {schema: state.schema, data: state.data, sampled: state.sampled, meta: state.auditMeta, failedTables: state.failedTables} }) : null;
   render();
   if (state.out) {
-    const s = computeStats(state.out.tables);
+    const s = state.stats;
     announce(`Structure mise à jour : ${plural(s.tables, 'table', 'tables')}, ${plural(s.relations, 'relation', 'relations')}.`);
   }
 }
@@ -234,6 +235,7 @@ async function loadData({ force = false } = {}) {
   state.data = Object.fromEntries(ids.filter((id) => id in data).map((id) => [id, data[id]]));
   state.failedTables = ids.filter((id) => failed.has(id));
   const sampled = sampleAuditData(state.data);
+  state.sampled = sampled; // repris tel quel par l'analyse (runAudit) : un seul tirage par lecture
   state.profiles = profileTables(sampled.data);
   for (const c of sampled.coverage) { const p = state.profiles.get(c.table); if (p) { p.rows = c.visibleRows; p.sampled = c.sampled; } }
   state.profileKey = key;
@@ -299,7 +301,7 @@ function unavailableMessage() {
 
 function renderHeader() {
   if (state.out) {
-    const s = computeStats(state.out.tables);
+    const s = state.stats;
     els.stats.textContent = [
       plural(s.tables, 'table', 'tables'), plural(s.columns, 'colonne', 'colonnes'), plural(s.relations, 'relation', 'relations'),
     ].join(' · ');
@@ -387,7 +389,7 @@ function renderTables() {
     .filter((t) => (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name) || matches(c.label)))
       && (state.cols === 'all' || t.shownColumns.length));
 
-  const s = computeStats(out.tables);
+  const s = state.stats;
   const summaries = out.tables.filter((t) => t.kind === 'summary').length;
   const header = pageHeader({
     title: 'Tables et colonnes',
@@ -1011,7 +1013,7 @@ function reportContext(schema) {
   return {
     docName: state.docName,
     date: new Date(),
-    stats: computeStats(state.out.tables),
+    stats: state.stats,
     tables: state.out.tables,
     insights: state.insights,
     access: state.access,
@@ -1154,7 +1156,7 @@ function aclTableNames() {
 
 /** Menu « Liens » : compte des liens affichés et précisions sous chaque bascule. */
 function updateLinksMenu() {
-  const refs = state.out ? computeStats(state.out.tables).relations : 0;
+  const refs = state.stats ? state.stats.relations : 0;
   const lookups = state.out ? new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size : 0;
   const calc = state.out ? new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size : 0;
   const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false) + Number(state.diagram.calc === true);
