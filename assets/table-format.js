@@ -5,6 +5,7 @@
  * Module pur.
  */
 import { GRIST_TYPE_LABELS } from './types.js?v=3.17.0';
+import { scanPython } from './python-text.js?v=3.17.0';
 
 export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQLite', 'Type déclaré (Grist)', 'Rôle', 'Calculé ?', 'Formule', 'Documentée ?'];
 
@@ -14,22 +15,7 @@ export const TABLE_COLUMNS = ['Colonne (nom en base)', 'Nom affiché', 'Type SQL
  */
 export function hasDocumentation(code) {
   const src = String(code || '');
-  if (/^\s*("""|''')/.test(src)) return true;
-  let quote = '';
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i];
-    if (quote) {
-      if (ch === '\\') { i++; continue; }
-      if (src.startsWith(quote, i)) { i += quote.length - 1; quote = ''; }
-      continue;
-    }
-    if (ch === '#') return true;
-    if (ch === '"' || ch === "'") {
-      quote = src.startsWith(ch.repeat(3), i) ? ch.repeat(3) : ch;
-      i += quote.length - 1;
-    }
-  }
-  return false;
+  return /^\s*("""|''')/.test(src) || scanPython(src).hasComment;
 }
 
 /** « Documentée ? » : Non concerné (pas de formule), Documentée ou Pas de documentation. */

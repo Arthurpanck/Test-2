@@ -2,6 +2,7 @@
 import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.17.0';
 import { columnarToRows, fold, TECHNICAL_COLUMN as TECH } from './util.js?v=3.17.0';
 import { inspectVisibleFilters } from './filter-audit.js?v=3.17.0';
+import { maskPython, dollarChains, lookupCalls, splitTopLevel } from './python-text.js?v=3.17.0';
 import { inspectUsage } from './usage-audit.js?v=3.17.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
@@ -61,13 +62,7 @@ export function sampleAuditData(data, limits = AUDIT_LIMITS) {
   }
   return { data:result, coverage, cells:limits.cells-remaining };
 }
-/** Masque les commentaires et chaînes Python, en conservant les positions. */
-export function maskPython(code) {
-  let out='',quote='',triple=false,comment=false;
-  for(let i=0;i<code.length;i++) { const c=code[i];if(comment){if(c==='\n'){comment=false;out+='\n';}else out+=' ';continue;}if(quote){if(c==='\\'){out+='  ';i++;continue;}if(triple&&code.slice(i,i+3)===quote.repeat(3)){out+='   ';i+=2;quote='';triple=false;}else if(!triple&&c===quote){out+=' ';quote='';}else out+=c==='\n'?'\n':' ';continue;}if(c==='#'){comment=true;out+=' ';}else if(c==='"'||c==="'"){quote=c;triple=code.slice(i,i+3)===c.repeat(3);out+=triple?'   ':' ';if(triple)i+=2;}else out+=c; }
-  return out;
-}
-const refsIn = code => [...maskPython(code).matchAll(/(?:\$|\brec\.)([A-Za-z_]\w*)/g)].map(m=>m[1]);
+const refsIn = code => dollarChains(maskPython(code)).map(r => r.name);
 /** Sous-ensemble fermé : rôles, True/False, parenthèses, listes et comparaisons. Inconnu sinon. */
 export function conditionForRole(formula, role) {
   const f=String(formula||'').trim();if(!f)return true;
@@ -82,11 +77,26 @@ export function effectivePermission(access, table, col, role, bit) {
   for(const rs of groups){const d=ruleDecision(rs,role,bit);if(d!==undefined)return d;}
   return bit==='R'||role==='OWNER'||role==='EDITOR'?'allow':'deny';
 }
-/** Parse uniquement lookupOne avec égalités à une colonne locale ou un littéral simple. */
+/** lookupOne dont chaque critère est une égalité à une colonne de la ligne ou à un littéral simple. */
+const SIMPLE_TERM = /^([A-Za-z_]\w*)\s*=\s*(?:\$([A-Za-z_]\w*)|(-?\d+(?:\.\d+)?)|(['"])([^'"\\]*)\4)$/;
 export function simpleLookups(code) {
- const mask=maskPython(code),out=[];const re=/\b([A-Za-z_]\w*)\.lookupOne\s*\(([^()]*)\)/g;let m;
- while((m=re.exec(mask))){const original=code.slice(m.index,m.index+m[0].length);const args=original.slice(original.indexOf('(')+1,-1);const terms=args.split(',').map(x=>x.trim()).filter(Boolean);const parsed=[];let valid=terms.length>0;for(const part of terms){let p=/^([A-Za-z_]\w*)\s*=\s*(?:\$([A-Za-z_]\w*)|(-?\d+(?:\.\d+)?)|(['"])([^'"\\]*)\4)$/.exec(part);if(!p){valid=false;break;}parsed.push({key:p[1],local:p[2],value:p[3]!==undefined?Number(p[3]):p[5]});}if(valid)out.push({table:m[1],terms:parsed,after:mask.slice(m.index+m[0].length)});}
- return out;
+  const src = String(code ?? ''), mask = maskPython(src), out = [];
+  for (const call of lookupCalls(mask)) {
+    if (call.method !== 'lookupOne' || /[()]/.test(call.args)) continue;
+    const original = src.slice(call.open + 1, call.close);
+    const terms = [];
+    let valid = true, at = 0;
+    for (const part of splitTopLevel(call.args)) {
+      const text = original.slice(at, at + part.length).trim();
+      at += part.length + 1;
+      if (!text) continue;
+      const p = SIMPLE_TERM.exec(text);
+      if (!p) { valid = false; break; }
+      terms.push({ key: p[1], local: p[2], value: p[3] !== undefined ? Number(p[3]) : p[5] });
+    }
+    if (valid && terms.length) out.push({ table: call.table, terms, after: mask.slice(call.close + 1) });
+  }
+  return out;
 }
 const ratio=(a,b)=>b?a/b:0;
 export function runAudit({schema=new Map(),data={},access=null,pages=null,meta={},failedTables=[],limits=AUDIT_LIMITS}={}) {

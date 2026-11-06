@@ -9,36 +9,10 @@
  * Lecture du texte des formules seulement, sans les exécuter. Module pur.
  */
 
-/**
- * Code sans commentaires ; le contenu des chaînes est effacé, sauf celui des f-strings
- * (leurs accolades contiennent du code : `f"{$Prenom} {$Nom}"`).
- */
-function codeOf(formula) {
-  const src = String(formula || '');
-  let out = '';
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i];
-    if (ch === '#') { while (i < src.length && src[i] !== '\n') i++; out += '\n'; continue; }
-    if (ch !== '"' && ch !== "'") { out += ch; continue; }
-    const quote = src.startsWith(ch.repeat(3), i) ? ch.repeat(3) : ch;
-    const isF = /(?:^|[^\w$.])(?:[fF][rR]?|[rR][fF])$/.test(out);
-    let j = i + quote.length;
-    let body = '';
-    while (j < src.length && !src.startsWith(quote, j)) {
-      if (src[j] === '\\') { body += '  '; j += 2; continue; }
-      body += src[j];
-      j++;
-    }
-    out += ' ' + (isF ? body.replace(/[^{}]+(?=\{|$)/g, (s) => ' '.repeat(s.length)) : ' '.repeat(body.length)) + ' ';
-    i = j + quote.length - 1;
-  }
-  return out;
-}
+import { scanPython, dollarChains, attributesOf as attrsOf, ATTRIBUTE_CHAIN as ATTRS } from './python-text.js?v=3.17.0';
 
-// Suite d'attributs `.A.B` ; un attribut suivi de « ( » est une méthode (`.upper()`), pas une colonne.
-const ATTRS = '((?:\\s*\\.\\s*[A-Za-z_]\\w*\\b(?!\\s*\\())*)';
-const CHAIN = new RegExp(`(?:\\$|(?<![\\w.])rec\\s*\\.\\s*)([A-Za-z_]\\w*)${ATTRS}`, 'g');
-const attrsOf = (text) => (text ? text.split('.').map((s) => s.trim()).filter(Boolean) : []);
+/** Code lu par la formule : commentaires et chaînes effacés, sauf le code des f-strings (`f"{$Prenom} {$Nom}"`). */
+const codeOf = (formula) => scanPython(formula, { fstringCode: true }).masked;
 
 /**
  * @param {Array} tables  tables de sortie du convertisseur (formules dans columns[].details.formula)
@@ -71,9 +45,9 @@ export function findFormulaDeps(tables) {
       if (!formula || !String(formula).trim()) continue;
       const trigger = !c.isFormula;
       const code = codeOf(formula);
-      for (const m of code.matchAll(CHAIN)) {
-        if (!byName.get(t.name)?.has(m[1])) continue;
-        const r = follow(t.name, m[1], attrsOf(m[2]));
+      for (const ref of dollarChains(code)) {
+        if (!byName.get(t.name)?.has(ref.name)) continue;
+        const r = follow(t.name, ref.name, ref.attrs);
         add({ source: t.name, column: c.name, target: r.table, targetColumn: r.col, via: r.via, trigger });
       }
       // Variable de boucle sur une liste de lignes : « for a in $group » puis « a.Temps_partiel ».

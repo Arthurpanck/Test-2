@@ -2,6 +2,7 @@
 export const USAGE_IDS = ['U01', 'U02', 'U03', 'U06', 'U07'];
 export const USAGE_LIMITS = Object.freeze({ tables: 200, columns: 10000, calls: 100, sourceRows: 200, targetRows: 2000, indexCells: 100000, formulaChars: 200000, targets: 100 });
 import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js?v=3.17.0';
+import { scanPython, splitTopLevel } from './python-text.js?v=3.17.0';
 const NAME = /^[A-Za-z_]\w*$/;
 const isFormula = c => Boolean(c.isFormula && String(c.formula || '').trim());
 const type = c => splitColType(c.type).base;
@@ -10,22 +11,20 @@ const list = v => Array.isArray(v) && v[0] === 'L' ? v.slice(1) : Array.isArray(
 const scalar = v => Array.isArray(v) && v[0] === 'R' ? v[2] : v;
 const usable = v => v !== null && v !== undefined && v !== '' && !Array.isArray(v) && (typeof v !== 'number' || Number.isFinite(v));
 const keyOf = a => JSON.stringify(a);
+/** Expression sans commentaires ni « return » ; null si une chaîne est triple ou ne se referme pas. */
 function comments(code) {
-  let out = '', quote = '', comment = false;
-  for (let i = 0; i < code.length; i++) {
-    const c = code[i];
-    if (comment) { if (c === '\n') { comment = false; out += c; } continue; }
-    if (quote) { out += c; if (c === '\\') { out += code[++i] || ''; } else if (c === quote) quote = ''; continue; }
-    if (c === '#') comment = true;
-    else { out += c; if (c === '"' || c === "'") { if (code.slice(i, i + 3) === c.repeat(3)) return null; quote = c; } }
-  }
-  return quote ? null : out.trim().replace(/^return\s+/, '');
+  const sc = scanPython(code);
+  if (sc.hasTriple || sc.unterminated) return null;
+  return sc.stripped.trim().replace(/^return\s+/, '');
 }
+/** Arguments de premier niveau (au plus 8) ; null si une chaîne ne se referme pas. */
 function splitArgs(s) {
-  const out = []; let part = '', quote = '';
-  for (let i = 0; i < s.length; i++) { const c = s[i]; if (quote) { part += c; if (c === '\\') part += s[++i] || ''; else if (c === quote) quote = ''; } else if (c === '"' || c === "'") { quote = c; part += c; } else if (c === ',') { out.push(part.trim()); part = ''; } else part += c; }
-  if (quote) return null;
-  if (part.trim()) out.push(part.trim());
+  const sc = scanPython(s);
+  if (sc.unterminated) return null;
+  const out = [];
+  let at = 0;
+  for (const part of splitTopLevel(sc.masked)) { out.push(s.slice(at, at + part.length).trim()); at += part.length + 1; }
+  if (out.length && !out[out.length - 1]) out.pop();
   return out.length <= 8 ? out : null;
 }
 /** Une expression entière, avec égalités simples ; jamais une occurrence dans une chaîne. */

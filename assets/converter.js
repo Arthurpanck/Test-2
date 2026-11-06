@@ -11,6 +11,7 @@
  * Le module est sans dépendance et fonctionne dans le navigateur comme sous Node.
  */
 import { columnarToRows, parseJsonObject, isVisibleColumn } from './util.js?v=3.17.0';
+import { maskPython } from './python-text.js?v=3.17.0';
 
 // ---------------------------------------------------------------------------
 // Compatibilité Python
@@ -448,35 +449,9 @@ function dedent(text) {
 
 /** Remplace `$col` par `rec.col` hors chaînes et commentaires. */
 function replaceDollars(code) {
+  const masked = maskPython(code);
   let out = '';
-  let i = 0;
-  while (i < code.length) {
-    const ch = code[i];
-    if (ch === '#') {
-      const end = code.indexOf('\n', i);
-      const stop = end < 0 ? code.length : end;
-      out += code.slice(i, stop);
-      i = stop;
-    } else if (ch === '"' || ch === "'") {
-      const triple = code.slice(i, i + 3) === ch.repeat(3);
-      const q = triple ? ch.repeat(3) : ch;
-      let j = i + q.length;
-      while (j < code.length) {
-        if (code[j] === '\\') { j += 2; continue; }
-        if (code.startsWith(q, j)) { j += q.length; break; }
-        if (!triple && code[j] === '\n') break;
-        j++;
-      }
-      out += code.slice(i, j);
-      i = j;
-    } else if (ch === '$' && /[A-Za-z_]/.test(code[i + 1] || '')) {
-      out += 'rec.';
-      i++;
-    } else {
-      out += ch;
-      i++;
-    }
-  }
+  for (let i = 0; i < code.length; i++) out += masked[i] === '$' && /[A-Za-z_]/.test(code[i + 1] || '') ? 'rec.' : code[i];
   return out;
 }
 
