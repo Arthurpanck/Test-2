@@ -3,6 +3,9 @@ import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.17.0';
 import { columnarToRows, fold, TECHNICAL_COLUMN as TECH } from './util.js?v=3.17.0';
 import { inspectVisibleFilters } from './filter-audit.js?v=3.17.0';
 import { maskPython, dollarChains, lookupCalls, splitTopLevel } from './python-text.js?v=3.17.0';
+import { conditionForRole, effectivePermission } from './acl-model.js?v=3.17.0';
+
+export { conditionForRole, effectivePermission };
 import { inspectUsage } from './usage-audit.js?v=3.17.0';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map(x => [x.id, x]));
@@ -63,20 +66,6 @@ export function sampleAuditData(data, limits = AUDIT_LIMITS) {
   return { data:result, coverage, cells:limits.cells-remaining };
 }
 const refsIn = code => dollarChains(maskPython(code)).map(r => r.name);
-/** Sous-ensemble fermé : rôles, True/False, parenthèses, listes et comparaisons. Inconnu sinon. */
-export function conditionForRole(formula, role) {
-  const f=String(formula||'').trim();if(!f)return true;
-  const tokens=f.match(/user\.Access|\b(?:OWNER|EDITOR|VIEWER|True|False|and|or|not|in)\b|==|!=|[()[\],]/g)||[];
-  if(tokens.join('')!==f.replace(/\s+/g,''))return null;let at=0;
-  try{const atom=()=>{const t=tokens[at++];if(t==='('){const v=or();if(tokens[at++]!==')')throw 0;return v;}if(t==='['){const arr=[];while(tokens[at]!==']'){arr.push(atom());if(tokens[at]!==',')break;at++;}if(tokens[at++]!==']')throw 0;return arr;}if(t==='user.Access')return role;if(['OWNER','EDITOR','VIEWER'].includes(t))return t;if(t==='True')return true;if(t==='False')return false;throw 0;};const cmp=()=>{let a=atom(),op=tokens[at];if(['==','!=','in','not'].includes(op)){at++;if(op==='not'){if(tokens[at++]!=='in')throw 0;op='not in';}let b=atom();if(op==='==')return a===b;if(op==='!=')return a!==b;if(!Array.isArray(b))throw 0;return op==='in'?b.includes(a):!b.includes(a);}if(typeof a!=='boolean')throw 0;return a;};const not=()=>tokens[at]==='not'?(at++,!not()):cmp();const and=()=>{let a=not();while(tokens[at]==='and'){at++;const b=not();a=a&&b;}return a;};const or=()=>{let a=and();while(tokens[at]==='or'){at++;const b=and();a=a||b;}return a;};const v=or();return at===tokens.length&&typeof v==='boolean'?v:null;}catch{return null;}
-}
-function ruleDecision(rules, role, bit) { let uncertain=false; for(const r of rules||[]){if(!r.perms?.[bit])continue;const c=conditionForRole(r.formula,role);if(c===null){uncertain=true;continue;}if(c)return uncertain?null:r.perms[bit];}return uncertain?null:undefined; }
-export function effectivePermission(access, table, col, role, bit) {
-  if(!access)return null;const t=access.tables?.find(t=>t.tableId===table);
-  const groups=[...(col?(t?.columns||[]).filter(c=>c.colIds.includes(col)).map(c=>c.rules):[]),t?.rules||[],access.defaults||[]];
-  for(const rs of groups){const d=ruleDecision(rs,role,bit);if(d!==undefined)return d;}
-  return bit==='R'||role==='OWNER'||role==='EDITOR'?'allow':'deny';
-}
 /** lookupOne dont chaque critère est une égalité à une colonne de la ligne ou à un littéral simple. */
 const SIMPLE_TERM = /^([A-Za-z_]\w*)\s*=\s*(?:\$([A-Za-z_]\w*)|(-?\d+(?:\.\d+)?)|(['"])([^'"\\]*)\4)$/;
 export function simpleLookups(code) {

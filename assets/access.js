@@ -9,20 +9,13 @@
  *
  * Module pur : testé sous Node.
  */
-import { effectivePermission } from './audit-engine.js?v=3.17.0';
-import { columnarToRows } from './util.js?v=3.17.0';
+import {
+  PERMISSIONS, PERMISSION_LABEL, TABLE_BITS, COLUMN_BITS, DEFAULT_BITS, USER_BUILTINS, byRulePos as byPos,
+  parsePermissions, readAcl, editorsStructure,
+} from './acl-model.js?v=3.17.0';
+import { maskPython } from './python-text.js?v=3.17.0';
 
-/** Permissions Grist, dans l'ordre de l'écran « Règles d'accès ». */
-export const PERMISSIONS = [
-  { bit: 'R', label: 'Lire' },
-  { bit: 'U', label: 'Modifier' },
-  { bit: 'C', label: 'Créer' },
-  { bit: 'D', label: 'Supprimer' },
-  { bit: 'S', label: 'Structure' },
-];
-const TABLE_BITS = ['R', 'U', 'C', 'D'];
-const COLUMN_BITS = ['R', 'U'];
-const DEFAULT_BITS = ['R', 'U', 'C', 'D', 'S'];
+export { PERMISSIONS, PERMISSION_LABEL, parsePermissions };
 
 /** Réglages spéciaux (`*SPECIAL`) connus. */
 export const SPECIAL = {
@@ -98,24 +91,10 @@ export function generalSettings(a) {
   ];
 }
 
-/** Propriétés de `user` fournies par Grist. */
-const USER_BUILTINS = new Set(['Access', 'Email', 'UserID', 'UserRef', 'Name', 'LinkKey', 'Origin', 'SessionID', 'IsLoggedIn', 'ShareRef', 'Type']);
 
 const ROLES = { OWNER: 'propriétaires', EDITOR: 'éditeurs', VIEWER: 'lecteurs' };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const joinFr = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} et ${list[list.length - 1]}` : list[0] || '');
-
-/** Texte des permissions (« +R-CD », « all », « none ») → { R: 'allow' | 'deny', … }. */
-export function parsePermissions(text) {
-  const t = String(text || '').trim();
-  const out = {};
-  if (t === 'all') { for (const p of PERMISSIONS) out[p.bit] = 'allow'; return out; }
-  if (t === 'none') { for (const p of PERMISSIONS) out[p.bit] = 'deny'; return out; }
-  for (const m of t.matchAll(/([+-])([A-Z]+)/g)) {
-    for (const bit of m[2]) out[bit] = m[1] === '+' ? 'allow' : 'deny';
-  }
-  return out;
-}
 
 /**
  * Condition Grist → qui est concerné, en clair quand la forme est reconnue.
@@ -154,9 +133,9 @@ export function describeCondition(formula, { first = true } = {}) {
   return { text: row ? 'Selon le contenu de la ligne' : 'Selon une condition', kind: row ? 'row' : 'formula', row };
 }
 
-const userAttrs = (f) => [...String(f || '').matchAll(/\buser\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
-const recCols = (f) => [...String(f || '').matchAll(/\b(?:rec|newRec)\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
-const byPos = (a, b) => ((a.rulePos ?? Infinity) - (b.rulePos ?? Infinity)) || (a.id - b.id);
+// Attributs et colonnes cités par une condition (hors chaînes) : « user.Habilitation… », « rec.Service ».
+const userAttrs = (f) => [...maskPython(f).matchAll(/\buser\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
+const recCols = (f) => [...maskPython(f).matchAll(/\b(?:rec|newRec)\.([A-Za-z_]\w*)/g)].map((m) => m[1]);
 
 /**
  * @param {object} p
@@ -165,19 +144,14 @@ const byPos = (a, b) => ((a.rulePos ?? Infinity) - (b.rulePos ?? Infinity)) || (
  * @param {Map} [p.schema]            schemaFromMetadata() : pour vérifier tables et colonnes
  */
 export function buildAccess({ resources, rules, schema = null } = {}) {
-  const resRows = columnarToRows(resources || []);
-  const ruleRows = columnarToRows(rules || []);
-  const resById = new Map(resRows.map((r) => [r.id, { id: r.id, tableId: String(r.tableId || ''), colIds: String(r.colIds || '') }]));
+  const acl = readAcl({ resources, rules });
+  const resById = new Map(acl.resources.map((r) => [r.id, { id: r.id, tableId: r.tableId, colIds: r.colIds }]));
   const tableExists = (t) => !schema || schema.has(t);
   const columnExists = (t, c) => !schema || (schema.has(t) && (c === 'id' || schema.get(t).columns.has(c)));
 
   // Attributs utilisateur
   const attributes = [];
-  for (const r of ruleRows.slice().sort(byPos)) {
-    if (!r.userAttributes) continue;
-    let a;
-    try { a = JSON.parse(r.userAttributes); } catch { a = null; }
-    if (!a || !a.name) continue;
+  for (const { row: r, def: a } of acl.attributes) {
     const problems = [];
     if (!tableExists(a.tableId)) problems.push(`table « ${a.tableId} » introuvable`);
     else if (!columnExists(a.tableId, a.lookupColId)) problems.push(`colonne « ${a.tableId}.${a.lookupColId} » introuvable`);
@@ -189,8 +163,7 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
 
   // Règles par ressource
   const groups = new Map(); // resourceId → rules
-  for (const r of ruleRows) {
-    if (r.userAttributes) continue;
+  for (const r of acl.rules) {
     const res = resById.get(r.resource);
     if (!res || !res.tableId) continue; // ressource vide créée par Grist
     if (!groups.has(res.id)) groups.set(res.id, []);
@@ -237,7 +210,8 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
   }
   const tables = [...tableMap.values()].sort((a, b) => a.tableId.localeCompare(b.tableId, 'fr'));
   const allRules = [...defaults, ...tables.flatMap((t) => [...t.rules, ...t.columns.flatMap((c) => c.rules)])];
-  const structureRestricted = defaults.some((r) => r.perms.S === 'deny');
+  // Droits de structure des éditeurs : la même lecture que le constat et la matrice (rôle Éditeur).
+  const structure = editorsStructure({ defaults, special, tables });
   const restrictsRead = allRules.some((r) => r.perms.R === 'deny');
   const ruleCount = allRules.length + special.reduce((s, x) => s + x.rules.length, 0);
   const userTables = schema ? [...schema.keys()].filter((t) => !t.startsWith('_grist_') && !schema.get(t).summarySourceTable) : [];
@@ -252,7 +226,8 @@ export function buildAccess({ resources, rules, schema = null } = {}) {
     special,
     tables,
     uncovered,
-    structureRestricted,
+    structure,
+    structureRestricted: structure === 'deny',
     restrictsRead,
     rowRules: allRules.filter((r) => r.who.row).length,
   };
@@ -285,7 +260,7 @@ export function accessInsights(access) {
       for (const c of t.columns) for (const r of c.rules) fn(r, t.tableId, c.colIds);
     }
   };
-  if (access.restrictsRead && effectivePermission(access, '*', null, 'EDITOR', 'S') === 'allow') {
+  if (access.restrictsRead && (access.structure ?? editorsStructure(access)) === 'allow') {
     push({
       id: 'acl-bypass', severity: 'blocking',
       intended: 'Les droits réels dépendent des profils et de l’ordre des conditions des droits d’accès. Vérifiez que seuls les profils prévus peuvent modifier les formules.',
@@ -331,7 +306,6 @@ export function permissionCells(rule, bits) {
   return bits.map((bit) => ({ bit, state: rule.perms[bit] || null }));
 }
 export const BITS = { table: TABLE_BITS, column: COLUMN_BITS, defaults: DEFAULT_BITS };
-export const PERMISSION_LABEL = Object.fromEntries(PERMISSIONS.map((p) => [p.bit, p.label]));
 
 
 

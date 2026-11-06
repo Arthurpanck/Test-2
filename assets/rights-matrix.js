@@ -10,226 +10,26 @@
  *
  * Module pur : testé sous Node.
  */
+import { readAcl, byRulePos, parseCondition, evaluateCondition, permissionBits, unknown, USER_BUILTINS as BUILTIN_USER } from './acl-model.js?v=3.17.0';
 import { columnarToRows } from './util.js?v=3.17.0';
+
+export { parseCondition, evaluateCondition, permissionBits };
 
 export const ACTIONS = [['R', 'Lire'], ['U', 'Modifier'], ['C', 'Créer'], ['D', 'Supprimer']];
 const ACTION_LABEL = { R: 'Lire', U: 'Modifier', C: 'Créer', D: 'Supprimer', S: 'Structure' };
 /** Rôle Grist supposé : éditeur. */
-const ACCESS = 'editors';
-const BUILTIN_USER = new Set(['Access', 'Email', 'Name', 'UserID', 'UserRef', 'SessionID', 'IsLoggedIn', 'LinkKey', 'Origin', 'ShareRef']);
-const NAMED = new Set(['Email', 'Name', 'UserID', 'UserRef', 'SessionID']); // désignent une personne précise
 const ROLE_NAMES = /^(r[oô]le|profil|fonction)$/i;
-
-// ---------------------------------------------------------------------------
-// Analyse des conditions (langage fermé)
-// ---------------------------------------------------------------------------
-
-/** Arbre d'une condition Grist ; lève une erreur si elle sort du sous-ensemble compris. */
-export function parseCondition(code) {
-  const text = String(code || '');
-  if (!text.trim()) return { type: 'literal', value: true };
-  const tokens = [];
-  let p = 0;
-  while (p < text.length) {
-    if (/\s/.test(text[p])) { p++; continue; }
-    const rest = text.slice(p);
-    let m;
-    if ((m = /^(?:'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/.exec(rest))) { tokens.push({ type: 'literal', value: m[0].slice(1, -1).replace(/\\(['"\\])/g, '$1') }); p += m[0].length; continue; }
-    if ((m = /^-?\d+(?:\.\d+)?/.exec(rest))) { tokens.push({ type: 'literal', value: Number(m[0]) }); p += m[0].length; continue; }
-    if ((m = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/.exec(rest))) { tokens.push({ type: 'word', value: m[0] }); p += m[0].length; continue; }
-    if ((m = /^(==|!=|<=|>=|[<>()[\],])/.exec(rest))) { tokens.push({ type: 'op', value: m[0] }); p += m[0].length; continue; }
-    throw new Error(`Syntaxe hors du sous-ensemble : ${rest.slice(0, 20)}`);
-  }
-  let at = 0;
-  const peek = () => tokens[at]?.value;
-  const take = (v) => { if (peek() !== v) throw new Error(`Attendu ${v}`); at++; };
-  const atom = () => {
-    const t = tokens[at++];
-    if (!t) throw new Error('Expression incomplète');
-    if (t.type === 'literal') return { type: 'literal', value: t.value };
-    if (t.value === '(') { const x = or(); take(')'); return x; }
-    if (t.value === '[') {
-      const values = [];
-      if (peek() !== ']') { values.push(atom()); while (peek() === ',') { at++; values.push(atom()); } }
-      take(']');
-      return { type: 'list', values };
-    }
-    if (t.type === 'word' && !['and', 'or', 'not', 'in', 'is'].includes(t.value)) return { type: 'path', value: t.value };
-    throw new Error('Expression non reconnue');
-  };
-  const cmp = () => {
-    let x = atom();
-    let op = peek();
-    if (['==', '!=', '<', '>', '<=', '>=', 'in', 'not', 'is'].includes(op)) {
-      at++;
-      if (op === 'not') { take('in'); op = 'not in'; }
-      if (op === 'is' && peek() === 'not') { at++; op = 'is not'; }
-      x = { type: 'compare', op, a: x, b: atom() };
-    }
-    return x;
-  };
-  const neg = () => (peek() === 'not' ? (at++, { type: 'not', a: neg() }) : cmp());
-  const and = () => { let x = neg(); while (peek() === 'and') { at++; x = { type: 'and', a: x, b: neg() }; } return x; };
-  const or = () => { let x = and(); while (peek() === 'or') { at++; x = { type: 'or', a: x, b: and() }; } return x; };
-  const tree = or();
-  if (at !== tokens.length) throw new Error('Fin non reconnue');
-  return tree;
-}
-
-// Valeurs symboliques : ce que la lecture des règles ne peut pas trancher seule.
-const ROW = 'row'; // une valeur de la ligne (rec / newRec)
-const USERVAR = 'uservar'; // une caractéristique de la personne qui varie dans le groupe (user.Habilitation.Service, user.Email)
-const COND = 'cond'; // une condition variable : { rows: [libellés], profile: [libellés], unknown, sources }
-const sym = (kind, extra) => ({ symbolic: kind, ...extra });
-const isSym = (x) => Boolean(x && typeof x === 'object' && x.symbolic);
-const lastSegment = (path) => String(path).split('.').pop();
-const uniq = (a) => [...new Set(a)];
-const unknown = (source) => sym(COND, { rows: [], profile: [], unknown: true, sources: [source] });
-
-/** Une valeur symbolique ramenée à une condition (contexte booléen). */
-function asCond(v) {
-  if (!isSym(v)) return Boolean(v);
-  if (v.symbolic === COND) return v;
-  if (v.symbolic === ROW) return sym(COND, { rows: [lastSegment(v.path)], profile: [], unknown: false, sources: [v.path] });
-  if (v.symbolic === USERVAR) return v.named ? false : sym(COND, { rows: [], profile: [v.label], unknown: false, sources: [v.path] });
-  return unknown(String(v.path || ''));
-}
-function mergeCond(a, b) {
-  const x = asCond(a), y = asCond(b);
-  const parts = [x, y].filter(isSym);
-  const rows = uniq(parts.flatMap((p) => p.rows));
-  return sym(COND, {
-    rows,
-    // « user.Droits.SRH and rec.X == user.Droits.SRH » : la ligne demande déjà le SRH de la personne,
-    // le critère de profil sur la même colonne n'ajoute rien (pas de « SRH + SRH »).
-    profile: uniq(parts.flatMap((p) => p.profile)).filter((p) => !rows.includes(p)),
-    unknown: parts.some((p) => p.unknown),
-    sources: uniq(parts.flatMap((p) => p.sources)),
-  });
-}
-
-/**
- * Évalue une condition pour un groupe.
- * @param {object} ctx { attributes: Set des attributs définis, roleAttr, roleCol, roleValue }
- * @returns true, false, ou une condition variable { symbolic: 'cond', rows, profile, unknown }
- */
-export function evaluateCondition(tree, ctx) {
-  const v = evalNode(tree, ctx);
-  return isSym(v) ? asCond(v) : Boolean(v);
-}
-
-function resolvePath(path, ctx) {
-  const constants = { OWNER: 'owners', EDITOR: 'editors', VIEWER: 'viewers', True: true, False: false, None: null };
-  if (Object.hasOwn(constants, path)) return constants[path];
-  const parts = path.split('.');
-  if (parts[0] === 'rec' || parts[0] === 'newRec') return parts.length > 1 ? sym(ROW, { path }) : unknown(path);
-  if (parts[0] !== 'user' || parts.length < 2) return unknown(path);
-  const [, attr, col, ...more] = parts;
-  if (attr === 'Access') return parts.length === 2 ? ACCESS : unknown(path);
-  if (attr === 'IsLoggedIn') return parts.length === 2 ? true : unknown(path);
-  if (NAMED.has(attr)) return parts.length === 2 ? sym(USERVAR, { path, label: attr, named: true }) : unknown(path);
-  if (BUILTIN_USER.has(attr)) return unknown(path); // LinkKey, Origin, ShareRef : hors du sous-ensemble
-  if (!ctx.attributes.has(attr)) return unknown(path); // attribut inexistant
-  if (!col) return sym(USERVAR, { path, label: attr });
-  if (more.length) return sym(USERVAR, { path, label: col });
-  if (attr === ctx.roleAttr && col === ctx.roleCol) return ctx.roleValue;
-  return sym(USERVAR, { path, label: col });
-}
-
-function evalNode(t, ctx) {
-  switch (t.type) {
-    case 'literal': return t.value;
-    case 'path': return resolvePath(t.value, ctx);
-    case 'list': {
-      const vs = t.values.map((x) => evalNode(x, ctx));
-      return vs.some(isSym) ? unknown('liste dynamique') : vs;
-    }
-    case 'not': {
-      const a = evalNode(t.a, ctx);
-      if (isSym(a)) { const c = asCond(a); return c === false ? true : c; }
-      return !a;
-    }
-    case 'and': case 'or': {
-      const a = evalNode(t.a, ctx), b = evalNode(t.b, ctx);
-      const ca = isSym(a) ? asCond(a) : Boolean(a), cb = isSym(b) ? asCond(b) : Boolean(b);
-      if (t.type === 'and') {
-        if (ca === false || cb === false) return false;
-        if (ca === true) return cb;
-        if (cb === true) return ca;
-        return mergeCond(ca, cb);
-      }
-      if (ca === true || cb === true) return true;
-      if (ca === false) return cb;
-      if (cb === false) return ca;
-      return mergeCond(ca, cb);
-    }
-    case 'compare': return compare(t.op, evalNode(t.a, ctx), evalNode(t.b, ctx));
-    default: return unknown('expression');
-  }
-}
-
-function compare(op, a, b) {
-  const symA = isSym(a), symB = isSym(b);
-  if (!symA && !symB) {
-    if (op === 'in' || op === 'not in') {
-      if (!Array.isArray(b)) return unknown('appartenance hors liste');
-      return op === 'in' ? b.includes(a) : !b.includes(a);
-    }
-    switch (op) {
-      case '==': case 'is': return a === b;
-      case '!=': case 'is not': return a !== b;
-      case '<': return a < b;
-      case '<=': return a <= b;
-      case '>': return a > b;
-      case '>=': return a >= b;
-      default: return unknown(`comparaison ${op}`);
-    }
-  }
-  const named = (x) => isSym(x) && x.symbolic === USERVAR && x.named;
-  const constant = (x) => !isSym(x);
-  // Personne nommée (« user.Email == 'adresse' ») : faux pour tous les groupes, la case montre le cas général.
-  if ((named(a) && constant(b)) || (named(b) && constant(a))) return ['!=', 'is not', 'not in'].includes(op);
-  const row = (x) => isSym(x) && x.symbolic === ROW;
-  const uservar = (x) => isSym(x) && x.symbolic === USERVAR;
-  // Ligne comparée à la personne : droit limité aux lignes de la personne (libellé côté user).
-  if ((row(a) && uservar(b)) || (row(b) && uservar(a))) {
-    const u = uservar(a) ? a : b, r = row(a) ? a : b;
-    return sym(COND, { rows: [u.label], profile: [], unknown: false, sources: [`${r.path} ~ ${u.path}`] });
-  }
-  if ([a, b].some((x) => isSym(x) && x.symbolic === COND && x.unknown)) return mergeCond(a, b);
-  // Ligne comparée à une constante : selon la ligne (libellé : la colonne de la ligne).
-  if ((row(a) && constant(b)) || (row(b) && constant(a)) || (row(a) && row(b))) return mergeCond(row(a) ? a : null, row(b) ? b : null);
-  // Critère de profil (user.Habilitation.Manager == True…) : reste variable dans le groupe.
-  if ((uservar(a) && constant(b)) || (uservar(b) && constant(a)) || (uservar(a) && uservar(b))) {
-    return sym(COND, { rows: [], profile: uniq([a, b].filter(uservar).map((x) => x.label)), unknown: false, sources: [a, b].filter(uservar).map((x) => x.path) });
-  }
-  return mergeCond(a, b);
-}
 
 // ---------------------------------------------------------------------------
 // Règles
 // ---------------------------------------------------------------------------
 
-/** Bits d'une permission Grist : « +R-CD » → { R: true, C: false, D: false }. */
-export function permissionBits(text) {
-  const out = {};
-  const t = String(text || '').trim();
-  if (t === 'all' || t === 'none') { for (const b of 'CRUDS') out[b] = t === 'all'; return out; }
-  let value;
-  for (const c of t) {
-    if (c === '+') value = true;
-    else if (c === '-') value = false;
-    else if ('CRUDS'.includes(c) && value !== undefined) out[c] = value;
-  }
-  return out;
-}
-
 /** Ressources et règles triées, conditions analysées. */
 export function prepareMatrixModel({ resources = [], rules = [] } = {}) {
-  const groups = new Map(columnarToRows(resources).map((r) => [r.id, { ...r, colIds: String(r.colIds || ''), rules: [] }]));
-  const attributes = [];
-  for (const r of columnarToRows(rules)) {
-    if (r.userAttributes) { try { const a = JSON.parse(r.userAttributes); if (a?.name) attributes.push(a); } catch { /* ignoré */ } continue; }
+  const acl = readAcl({ resources, rules });
+  const groups = new Map(acl.resources.map((r) => [r.id, { ...r, rules: [] }]));
+  const attributes = acl.attributes.map((a) => a.def);
+  for (const r of acl.rules) {
     if (!r.permissionsText) continue;
     const g = groups.get(r.resource);
     if (!g) continue;
@@ -237,7 +37,7 @@ export function prepareMatrixModel({ resources = [], rules = [] } = {}) {
     try { tree = parseCondition(r.aclFormula); } catch (e) { parseError = e.message; }
     g.rules.push({ id: r.id, formula: String(r.aclFormula || ''), permissionsText: r.permissionsText, memo: r.memo || '', rulePos: r.rulePos, bits: permissionBits(r.permissionsText), tree, parseError });
   }
-  for (const g of groups.values()) g.rules.sort((a, b) => (a.rulePos ?? Infinity) - (b.rulePos ?? Infinity) || a.id - b.id);
+  for (const g of groups.values()) g.rules.sort(byRulePos);
   return { resources: [...groups.values()], attributes };
 }
 
