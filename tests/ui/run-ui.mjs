@@ -22,8 +22,8 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check(!cols, 'aucune colonne à lier');
   const tabs = await frame.locator('[role=tab]').allTextContents();
   check(
-    tabs.map((t) => t.replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Widgets,Analyse,Rapport',
-    `ordre des onglets (${tabs.join(', ')})`,
+    tabs.map((t) => t.trim().replace(/\d+$/, '').trim()).join(',') === 'Schéma,Tables,Accès,Vues,Analyse,Rapport',
+    `ordre des onglets (${tabs.map((t) => t.trim()).join(', ')})`,
   );
   check((await frame.locator('#tab-schema').getAttribute('aria-selected')) === 'true', 'Schéma ouvert par défaut');
   for (const gone of [
@@ -163,7 +163,11 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   );
   await frame.locator('#level-all').click();
   const analysis = await frame.locator('#analysis-body').textContent();
-  check(analysis.includes('Aucun problème bloquant'), 'analyse : verdict « Aucun problème bloquant »');
+  // Verdict : « N points à corriger » s'il y en a (ici, des colonnes non typées), sinon « Aucun problème bloquant détecté ».
+  check(
+    analysis.includes(blocking ? `${blocking} point${blocking > 1 ? 's' : ''} à corriger` : 'Aucun problème bloquant détecté'),
+    `analyse : verdict selon les points à corriger (${blocking})`,
+  );
   const total = Number(await frame.locator('#level-all .tile__n').textContent());
   check(
     (await frame.locator('.insight').count()) === total && total > 0,
@@ -204,9 +208,9 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const preview = await frame.locator('.doc').textContent();
   check(!preview.includes('swd2QJ') && preview.includes('Document Grist'), 'rapport : identifiant interne masqué');
   check(
-    ['Résumé', 'Schéma', 'Tables et colonnes', 'Widgets', "Droits d'accès", 'Code DBML'].every((t) => preview.includes(t)) &&
-      preview.lastIndexOf('Code DBML') > preview.lastIndexOf("Droits d'accès"),
-    'rapport : sections, code DBML à la fin',
+    ['Résumé', 'Schéma', 'Tables et colonnes', 'Vues', "Droits d'accès"].every((t) => preview.includes(t)) &&
+      !preview.includes('Code DBML'),
+    'rapport : sections par défaut (sans analyse ni code DBML)',
   );
   check(
     (await frame.locator('[data-report-item="analysis"].is-off').count()) === 1 &&
@@ -216,8 +220,8 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   check((await frame.locator('.report__panel-foot').count()) === 0, 'rapport : plus de note sur la police sous le contenu');
   await shot(page, '05-rapport.png');
   check(
-    (await frame.locator('[data-report-goto]').count()) === 7 && (await frame.locator('#report-count').textContent()) === '6/7',
-    'rapport : contenu présenté comme la liste des tables (6/7)',
+    (await frame.locator('[data-report-goto]').count()) === 7 && (await frame.locator('#report-count').textContent()) === '5/7',
+    'rapport : contenu présenté comme la liste des tables (5/7)',
   );
   await frame.locator('[data-report-goto="tables"]').click();
   await page.waitForTimeout(400);
@@ -227,10 +231,30 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   );
   await frame.locator('[data-section="access"]').click();
   check(
-    (await frame.locator('#report-count').textContent()) === '5/7' &&
+    (await frame.locator('#report-count').textContent()) === '4/7' &&
       (await frame.locator('[data-report-item="access"].is-off button > span:last-child').textContent()) === '—',
     'rapport : section décochée grisée',
   );
+  // Clavier : cocher une section garde le focus sur sa case (la liste n'est pas reconstruite sous le curseur)
+  await frame.locator('#report-sec-analysis').focus();
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(600);
+  check(
+    (await frame.evaluate(() => document.activeElement?.id)) === 'report-sec-analysis' &&
+      (await frame.locator('#report-sec-analysis').isChecked()),
+    'rapport : une section cochée au clavier garde le focus',
+  );
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(400);
+  // Code DBML : à cocher, toujours en fin de rapport
+  await frame.locator('[data-section="dbml"]').click();
+  await page.waitForTimeout(600);
+  {
+    const withDbml = await frame.locator('.doc').textContent();
+    check(withDbml.lastIndexOf('Code DBML') > withDbml.lastIndexOf('Vues'), 'rapport : code DBML coché, à la fin');
+  }
+  await frame.locator('[data-section="dbml"]').click();
+  await page.waitForTimeout(400);
   check(
     !(await frame.locator('.doc').textContent()).includes("aucune règle d'accès avancée : chaque"),
     "rapport : section retirée de l'aperçu",
@@ -423,15 +447,18 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
 
   // Analyse
   await frame.locator('#tab-analysis').click();
+  await frame.locator('#level-all').click(); // l'analyse s'ouvre sur « À corriger » : lire tous les constats
   const analysis = await frame.locator('#analysis-body').textContent();
   check(
+    // « attribut inconnu » a été retiré lors de la revue (acl-unknown-attribute, tests/audit-decisions.mjs).
     analysis.includes('à corriger') &&
-      analysis.includes('attribut inconnu') &&
-      analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès'),
+      analysis.includes('Accès des éditeurs aux droits de structure et donc aux données malgré les droits d’accès') &&
+      analysis.includes('Des champs utilisés pour les droits d’accès sont modifiables') &&
+      analysis.includes('Message de refus de droits d’accès sans explication'),
     "complexe : constats sur les droits d'accès",
   );
   check(
-    (await frame.locator('.insight .insight__area', { hasText: "Droits d'accès" }).count()) >= 5,
+    (await frame.locator('.insight .insight__area', { hasText: "Droits d'accès" }).count()) >= 4,
     "complexe : constats étiquetés « Droits d'accès »",
   );
   await shot(page, '12-complexe-analyse.png');
@@ -715,6 +742,7 @@ for (const [label, viewport, dark] of [
     'mal structuré : nombre de lignes affiché',
   );
   await frame.locator('#tab-analysis').click();
+  await frame.locator('#level-all').click(); // tous les constats, pas seulement « À corriger »
   const text = await frame.locator('#analysis-body').textContent();
   // Revue du 4 novembre (3.11.0) : « liens écrits à la main » retiré ; texte → nombres, booléens et dates séparés.
   for (const t of ['devraient être de type numérique', 'devraient être de type choix', 'tables sans aucune ligne']) {
@@ -835,7 +863,7 @@ for (const [label, viewport, dark] of [
 {
   const p = await h.page('/index.html');
   await p.waitForTimeout(300);
-  check((await p.locator('#doc-alert').textContent()).includes('Ouvrez ce widget dans un document Grist'), 'hors de Grist : message');
+  check((await p.locator('#doc-alert').textContent()).includes('Ouvrez cette vue dans un document Grist'), 'hors de Grist : message');
   await p.close();
 }
 

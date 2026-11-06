@@ -6,40 +6,15 @@ import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { parseGristCodeCorrected, metadataFromModel } from '../helpers.mjs';
+import { fixtureMetadata } from '../helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || '/opt/npm-tools/node_modules/playwright');
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const fixture = (name) => readFile(path.join(root, 'tests/fixtures', name), 'utf8');
-
-/** Métadonnées au format docApi.fetchTable, depuis une Vue du code ou un export JSON. */
-export async function metadata(name) {
-  if (name.endsWith('.mjs')) {
-    const mod = await import(path.join(root, 'tests/fixtures', name));
-    return mod.metadataFromDefinition(mod.definition);
-  }
-  if (name.endsWith('.json')) {
-    const m = JSON.parse(await fixture(name));
-    const cols = m.columns.id
-      ? m.columns
-      : m.columns.map((c) => ({
-          parentPos: c.id,
-          label: c.colId,
-          formula: '',
-          reverseCol: 0,
-          description: '',
-          widgetOptions: '',
-          recalcWhen: 0,
-          recalcDeps: null,
-          isFormula: 0,
-          ...c,
-        }));
-    return { tables: m.tables, cols, sections: m.sections || [], aclResources: m.aclResources || [], aclRules: m.aclRules || [] };
-  }
-  return metadataFromModel(parseGristCodeCorrected(await fixture(name)));
-}
+/** Métadonnées d'une fixture au format docApi.fetchTable (voir tests/helpers.mjs). */
+export const metadata = fixtureMetadata;
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css' };
 

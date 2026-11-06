@@ -1,4 +1,45 @@
 // Outils partagés par les tests.
+import { readFile, readdir } from 'node:fs/promises';
+import { parseGristCodeCorrected } from '../assets/converter-code.js';
+
+const FIXTURES = new URL('./fixtures/', import.meta.url);
+/** Fixtures qui décrivent un document (Vue du code, export JSON des métadonnées, définition .mjs). */
+export async function documentFixtures() {
+  const names = (await readdir(FIXTURES)).filter((f) => /\.(code\.py|metadata\.json|mjs)$/.test(f)).sort();
+  const out = [];
+  // Une fixture .mjs décrit un document quand elle fournit `definition` et `metadataFromDefinition`.
+  for (const f of names)
+    if (!f.endsWith('.mjs') || typeof (await import(new URL(f, FIXTURES))).metadataFromDefinition === 'function') out.push(f);
+  return out;
+}
+
+/** Métadonnées d'une fixture au format docApi.fetchTable, depuis une Vue du code, un export JSON ou une définition .mjs. */
+export async function fixtureMetadata(name) {
+  if (name.endsWith('.mjs')) {
+    const mod = await import(new URL(name, FIXTURES));
+    return mod.metadataFromDefinition(mod.definition);
+  }
+  const text = await readFile(new URL(name, FIXTURES), 'utf8');
+  if (name.endsWith('.json')) {
+    const m = JSON.parse(text);
+    const cols = m.columns.id
+      ? m.columns
+      : m.columns.map((c) => ({
+          parentPos: c.id,
+          label: c.colId,
+          formula: '',
+          reverseCol: 0,
+          description: '',
+          widgetOptions: '',
+          recalcWhen: 0,
+          recalcDeps: null,
+          isFormula: 0,
+          ...c,
+        }));
+    return { tables: m.tables, cols, sections: m.sections || [], aclResources: m.aclResources || [], aclRules: m.aclRules || [] };
+  }
+  return metadataFromModel(parseGristCodeCorrected(text));
+}
 
 /** Reconstruit des métadonnées à partir du modèle corrigé d'un code (aller-retour). */
 export function metadataFromModel(model) {
@@ -40,5 +81,4 @@ export function metadataFromModel(model) {
   return { tables, cols };
 }
 
-/** Exporte les métadonnées d'un code (via le modèle corrigé) au format docApi.fetchTable. */
-export { parseGristCodeCorrected } from '../assets/converter-code.js';
+export { parseGristCodeCorrected };

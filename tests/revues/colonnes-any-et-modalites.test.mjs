@@ -1,15 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schemaFromMetadata } from '../assets/converter.js';
-import { convertAll } from '../assets/converter-code.js';
-import { buildInsights } from '../assets/insights.js';
-import { profileTables, profileValues } from '../assets/datacheck.js';
-import { runAudit } from '../assets/audit-engine.js';
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-decisions.mjs';
-import { REMOVED_FINDING_IDS } from './audit-decisions.mjs';
-import { buildAccess, accessInsights } from '../assets/access.js';
-import { buildPages } from '../assets/pages.js';
-import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
+import { schemaFromMetadata } from '../../assets/converter.js';
+import { convertAll } from '../../assets/converter-code.js';
+import { buildInsights } from '../../assets/insights.js';
+import { profileTables, profileValues } from '../../assets/datacheck.js';
+import { runAudit } from '../../assets/audit-engine.js';
+import { AUDIT_CATALOG, RETAINED_IDS, REMOVED_FINDING_IDS } from '../audit-decisions.mjs';
+import { buildAccess, accessInsights } from '../../assets/access.js';
+import { buildPages } from '../../assets/pages.js';
+import { definition, metadataFromDefinition } from '../fixtures/mal-structure.mjs';
 
 function scenario(columns, rows) {
   const cs = columns.map(([colId, type, extra = {}], i) => ({

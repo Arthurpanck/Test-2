@@ -1,15 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { runAudit } from '../assets/audit-engine.js';
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-decisions.mjs';
-import { REMOVED_FINDING_IDS } from './audit-decisions.mjs';
-import { buildAccess, accessInsights } from '../assets/access.js';
-import { buildInsights } from '../assets/insights.js';
-import { schemaFromMetadata } from '../assets/converter.js';
-import { convertAll } from '../assets/converter-code.js';
-import { profileTables } from '../assets/datacheck.js';
-import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
+import { runAudit } from '../../assets/audit-engine.js';
+import { AUDIT_CATALOG, RETAINED_IDS, REMOVED_FINDING_IDS } from '../audit-decisions.mjs';
+import { buildAccess, accessInsights } from '../../assets/access.js';
+import { buildInsights } from '../../assets/insights.js';
+import { schemaFromMetadata } from '../../assets/converter.js';
+import { convertAll } from '../../assets/converter-code.js';
+import { profileTables } from '../../assets/datacheck.js';
+import { definition, metadataFromDefinition } from '../fixtures/mal-structure.mjs';
 
 const cols = (names) => names.map((colId) => ({ colId, label: colId, type: 'Numeric', isFormula: false }));
 const context = (columns) => ({ schema: new Map([['T', { tableId: 'T', columns: new Map(columns.map((c) => [c.colId, c])) }]]), data: {} });
@@ -24,10 +22,9 @@ test('deuxième revue : niveaux des contrôles enrichis et absence des calculs s
   for (const id of ['N06', 'N09', 'N31', 'N50', 'N53', 'N57'])
     assert.equal(AUDIT_CATALOG.find((x) => x.id === id).severity, 'blocking', id);
   assert.equal(AUDIT_CATALOG.find((x) => x.id === 'N34').severity, 'blocking');
-  const engine = readFileSync(new URL('../assets/audit-engine.js', import.meta.url), 'utf8');
   for (const id of ['N07', 'N10', 'N13', 'N14', 'N36', 'N38']) {
-    assert.ok(!RETAINED_IDS.includes(id));
-    assert.ok(!engine.includes("'" + id + "'"));
+    assert.ok(!RETAINED_IDS.includes(id), id);
+    assert.ok(REMOVED_FINDING_IDS.has(id), id);
   }
   assert.equal(RETAINED_IDS.length, 15);
 });

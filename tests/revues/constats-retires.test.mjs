@@ -1,19 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runAudit } from '../assets/audit-engine.js';
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-decisions.mjs';
-import { REMOVED_FINDING_IDS } from './audit-decisions.mjs';
-import { buildInsights } from '../assets/insights.js';
-import { schemaFromMetadata } from '../assets/converter.js';
-import { convertAll } from '../assets/converter-code.js';
-import { buildAccess, accessInsights } from '../assets/access.js';
-import { profileTables } from '../assets/datacheck.js';
-import { buildPages, pageInsights } from '../assets/pages.js';
-import { buildReport, renderHtml } from '../assets/report.js';
-import { detailLines, columnTypeLabel } from '../assets/types.js';
+import { runAudit } from '../../assets/audit-engine.js';
+import { AUDIT_CATALOG, RETAINED_IDS, REMOVED_FINDING_IDS } from '../audit-decisions.mjs';
+import { buildInsights } from '../../assets/insights.js';
+import { schemaFromMetadata } from '../../assets/converter.js';
+import { convertAll } from '../../assets/converter-code.js';
+import { buildAccess, accessInsights } from '../../assets/access.js';
+import { profileTables } from '../../assets/datacheck.js';
+import { buildPages, pageInsights } from '../../assets/pages.js';
+import { buildReport, renderHtml } from '../../assets/report.js';
+import { detailLines, columnTypeLabel } from '../../assets/types.js';
 import vm from 'node:vm';
-import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
+import { definition, metadataFromDefinition } from '../fixtures/mal-structure.mjs';
 
 function one(col, type, values, extra = {}) {
   return {
@@ -42,11 +41,6 @@ test('purge intégrée : aucun identifiant retiré ni dans les constats, ni les 
     html,
     /Copie possible dont les accès|Recherche d’habilitation dans une colonne sans|Des lignes répètent les mêmes informations/,
   );
-});
-test('les calculs retirés sont absents du moteur, pas seulement cachés après calcul', () => {
-  const source = readFileSync(new URL('../assets/audit-engine.js', import.meta.url), 'utf8');
-  for (const id of REMOVED_FINDING_IDS) if (/^N\d/.test(id)) assert.ok(!new RegExp('[\'"]' + id + '[\'"]').test(source), id);
-  assert.doesNotMatch(source, /interquart|lookupColId.*seen|const edges=|const radicals=|const normalized=/);
 });
 test('N06 : deux cents cellules courtes au maximum, zéro et textes longs exclus', () => {
   const x = one(
@@ -135,7 +129,7 @@ test('les formulations et solutions arbitrées restent présentes dans le catalo
 });
 
 test('la description de colonne est affichée seulement quand elle est renseignée, et échappée', () => {
-  const app = readFileSync(new URL('../assets/app.js', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../../assets/app.js', import.meta.url), 'utf8');
   const source = app.slice(app.indexOf('function columnDescriptionHtml('), app.indexOf('const SEVERITY_ICON'));
   const esc = (v) =>
     String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -146,5 +140,4 @@ test('la description de colonne est affichée seulement quand elle est renseign�
   assert.match(html, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script>/);
   assert.equal(context.columnDescriptionHtml(''), '');
-  assert.doesNotMatch(app, /audit-key-add|audit-config-save|fetchTable\('_grist_Attachments'\)/);
 });

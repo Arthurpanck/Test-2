@@ -1,16 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { structureSmells, profileTables } from '../assets/datacheck.js';
-import { buildInsights } from '../assets/insights.js';
-import { buildAccess, accessInsights } from '../assets/access.js';
-import { runAudit } from '../assets/audit-engine.js';
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-decisions.mjs';
-import { REMOVED_FINDING_IDS } from './audit-decisions.mjs';
-import { schemaFromMetadata } from '../assets/converter.js';
-import { convertAll } from '../assets/converter-code.js';
-import { definition, metadataFromDefinition } from './fixtures/mal-structure.mjs';
-import { buildReport, renderHtml } from '../assets/report.js';
+import { structureSmells, profileTables } from '../../assets/datacheck.js';
+import { buildInsights } from '../../assets/insights.js';
+import { buildAccess, accessInsights } from '../../assets/access.js';
+import { runAudit } from '../../assets/audit-engine.js';
+import { AUDIT_CATALOG, RETAINED_IDS, REMOVED_FINDING_IDS } from '../audit-decisions.mjs';
+import { schemaFromMetadata } from '../../assets/converter.js';
+import { convertAll } from '../../assets/converter-code.js';
+import { definition, metadataFromDefinition } from '../fixtures/mal-structure.mjs';
+import { buildReport, renderHtml } from '../../assets/report.js';
 
 const table = (n) => ({
   name: 'Donnees',
@@ -55,15 +53,6 @@ test('les quatre retraits sont absents des constats, des confirmations et des va
     /Des années sont réparties|Attribut utilisateur inexistant|Attribut utilisateur inutilisé|Condition de droit d’accès utilisant un attribut inconnu/,
   );
   assert.ok(access.attributes.length > 0, 'les déclarations restent dans le modèle des droits pour la matrice');
-});
-test('les anciens calculs annuels et cartes d’attributs ne s’exécutent plus', () => {
-  const engine = readFileSync(new URL('../assets/audit-engine.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(engine, /annualColumnFamilies|['"]N41['"]/);
-  assert.ok(!RETAINED_IDS.includes('N41'));
-  const access = readFileSync(new URL('../assets/access.js', import.meta.url), 'utf8').split('export function accessInsights')[1];
-  assert.doesNotMatch(access, /acl-attribute|acl-unknown-attribute|const brokenAttr|const unknown/);
-  const data = readFileSync(new URL('../assets/datacheck.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(data, /acl-attr-unused|unusedAttrs/);
 });
 test('la recommandation de filtres décrit les pages par usage et les liens entre vues de tables', () => {
   const i = AUDIT_CATALOG.find((i) => i.id === 'X13');

@@ -1265,9 +1265,10 @@ function gotoAccess(table) {
  * « Contenu du rapport », sur le modèle de la liste des tables : une case pour inclure la section,
  * son nom pour y aller dans l'aperçu, son numéro dans le rapport. La section lue est mise en avant.
  */
+let reportSectionsHtml = ''; // dernière liste rendue
 function renderReportSections() {
   let n = 0;
-  els['report-sections'].innerHTML = REPORT_SECTIONS.map((r) => {
+  const html = REPORT_SECTIONS.map((r) => {
     const on = state.reportSections.has(r.id);
     const num = on ? `${++n}.` : '—';
     return `<li class="report-index__item${on ? '' : ' is-off'}" data-report-item="${r.id}">
@@ -1275,6 +1276,19 @@ function renderReportSections() {
       <button type="button" data-report-goto="${r.id}" title="${esc(r.description)}"><span class="tables-index__name">${esc(r.title)}</span><span>${num}</span></button>
     </li>`;
   }).join('');
+  // La liste n'est reconstruite que si elle change, et l'élément actif garde le focus (clavier).
+  const list = els['report-sections'];
+  if (reportSectionsHtml !== html) {
+    const active = list.contains(document.activeElement) ? document.activeElement : null;
+    const again = active?.id
+      ? `#${CSS.escape(active.id)}`
+      : active?.dataset.reportGoto
+        ? `[data-report-goto="${active.dataset.reportGoto}"]`
+        : null;
+    list.innerHTML = html;
+    reportSectionsHtml = html;
+    if (again) list.querySelector(again)?.focus();
+  }
   els['report-count'].textContent = `${state.reportSections.size}/${REPORT_SECTIONS.length}`;
   els['report-count'].setAttribute('aria-label', `${state.reportSections.size} sections sur ${REPORT_SECTIONS.length}`);
   els['btn-docx'].disabled = !state.out || !state.reportSections.size;
@@ -1347,31 +1361,46 @@ function updateReportIndex() {
 }
 
 let reportSeq = 0;
+// L'aperçu n'est remplacé que s'il change : un second rendu identique (onglet rouvert, schéma déjà
+// en cache) garde la position de lecture et les éléments de la page.
+let reportBodyHtml = '';
+function setReportBody(html) {
+  if (html === reportBodyHtml && els['report-body'].firstElementChild) return false;
+  reportBodyHtml = html;
+  els['report-body'].innerHTML = html;
+  return true;
+}
+
 async function renderReport() {
   renderReportSections();
   if (!state.out) {
-    els['report-body'].innerHTML = unavailableMessage();
+    setReportBody(unavailableMessage());
     return;
   }
   if (!state.reportSections.size) {
-    els['report-body'].innerHTML = emptyState('<p>Choisissez au moins une section à inclure.</p>');
+    setReportBody(emptyState('<p>Choisissez au moins une section à inclure.</p>'));
     return;
   }
   const seq = ++reportSeq;
   const draw = (schema) => {
+    // L'image du schéma est posée après coup : son arrivée ne reconstruit pas tout l'aperçu.
     const blocks = buildReport(reportContext(schema), [...state.reportSections]);
-    els['report-body'].innerHTML =
-      `<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => schema?.url || '' })}</article>`;
+    setReportBody(`<article class="doc" aria-label="Aperçu du rapport">${renderHtml(blocks, { imageUrl: () => '' })}</article>`);
+    const url = schema?.url || '';
+    for (const img of els['report-body'].querySelectorAll('.doc__figure img'))
+      if (img.getAttribute('src') !== url) img.setAttribute('src', url);
     updateReportIndex();
   };
   const needsSchema = state.reportSections.has('schema');
-  draw(needsSchema ? state.snapshot : null);
+  // En attendant le dessin du schéma : la place de l'image (le dernier dessin s'il y en a un).
+  draw(needsSchema ? state.snapshot || { url: '' } : null);
   if (needsSchema) {
     try {
       const snap = await schemaSnapshot();
       if (seq === reportSeq) draw(snap);
     } catch (err) {
       console.error(err);
+      if (seq === reportSeq) draw(null);
     }
   }
 }
