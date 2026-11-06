@@ -2,6 +2,21 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.19.0 — Nettoyage du code, suite et fin
+Le widget affiche et exporte la même chose qu'en 3.18.0 (vérifié sur les six documents de test, en clair et en sombre : contenu des six onglets, aperçu du rapport, Word, Excel et 120 captures), à trois corrections près :
+
+- **Rapport** : la marge intérieure de la page Rapport est rétablie (une règle CSS orpheline, laissée en 3.16.0, faisait ignorer la suivante par le navigateur).
+- **Mode sombre** : les traits d'exemple du menu **Liens** prennent les couleurs sombres.
+- **Aperçu du rapport** : il n'est plus reconstruit quand rien n'a changé (onglet rouvert, schéma déjà dessiné), et l'arrivée de l'image du schéma ne remplace plus que l'image ; la position de lecture et le focus clavier sont gardés, y compris dans la liste des sections.
+
+Dans le code :
+
+- **Couleurs à un seul endroit** (`assets/theme.js`) : le Word, les exports Excel, les tables et les liens du schéma lisent les mêmes valeurs, posées en variables CSS `--doc-*`.
+- **Liens de formule du schéma** : lookups et calculs passent par une seule mécanique (une table de familles de liens), comme les cases du menu **Liens**.
+- **Code formaté** avec Prettier (`npm run format`, `npm run lint`) ; les événements sont regroupés par onglet et les actions de clic décrites dans une table ; CSS valide, sans doublon.
+- **Numéro de version à un seul endroit** : `npm run version -- x.y.z` met à jour `package.json` et `index.html` ; les modules internes ne portent plus `?v=`. Le README devient une documentation ; l'historique passe dans ce fichier.
+- **Tests** : attentes de l'interface mises à jour (onglet Vues, sections du rapport, niveaux d'analyse), plantage intermittent corrigé à la source, tests des revues rangés dans `tests/revues/` sous des noms descriptifs ; les tests qui cherchaient des noms dans le code source sont remplacés par l'analyse complète de chaque document de test (`tests/removed-findings.test.mjs`).
+
 ## 3.18.0 — Nettoyage du code, sans changement visible
 Le widget affiche et exporte exactement la même chose qu'en 3.17.0 (vérifié octet par octet sur les six documents de test : les six onglets, l'aperçu du rapport, le Word et les deux Excel). Il charge 27 % de code en moins.
 

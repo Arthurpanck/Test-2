@@ -67,6 +67,8 @@ npm run test:deployed -- <url du widget> captures/ [fixture.json]   # version pu
 npm run format              # mise en forme (Prettier) ; npm run lint pour vérifier
 ```
 
+Les tests unitaires sont dans `tests/` (un fichier par module) ; `tests/revues/` garde les arbitrages des revues des constats (niveaux, formulations, retraits), et `tests/removed-findings.test.mjs` fait tourner toute l'analyse sur chaque document de `tests/fixtures/` pour vérifier qu'aucun constat retiré ne réapparaît.
+
 Le test de parité exécute l'ancienne formule Python (`tests/reference/grist_dbml_reference.py`, Python 3 requis) sur plus de 3 000 entrées et vérifie que `converter-code.js` produit exactement la même sortie.
 
 ### Publier une version
