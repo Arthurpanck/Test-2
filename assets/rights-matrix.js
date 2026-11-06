@@ -10,8 +10,8 @@
  *
  * Module pur : testé sous Node.
  */
-import { readAcl, byRulePos, parseCondition, evaluateCondition, permissionBits, unknown, USER_BUILTINS as BUILTIN_USER } from './acl-model.js?v=3.17.0';
-import { columnarToRows } from './util.js?v=3.17.0';
+import { readAcl, byRulePos, parseCondition, evaluateCondition, permissionBits, unknown, USER_BUILTINS as BUILTIN_USER } from './acl-model.js?v=3.18.0';
+import { columnarToRows } from './util.js?v=3.18.0';
 
 export { parseCondition, evaluateCondition, permissionBits };
 

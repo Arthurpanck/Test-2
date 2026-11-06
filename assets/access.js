@@ -12,8 +12,8 @@
 import {
   PERMISSIONS, PERMISSION_LABEL, TABLE_BITS, COLUMN_BITS, DEFAULT_BITS, USER_BUILTINS, byRulePos as byPos,
   parsePermissions, readAcl, editorsStructure,
-} from './acl-model.js?v=3.17.0';
-import { maskPython } from './python-text.js?v=3.17.0';
+} from './acl-model.js?v=3.18.0';
+import { maskPython } from './python-text.js?v=3.18.0';
 
 export { PERMISSIONS, PERMISSION_LABEL, parsePermissions };
 

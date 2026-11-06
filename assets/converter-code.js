@@ -7,8 +7,8 @@
  */
 import {
   DEFAULT_FORMULA_TYPE, PythonFormulaError, W, convertModelCorrected, getGristTypeCode, modelFromSchema, parseGristTypeExpr, pyReprStr, pyStrip, renderDbml, toOutputColumn, userViewTables,
-} from './converter.js?v=3.17.0';
-import { maskPython } from './python-text.js?v=3.17.0';
+} from './converter.js?v=3.18.0';
+import { maskPython } from './python-text.js?v=3.18.0';
 
 export { PythonFormulaError };
 

@@ -9,7 +9,7 @@
  * Lecture du texte des formules seulement, sans les exécuter. Module pur.
  */
 
-import { scanPython, dollarChains, attributesOf as attrsOf, ATTRIBUTE_CHAIN as ATTRS } from './python-text.js?v=3.17.0';
+import { scanPython, dollarChains, attributesOf as attrsOf, ATTRIBUTE_CHAIN as ATTRS } from './python-text.js?v=3.18.0';
 
 /** Code lu par la formule : commentaires et chaînes effacés, sauf le code des f-strings (`f"{$Prenom} {$Nom}"`). */
 const codeOf = (formula) => scanPython(formula, { fstringCode: true }).masked;

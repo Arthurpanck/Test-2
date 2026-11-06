@@ -365,3 +365,15 @@ Les clés de `criteria` sont les colonnes de la table recherchée ; les valeurs 
 L’aperçu et le rapport Word utilisent les mêmes constats. « Code DBML » est décoché au démarrage du rapport et reste sélectionnable. Les évolutions 3.15/3.16 sont conservées, notamment le retrait des vérifications principales de l’analyse et du rapport.
 
 Validation 3.17.0 : 234 tests réussis, dont 32 tests des usages. Les cinq contrôles ont été observés via MCP dans le laboratoire Grist. Les corrections U01/U02/U06/U07 ont supprimé les cibles concernées, puis les cas ont été rétablis et relus. Pour U03, la vraie synthèse issue de la même source est un contre-exemple sans alerte ; le bilan manuel reste disponible pour démonstration.
+
+## Nettoyage du code, sans changement visible — 3.18.0
+
+Le widget affiche et exporte exactement la même chose qu'en 3.17.0 (vérifié octet par octet sur les six documents de test : les six onglets, l'aperçu du rapport, le Word et les deux Excel). Il charge 27 % de code en moins.
+
+- **Droits d'accès : un seul modèle** (`assets/acl-model.js`) pour la lecture des règles, des permissions et des attributs utilisateur, l'analyse des conditions et le droit effectif d'un rôle, partagé par l'onglet Accès, la matrice et les contrôles. La question « les éditeurs peuvent-ils modifier la structure ? » a désormais une seule réponse ; deux cas limites, absents des documents de test, sont corrigés : une règle `-S` qui ne vise que les lecteurs ne retire plus rien aux éditeurs dans les réglages généraux, et l'ancien réglage spécial `SchemaEdit` compte aussi pour les réglages et le constat.
+- **Formules : un seul lecteur** (`assets/python-text.js`) pour les commentaires, les chaînes (simples, triples, f-strings), les parenthèses, les arguments, les `$Colonne` et les appels de lookups. Une chaîne simple jamais refermée s'arrête désormais à la fin de sa ligne, comme en Python.
+- **Calculs faits une fois** : le portage strict de la formule de conversion (et la Vue du code) passe dans `assets/converter-code.js`, que le widget ne charge plus ; l'échantillon des données est tiré une seule fois et repris par l'analyse ; les statistiques sont calculées une fois par lecture.
+- **Code mort retiré** : `audit-config.js`, `annual-columns.js`, `audit-policy.js` ; le catalogue des contrôles chargé par le widget ne garde que les 15 retenus (le registre complet des décisions passe dans `tests/audit-decisions.mjs`) ; les « Vérifications principales » encore calculées sans être affichées ; les textes inutilisés des réglages spéciaux.
+- **Utilitaires communs** (`assets/util.js`) : échappement HTML, pluriels, comparaison sans accents, dates, colonnes techniques, options JSON, lignes des métadonnées, types de colonnes.
+
+Les tables des données sont toujours lues en entier avant d'être échantillonnées : l'API des widgets Grist (`fetchTable`) ne permet pas d'en lire une partie, et l'échantillon dépend de tous les identifiants.

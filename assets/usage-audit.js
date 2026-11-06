@@ -1,8 +1,8 @@
 /** Références, recherches et récapitulations. Grammaire fermée : aucun Python exécuté. */
 export const USAGE_IDS = ['U01', 'U02', 'U03', 'U06', 'U07'];
 export const USAGE_LIMITS = Object.freeze({ tables: 200, columns: 10000, calls: 100, sourceRows: 200, targetRows: 2000, indexCells: 100000, formulaChars: 200000, targets: 100 });
-import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js?v=3.17.0';
-import { scanPython, splitTopLevel } from './python-text.js?v=3.17.0';
+import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js?v=3.18.0';
+import { scanPython, splitTopLevel } from './python-text.js?v=3.18.0';
 const NAME = /^[A-Za-z_]\w*$/;
 const isFormula = c => Boolean(c.isFormula && String(c.formula || '').trim());
 const type = c => splitColType(c.type).base;

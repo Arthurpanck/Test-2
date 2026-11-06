@@ -8,7 +8,7 @@
  *  - droit effectif d'un rôle (effectivePermission), dont les droits de structure des éditeurs.
  * Module pur.
  */
-import { columnarToRows } from './util.js?v=3.17.0';
+import { columnarToRows } from './util.js?v=3.18.0';
 
 export const PERMISSIONS = [
   { bit: 'R', label: 'Lire' },
