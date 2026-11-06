@@ -91,6 +91,50 @@ function shelfLayout(nodes, maxWidth = 1400, gap = 48) {
   return pos;
 }
 
+/**
+ * Liens de formule dessinés par-dessus le schéma, sans compter dans la disposition : une seule
+ * mécanique (enregistrer, dessiner, mettre en avant, exporter) pour chaque famille, décrite ici.
+ *  - lookups : `Table.lookupOne/lookupRecords(...)` → colonne (ou table) cherchée ;
+ *  - calc : colonne calculée → colonnes que sa formule lit (boucle si elles sont dans la même table).
+ */
+const rectOf = (n) => ({ x: n.x, y: n.y, w: n.w, h: n.h });
+const FORMULA_LINKS = {
+  lookups: {
+    css: 'erd-lookup', rootClass: 'erd--lookups', dataKey: 'lookup',
+    modifier: (l) => ` erd-lookup--${l.kind}`,
+    title: (l) => `${l.source}.${l.column} ← ${l.target}${l.targetColumn ? `.${l.targetColumn}` : ''} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'}${l.via === 'key' ? ', critère' : l.via === 'read' ? ', donnée lue' : ''})`,
+    /** Plusieurs lookups entre deux mêmes tables : décalés pour rester distincts. */
+    shifts: (group) => group.forEach((l, i) => { l.shift = 14 + i * 8; }),
+    geometry: (v, l, s, t) => lookupGeometry(rectOf(s), v.anchorY(s, l.column), rectOf(t), v.anchorY(t, l.targetColumn || '\u0000'), { shift: l.shift }),
+    /** La colonne survolée est celle de la formule. */
+    touches: (l, f) => l.source === f.table && l.column === f.column,
+    svg: (l, c) => (l.kind === 'one' ? { color: c.lookupOne, dash: '7 4' } : { color: c.lookupRecords, dash: '2 3' }),
+  },
+  calc: {
+    css: 'erd-calc', rootClass: 'erd--calc', dataKey: 'calc',
+    modifier: () => '',
+    title: (l) => `${l.source}.${l.column} est calculée à partir de ${l.target}.${l.targetColumn} (${{ same: 'même table', ref: 'par une référence' }[l.via] || ''}${l.trigger ? ', formule d\'initialisation' : ''})`,
+    /** Boucles d'une même table : les plus courtes à l'intérieur ; liens entre deux tables : décalés. */
+    shifts: (group, v) => {
+      if (group[0].source !== group[0].target) { group.forEach((l, i) => { l.shift = 30 + i * 8; }); return; }
+      const rows = v.nodes.get(group[0].source)?.rowY;
+      const span = (l) => Math.abs((rows?.get(l.column) ?? 0) - (rows?.get(l.targetColumn) ?? 0));
+      [...group].sort((a, b) => span(a) - span(b)).forEach((l, i) => { l.shift = i * 7; });
+    },
+    geometry: (v, l, s, t) => {
+      const sy = v.anchorY(s, l.column);
+      const ty = v.anchorY(t, l.targetColumn);
+      // Vue « Tables » : pas de lignes, une boucle sur la même table n'aurait pas de hauteur.
+      if (s === t) return Math.abs(sy - ty) < 1 ? null : loopGeometry(rectOf(s), sy, ty, { shift: l.shift });
+      return lookupGeometry(rectOf(s), sy, rectOf(t), ty, { shift: l.shift });
+    },
+    /** La colonne survolée est la colonne calculée ou une colonne qu'elle lit. */
+    touches: (l, f) => (l.source === f.table && l.column === f.column) || (l.target === f.table && l.targetColumn === f.column),
+    svg: (l, c) => ({ color: c.calc, dash: '9 3 2 3' }),
+  },
+};
+const LINK_FAMILIES = Object.keys(FORMULA_LINKS);
+
 export class ErdViewer {
   /**
    * @param {HTMLElement} root  conteneur (doit avoir une hauteur)
@@ -102,10 +146,10 @@ export class ErdViewer {
     this.view = { x: 0, y: 0, k: 1 };
     this.nodes = new Map();
     this.edges = [];
-    this.lookups = []; // { source, column, target, kind: 'one' | 'records' } : dessinés seulement si showLookups
-    this.showLookups = false;
-    this.calc = []; // { source, column, target, targetColumn, via } : colonnes lues par les formules, dessinées seulement si showCalc
-    this.showCalc = false;
+    // Liens de formule (voir FORMULA_LINKS) : { list, show } par famille.
+    //  lookups : { source, column, target, targetColumn, kind: 'one' | 'records', via } ;
+    //  calc : { source, column, target, targetColumn, via, trigger }.
+    this.links = Object.fromEntries(LINK_FAMILIES.map((k) => [k, { list: [], show: false }]));
     this.visibleKinds = new Set(['table', 'summary', 'acl']); // types de tables affichés (menu « Tables »)
     this.aspectRatio = null; // proportions voulues pour la disposition (sinon celles de la vue)
     this.showRefs = true; // relations (colonnes de référence), décochables
@@ -251,7 +295,7 @@ export class ErdViewer {
   /** Colonnes aux deux bouts des liens de formule affichés (lookups, calculs), en « Table\u0000colonne ». */
   linkedColumns() {
     const out = new Set();
-    for (const l of [...(this.showLookups ? this.lookups : []), ...(this.showCalc ? this.calc : [])]) {
+    for (const l of this.shownLinks()) {
       out.add(`${l.source}\u0000${l.column}`);
       if (l.targetColumn && l.targetColumn !== 'id') out.add(`${l.target}\u0000${l.targetColumn}`);
     }
@@ -310,76 +354,61 @@ export class ErdViewer {
         <path class="erd-edge__mark"/>
       </g>`).join('');
     this.edges.forEach((e, i) => { e.el = this.edgeLayer.querySelector(`[data-edge="${i}"]`); });
-    this.renderLookups();
-    this.renderCalc();
+    for (const k of LINK_FAMILIES) this.renderLinks(k);
   }
 
-  /**
-   * Lookups (lookupOne, lookupRecords) trouvés dans les formules : de la colonne de formule vers la
-   * table cherchée. Ils ne comptent pas dans la disposition : les afficher ne déplace aucune table.
-   */
-  setLookups(lookups, show = this.showLookups) {
-    const before = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
-    this.lookups = (lookups || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
-    this.showLookups = Boolean(show);
-    this.root.classList.toggle('erd--lookups', this.showLookups);
-    const after = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
-    if (before !== after) {
-      // En vue « Relations », les colonnes reliées apparaissent ou disparaissent : les tables changent de taille.
-      this.renderNodes();
-      return this.layout({ relayout: !this.manual });
-    }
-    this.renderLookups();
-    this.drawEdges();
-    this.applyHighlight();
-    return Promise.resolve();
-  }
+  /** Lookups (lookupOne, lookupRecords) trouvés dans les formules : de la colonne de formule vers la colonne cherchée. */
+  setLookups(lookups, show = this.links.lookups.show) { return this.setLinks('lookups', lookups, show); }
+
+  /** Calculs : de la colonne calculée vers chaque colonne que sa formule lit. */
+  setCalc(calc, show = this.links.calc.show) { return this.setLinks('calc', calc, show); }
 
   /**
-   * Calculs : de la colonne calculée vers chaque colonne que sa formule lit (même table : boucle
-   * sur le côté). Comme les lookups, elles ne comptent pas dans la disposition.
+   * Enregistre une famille de liens de formule et l'affiche ou la masque. Ces liens ne comptent pas
+   * dans la disposition : les afficher ne déplace aucune table, sauf en vue « Relations », où les
+   * colonnes reliées apparaissent (les tables changent de taille).
    */
-  setCalc(calc, show = this.showCalc) {
+  setLinks(name, list, show) {
     const before = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
-    this.calc = (calc || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target));
-    this.showCalc = Boolean(show);
-    this.root.classList.toggle('erd--calc', this.showCalc);
+    this.links[name] = { list: (list || []).filter((l) => this.nodes.has(l.source) && this.nodes.has(l.target)), show: Boolean(show) };
+    this.root.classList.toggle(FORMULA_LINKS[name].rootClass, this.links[name].show);
     const after = this.detail === 'keys' ? JSON.stringify([...this.linkedColumns()]) : '';
     if (before !== after) {
       this.renderNodes();
       return this.layout({ relayout: !this.manual });
     }
-    this.renderCalc();
+    this.renderLinks(name);
     this.drawEdges();
     this.applyHighlight();
     return Promise.resolve();
   }
 
-  renderCalc() {
-    for (const g of this.edgeLayer.querySelectorAll('.erd-calc')) g.remove();
-    if (!this.calc.length) { this.applyKinds(); return; }
-    // Boucles d'une même table : les plus courtes à l'intérieur ; liens entre deux tables : décalés.
-    const groups = new Map();
-    for (const l of this.calc) {
-      const key = `${l.source}\u0000${l.target}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(l);
-    }
-    for (const group of groups.values()) {
-      if (group[0].source === group[0].target) {
-        const span = (l) => Math.abs((this.nodes.get(l.source)?.rowY.get(l.column) ?? 0) - (this.nodes.get(l.source)?.rowY.get(l.targetColumn) ?? 0));
-        [...group].sort((a, b) => span(a) - span(b)).forEach((l, i) => { l.shift = i * 7; });
-      } else group.forEach((l, i) => { l.shift = 30 + i * 8; });
-    }
-    const how = { same: 'même table', ref: 'par une référence' };
-    const what = (l) => `${l.source}.${l.column} est calculée à partir de ${l.target}.${l.targetColumn} (${how[l.via] || ''}${l.trigger ? ', formule d\'initialisation' : ''})`;
-    this.edgeLayer.insertAdjacentHTML('beforeend', this.calc.map((l, i) => `
-      <g class="erd-calc" data-calc="${i}">
-        <path class="erd-calc__hit"><title>${esc(what(l))}</title></path>
-        <path class="erd-calc__line"/>
-        <path class="erd-calc__arrow"/>
+  /** Liens de formule affichés, toutes familles. */
+  shownLinks() {
+    return LINK_FAMILIES.flatMap((k) => (this.links[k].show ? this.links[k].list : []));
+  }
+
+  /** Éléments SVG d'une famille de liens (le tracé vient ensuite, dans drawEdges). */
+  renderLinks(name) {
+    const f = FORMULA_LINKS[name];
+    const list = this.links[name].list;
+    for (const g of this.edgeLayer.querySelectorAll(`.${f.css}`)) g.remove();
+    if (list.length) {
+      const groups = new Map();
+      for (const l of list) {
+        const key = `${l.source}\u0000${l.target}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(l);
+      }
+      for (const group of groups.values()) f.shifts(group, this);
+      this.edgeLayer.insertAdjacentHTML('beforeend', list.map((l, i) => `
+      <g class="${f.css}${f.modifier(l)}" data-${f.dataKey}="${i}">
+        <path class="${f.css}__hit"><title>${esc(f.title(l))}</title></path>
+        <path class="${f.css}__line"/>
+        <path class="${f.css}__arrow"/>
       </g>`).join(''));
-    this.calc.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-calc="${i}"]`); });
+      list.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-${f.dataKey}="${i}"]`); });
+    }
     this.applyKinds();
   }
 
@@ -395,7 +424,7 @@ export class ErdViewer {
   applyKinds() {
     const off = (id) => { const n = this.nodes.get(id); return Boolean(n) && !this.visibleKinds.has(n.kind); };
     for (const n of this.nodes.values()) { n.filtered = off(n.id); n.el.classList.toggle('is-filtered', n.filtered); }
-    for (const l of [...this.edges, ...this.lookups, ...this.calc]) {
+    for (const l of [...this.edges, ...LINK_FAMILIES.flatMap((k) => this.links[k].list)]) {
       l.filtered = off(l.source) || off(l.target);
       l.el?.classList.toggle('is-filtered', l.filtered);
     }
@@ -405,27 +434,6 @@ export class ErdViewer {
   shownNodes() {
     const list = [...this.nodes.values()].filter((n) => !n.filtered);
     return list.length ? list : [...this.nodes.values()];
-  }
-
-  renderLookups() {
-    for (const g of this.edgeLayer.querySelectorAll('.erd-lookup')) g.remove();
-    if (!this.lookups.length) return;
-    // Plusieurs lookups entre deux mêmes tables : décalés pour rester distincts.
-    const pairs = new Map();
-    for (const l of this.lookups) {
-      const key = `${l.source}\u0000${l.target}`;
-      if (!pairs.has(key)) pairs.set(key, []);
-      pairs.get(key).push(l);
-    }
-    for (const group of pairs.values()) group.forEach((l, i) => { l.shift = 14 + i * 8; });
-    const what = (l) => `${l.source}.${l.column} ← ${l.target}${l.targetColumn ? `.${l.targetColumn}` : ''} (${l.kind === 'one' ? 'lookupOne' : 'lookupRecords'}${l.via === 'key' ? ', critère' : l.via === 'read' ? ', donnée lue' : ''})`;
-    this.edgeLayer.insertAdjacentHTML('beforeend', this.lookups.map((l, i) => `
-      <g class="erd-lookup erd-lookup--${l.kind}" data-lookup="${i}">
-        <path class="erd-lookup__hit"><title>${esc(what(l))}</title></path>
-        <path class="erd-lookup__line"/>
-        <path class="erd-lookup__arrow"/>
-      </g>`).join(''));
-    this.lookups.forEach((l, i) => { l.el = this.edgeLayer.querySelector(`[data-lookup="${i}"]`); });
   }
 
   /** Mesure la taille de chaque table et la position de ses lignes ; vrai si quelque chose a changé. */
@@ -557,37 +565,14 @@ export class ErdViewer {
       line.setAttribute('d', g.path);
       mark.setAttribute('d', `${g.sourceMarker} ${g.targetMarker}`);
     }
-    if (this.showLookups) {
-      for (const l of this.lookups) {
+    for (const name of LINK_FAMILIES) {
+      if (!this.links[name].show) continue;
+      for (const l of this.links[name].list) {
         if (onlyFor && l.source !== onlyFor && l.target !== onlyFor) continue;
         const s = this.nodes.get(l.source);
         const t = this.nodes.get(l.target);
         if (!s || !t || !l.el) continue;
-        const g = lookupGeometry(
-          { x: s.x, y: s.y, w: s.w, h: s.h }, this.anchorY(s, l.column),
-          { x: t.x, y: t.y, w: t.w, h: t.h }, this.anchorY(t, l.targetColumn || '\u0000'),
-          { shift: l.shift },
-        );
-        l.geometry = g;
-        const [hit, line, arrow] = l.el.querySelectorAll('path');
-        hit.setAttribute('d', g.path);
-        line.setAttribute('d', g.path);
-        arrow.setAttribute('d', g.arrow);
-      }
-    }
-    if (this.showCalc) {
-      for (const l of this.calc) {
-        if (onlyFor && l.source !== onlyFor && l.target !== onlyFor) continue;
-        const s = this.nodes.get(l.source);
-        const t = this.nodes.get(l.target);
-        if (!s || !t || !l.el) continue;
-        const sy = this.anchorY(s, l.column);
-        const ty = this.anchorY(t, l.targetColumn);
-        const rect = (n) => ({ x: n.x, y: n.y, w: n.w, h: n.h });
-        // Vue « Tables » : pas de lignes, une boucle sur la même table n'aurait pas de hauteur.
-        const g = s === t
-          ? (Math.abs(sy - ty) < 1 ? null : loopGeometry(rect(s), sy, ty, { shift: l.shift }))
-          : lookupGeometry(rect(s), sy, rect(t), ty, { shift: l.shift });
+        const g = FORMULA_LINKS[name].geometry(this, l, s, t);
         l.geometry = g;
         const [hit, line, arrow] = l.el.querySelectorAll('path');
         hit.setAttribute('d', g?.path || '');
@@ -696,30 +681,21 @@ export class ErdViewer {
         linkedRows.add(`${e.target}\u0000id`);
       }
     }
-    for (const l of this.showLookups ? this.lookups : []) {
-      let on = false;
-      if (focus?.lookup !== undefined) on = this.lookups[focus.lookup] === l;
-      else if (focus?.column) on = l.source === focus.table && l.column === focus.column;
-      else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
-      l.el?.classList.toggle('is-active', on);
-      if (on) {
-        related.add(l.source); related.add(l.target);
-        linkedRows.add(`${l.source}\u0000${l.column}`);
-        if (l.targetColumn) linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
-        active.push(l);
-      }
-    }
-    for (const l of this.showCalc ? this.calc : []) {
-      let on = false;
-      if (focus?.calc !== undefined) on = this.calc[focus.calc] === l;
-      else if (focus?.column) on = (l.source === focus.table && l.column === focus.column) || (l.target === focus.table && l.targetColumn === focus.column);
-      else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
-      l.el?.classList.toggle('is-active', on);
-      if (on) {
-        related.add(l.source); related.add(l.target);
-        linkedRows.add(`${l.source}\u0000${l.column}`);
-        linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
-        active.push(l);
+    for (const name of LINK_FAMILIES) {
+      const { list, show } = this.links[name];
+      const f = FORMULA_LINKS[name];
+      for (const l of show ? list : []) {
+        let on = false;
+        if (focus?.[f.dataKey] !== undefined) on = list[focus[f.dataKey]] === l;
+        else if (focus?.column) on = f.touches(l, focus);
+        else if (focus?.table) on = l.source === focus.table || l.target === focus.table;
+        l.el?.classList.toggle('is-active', on);
+        if (on) {
+          related.add(l.source); related.add(l.target);
+          linkedRows.add(`${l.source}\u0000${l.column}`);
+          if (l.targetColumn) linkedRows.add(`${l.target}\u0000${l.targetColumn}`);
+          active.push(l);
+        }
       }
     }
     if (focus?.table) related.add(focus.table);
@@ -812,14 +788,14 @@ export class ErdViewer {
     this.root.addEventListener('pointerover', (ev) => {
       if (drag?.moved) return;
       const edgeEl = ev.target.closest('.erd-edge');
-      const lookupEl = ev.target.closest('.erd-lookup');
-      const calcEl = ev.target.closest('.erd-calc');
+      const linkName = LINK_FAMILIES.find((k) => ev.target.closest(`.${FORMULA_LINKS[k].css}`));
       const nodeEl = ev.target.closest('.erd-node');
       let next = null;
       if (edgeEl) next = { edge: Number(edgeEl.dataset.edge) };
-      else if (lookupEl) next = { lookup: Number(lookupEl.dataset.lookup) };
-      else if (calcEl) next = { calc: Number(calcEl.dataset.calc) };
-      else if (nodeEl) {
+      else if (linkName) {
+        const key = FORMULA_LINKS[linkName].dataKey;
+        next = { [key]: Number(ev.target.closest(`.${FORMULA_LINKS[linkName].css}`).dataset[key]) };
+      } else if (nodeEl) {
         const row = ev.target.closest('.erd-row--fk, .erd-row--formula');
         next = row ? { table: nodeEl.dataset.id, column: row.dataset.col } : { table: nodeEl.dataset.id };
       }
@@ -899,16 +875,13 @@ export class ErdViewer {
       parts.push(`<path d="${e.geometry.path}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
       parts.push(`<path d="${e.geometry.sourceMarker} ${e.geometry.targetMarker}" fill="none" stroke="${c.line}" stroke-width="1.5"/>`);
     }
-    for (const l of this.showLookups ? this.lookups : []) {
-      if (!l.geometry || l.filtered) continue;
-      const col = l.kind === 'one' ? c.lookupOne : c.lookupRecords;
-      parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${col}" stroke-width="1.75" stroke-dasharray="${l.kind === 'one' ? '7 4' : '2 3'}" stroke-linecap="round"/>`);
-      parts.push(`<path d="${l.geometry.arrow}" fill="${col}"/>`);
-    }
-    for (const l of this.showCalc ? this.calc : []) {
-      if (!l.geometry || l.filtered) continue;
-      parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${c.calc}" stroke-width="1.75" stroke-dasharray="9 3 2 3" stroke-linecap="round"/>`);
-      parts.push(`<path d="${l.geometry.arrow}" fill="${c.calc}"/>`);
+    for (const name of LINK_FAMILIES) {
+      for (const l of this.links[name].show ? this.links[name].list : []) {
+        if (!l.geometry || l.filtered) continue;
+        const { color, dash } = FORMULA_LINKS[name].svg(l, c);
+        parts.push(`<path d="${l.geometry.path}" fill="none" stroke="${color}" stroke-width="1.75" stroke-dasharray="${dash}" stroke-linecap="round"/>`);
+        parts.push(`<path d="${l.geometry.arrow}" fill="${color}"/>`);
+      }
     }
     for (const n of this.shownNodes()) {
       const headH = n.el.firstElementChild.offsetHeight;

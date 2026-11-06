@@ -1119,9 +1119,7 @@ function renderDiagram() {
   const out = state.out;
   const body = els['schema-body'];
   for (const id of ['detail-all', 'detail-keys', 'detail-tables']) els[id].checked = els[id].value === state.diagram.detail;
-  els['show-lookups'].checked = state.diagram.lookups !== false;
-  els['show-refs'].checked = state.diagram.refs !== false;
-  els['show-calc'].checked = state.diagram.calc === true;
+  for (const t of LINK_TOGGLES) els[`show-${t.key}`].checked = linkShown(t);
   for (const k of TABLE_KINDS) els[`show-kind-${k}`].checked = shownKinds().includes(k);
   updateLinksMenu();
   updateKindsMenu();
@@ -1159,15 +1157,24 @@ function aclTableNames() {
 }
 
 /** Menu « Liens » : compte des liens affichés et précisions sous chaque bascule. */
+/**
+ * Bascules du menu « Liens » : clé dans state.diagram (et dans les options), réglage par défaut,
+ * application au schéma, nombre affiché sous le libellé.
+ */
+const LINK_TOGGLES = [
+  { key: 'refs', byDefault: true, apply: (v, on) => v.setRefs(on), sub: 'Colonnes de type Référence',
+    count: () => (state.stats ? state.stats.relations : 0) },
+  { key: 'lookups', byDefault: true, apply: (v, on) => v.setLookups(documentLookups(), on), sub: 'lookupOne (orange) et lookupRecords (vert)',
+    count: () => new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size },
+  { key: 'calc', byDefault: false, apply: (v, on) => v.setCalc(documentFormulaDeps(), on), sub: 'Colonnes lues par les formules',
+    count: () => new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size },
+];
+/** La bascule est-elle active ? (option absente : réglage par défaut) */
+const linkShown = (t) => (t.byDefault ? state.diagram[t.key] !== false : state.diagram[t.key] === true);
+
 function updateLinksMenu() {
-  const refs = state.stats ? state.stats.relations : 0;
-  const lookups = state.out ? new Set(documentLookups().map((l) => [l.source, l.column, l.target, l.kind].join('\u0000'))).size : 0;
-  const calc = state.out ? new Set(documentFormulaDeps().map((l) => `${l.source}\u0000${l.column}`)).size : 0;
-  const shown = Number(state.diagram.refs !== false) + Number(state.diagram.lookups !== false) + Number(state.diagram.calc === true);
-  els['links-count'].textContent = `${shown}/3`;
-  els['show-refs-sub'].textContent = `Colonnes de type Référence · ${refs}`;
-  els['show-lookups-sub'].textContent = `lookupOne (orange) et lookupRecords (vert) · ${lookups}`;
-  els['show-calc-sub'].textContent = `Colonnes lues par les formules · ${calc}`;
+  els['links-count'].textContent = `${LINK_TOGGLES.filter(linkShown).length}/${LINK_TOGGLES.length}`;
+  for (const t of LINK_TOGGLES) els[`show-${t.key}-sub`].textContent = `${t.sub} · ${state.out ? t.count() : 0}`;
 }
 
 /** Types de tables cochés dans le menu « Tables ». */
@@ -1378,24 +1385,14 @@ function bindEvents() {
       saveDiagramSoon();
     });
   }
-  els['show-refs'].addEventListener('change', () => {
-    state.diagram = { ...state.diagram, refs: els['show-refs'].checked };
-    viewer?.setRefs(state.diagram.refs);
-    updateLinksMenu();
-    saveDiagramSoon();
-  });
-  els['show-lookups'].addEventListener('change', () => {
-    state.diagram = { ...state.diagram, lookups: els['show-lookups'].checked };
-    viewer?.setLookups(documentLookups(), state.diagram.lookups);
-    updateLinksMenu();
-    saveDiagramSoon();
-  });
-  els['show-calc'].addEventListener('change', () => {
-    state.diagram = { ...state.diagram, calc: els['show-calc'].checked };
-    viewer?.setCalc(documentFormulaDeps(), state.diagram.calc);
-    updateLinksMenu();
-    saveDiagramSoon();
-  });
+  for (const t of LINK_TOGGLES) {
+    els[`show-${t.key}`].addEventListener('change', () => {
+      state.diagram = { ...state.diagram, [t.key]: els[`show-${t.key}`].checked };
+      if (viewer) t.apply(viewer, state.diagram[t.key]);
+      updateLinksMenu();
+      saveDiagramSoon();
+    });
+  }
 
   // Onglets : clic et clavier (flèches, Début, Fin)
   for (const t of tabs) {
