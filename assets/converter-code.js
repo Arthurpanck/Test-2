@@ -18,8 +18,8 @@ import {
   renderDbml,
   toOutputColumn,
   userViewTables,
-} from './converter.js?v=3.18.0';
-import { maskPython } from './python-text.js?v=3.18.0';
+} from './converter.js';
+import { maskPython } from './python-text.js';
 
 export { PythonFormulaError };
 

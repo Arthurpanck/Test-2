@@ -10,8 +10,8 @@ export const USAGE_LIMITS = Object.freeze({
   formulaChars: 200000,
   targets: 100,
 });
-import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js?v=3.18.0';
-import { scanPython, splitTopLevel } from './python-text.js?v=3.18.0';
+import { columnarToRows as metadataRows, TECHNICAL_COLUMN as TECH, splitColType } from './util.js';
+import { scanPython, splitTopLevel } from './python-text.js';
 const NAME = /^[A-Za-z_]\w*$/;
 const isFormula = (c) => Boolean(c.isFormula && String(c.formula || '').trim());
 const type = (c) => splitColType(c.type).base;

@@ -8,7 +8,7 @@
  *
  * Fonctionne dans le navigateur comme sous Node.
  */
-import { columnarToRows, parseJsonObject, isVisibleColumn } from './util.js?v=3.18.0';
+import { columnarToRows, parseJsonObject, isVisibleColumn } from './util.js';
 
 // ---------------------------------------------------------------------------
 // Compatibilité Python

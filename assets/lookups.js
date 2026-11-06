@@ -10,8 +10,8 @@
  *  - sinon (aucun critère, aucune lecture), la table elle-même.
  * Module pur.
  */
-import { maskPython, lookupCalls, splitTopLevel } from './python-text.js?v=3.18.0';
-import { decodeSummaryTableName } from './converter.js?v=3.18.0';
+import { maskPython, lookupCalls, splitTopLevel } from './python-text.js';
+import { decodeSummaryTableName } from './converter.js';
 
 const NOT_COLUMNS = new Set(['order_by', 'sort_by']);
 

@@ -1,12 +1,12 @@
 /** Contrôles bornés, sans réseau ni exécution de formules ou de conditions d'accès. */
-import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js?v=3.18.0';
-import { columnarToRows, fold, TECHNICAL_COLUMN as TECH } from './util.js?v=3.18.0';
-import { inspectVisibleFilters } from './filter-audit.js?v=3.18.0';
-import { maskPython, dollarChains, lookupCalls, splitTopLevel } from './python-text.js?v=3.18.0';
-import { conditionForRole, effectivePermission } from './acl-model.js?v=3.18.0';
+import { AUDIT_CATALOG, RETAINED_IDS } from './audit-catalog.js';
+import { columnarToRows, fold, TECHNICAL_COLUMN as TECH } from './util.js';
+import { inspectVisibleFilters } from './filter-audit.js';
+import { maskPython, dollarChains, lookupCalls, splitTopLevel } from './python-text.js';
+import { conditionForRole, effectivePermission } from './acl-model.js';
 
 export { conditionForRole, effectivePermission };
-import { inspectUsage } from './usage-audit.js?v=3.18.0';
+import { inspectUsage } from './usage-audit.js';
 export const AUDIT_LIMITS = { rows: 2000, cells: 100000, formulaChars: 200000, edges: 100000, pairs: 100 };
 const infoById = new Map(AUDIT_CATALOG.map((x) => [x.id, x]));
 const clean = (x) =>

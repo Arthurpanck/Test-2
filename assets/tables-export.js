@@ -4,10 +4,10 @@
  *  - « Toutes les colonnes » : les mêmes lignes en tableau Excel filtrable, précédées du nom de la table.
  * Module pur.
  */
-import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js?v=3.18.0';
-import { frenchDateTime as fmtDate } from './util.js?v=3.18.0';
-import { xlsxColor as X } from './theme.js?v=3.18.0';
-import { writeXlsx, cellRef } from './xlsx.js?v=3.18.0';
+import { TABLE_COLUMNS, tableRows, rowValues } from './table-format.js';
+import { frenchDateTime as fmtDate } from './util.js';
+import { xlsxColor as X } from './theme.js';
+import { writeXlsx, cellRef } from './xlsx.js';
 
 const GREY = X('surface'),
   LINE = X('subtle'),

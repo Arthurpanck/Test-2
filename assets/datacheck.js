@@ -6,7 +6,7 @@
  *
  * Module pur : testé sous Node.
  */
-import { columnarToRows, fold, isVisibleColumn } from './util.js?v=3.18.0';
+import { columnarToRows, fold, isVisibleColumn } from './util.js';
 
 const MAX_DISTINCT = 2000;
 

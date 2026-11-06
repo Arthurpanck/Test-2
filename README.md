@@ -1,379 +1,84 @@
 # Audit de structure — widget Grist
 
-Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui audite le document où il est installé : structure, formules, droits d'accès, conversion en [DBML](https://dbml.dbdiagram.io/docs/) et rapport Word.
+Widget personnalisé Grist, conforme au Système de design de l'État (DSFR), qui décrit et audite le document où il est installé : schéma, tables et colonnes, droits d'accès, vues, constats, rapport Word.
 
-Six pages, en plein écran, dans cet ordre : décrire le document (Schéma, Tables, Accès, Widgets), le diagnostiquer (Analyse), produire (Rapport). Les onglets et le bouton « Relire le document » partagent la même ligne ; la barre d'outils de chaque page est juste dessous.
-
-- **Schéma** : tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, « Aller à une table », export SVG ;
-- **Tables** : chaque table avec son nombre de lignes, ses colonnes, leur type (libellés de Grist) et leurs liens ; formules, formules d'initialisation et leur déclenchement, choix, listes filtrées et descriptions ; export CSV ;
-- **Accès** : les règles d'accès avancées en clair — réglages généraux, attributs utilisateur, règles par défaut, puis les règles de chaque table et de ses colonnes, avec « Autorisé / Refusé » par permission et les messages de refus ; filtre et export CSV ;
-- **Widgets** : les widgets autres que les tableaux (comptés mais pas détaillés). D'abord les **widgets non officiels** — ajoutés par leur adresse ou créés dans le document — avec leur origine, l'accès accordé et l'adresse ; puis les **widgets personnalisés** de la galerie Grist, réduits à l'accès et à la liste des colonnes associées (« champ attendu → colonne », champs encore à associer en rouge) ; puis les fiches, listes de fiches, graphiques et formulaires par page ; enfin les pages qui ne contiennent que des tableaux et les tables affichées sur aucune page ;
-- **Analyse** : un verdict, puis les constats sur la structure, les données et les droits d'accès, en quatre niveaux :
-  - *À corriger* — ne fonctionne pas comme prévu (lien vers une table introuvable, condition sur un attribut inexistant, copie non protégée d'une table protégée…) ;
-  - *À améliorer* — fonctionne, mais une bonne pratique éviterait des erreurs (liens écrits à la main au lieu d'une référence, nombres / dates / oui-non saisis en texte, valeurs répétées sans liste de choix, valeurs hors liste, noms par défaut, e-mails écrits dans les règles…) ;
-  - *Choix à confirmer* — souvent volontaire (formule « Non défini », table isolée, table vide, colonne jamais remplie, table très large, tables en double, table sans règle propre…) : chaque carte dit « Si c'est voulu » et « Sinon, dans Grist » ; le bouton **C'est voulu** retire le point des comptes (mémorisé dans le widget) ;
-  - *Bon à savoir*.
-- **Rapport** : un rapport Word (.docx) qui reprend tout, avec un sommaire cliquable, un aperçu et le choix des sections ;
-
-Les constats sur les données lisent les lignes des tables (pas des synthèses) à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir.
-
-La conversion lit la structure réelle du document : les relations, booléens, dates-heures et formules sont fidèles. Elle corrige les défauts de l'ancienne formule du tableau Conversion-DBML (relations perdues quand un nom de table contient « Int » ou « Date », colonnes fantômes), qui reste testée comme référence dans `tests/`.
-
-### Interface (v3)
-
-Tous les onglets suivent les mêmes règles, décrites en tête de `assets/styles.css` :
-- onglets soulignés, avec le nombre de points à corriger sur « Analyse » ; « Relire le document » sur la même ligne ;
-- une barre d'outils grise sous les onglets : recherche, filtres segmentés et boutons de 40 px, exports à droite ;
-- un en-tête de page (titre, une phrase, chiffres clés, « points d'attention ») et des en-têtes de section (titre, compteur, une ligne d'aide) ;
-- des cartes au même modèle ; les badges (MAJUSCULES) donnent un état, les pastilles (arrondies) désignent un élément du document, lilas quand elles mènent quelque part ;
-- 6 tailles de texte, des espacements sur une grille de 4 px, les couleurs du DSFR (le thème sombre suit).
-
-Particularités : un index des tables dans « Tables » ; dans « Analyse », les compteurs servent de filtres, un filtre par domaine, une recherche, et la « Couverture des contrôles » mène au constat concerné ; « Contrôles et règles métier » s'ouvre depuis la barre d'outils ; dans « Rapport », un panneau à cases à cocher choisit les sections.
+L'historique des versions est dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation dans Grist
 
-1. Ajoutez un widget à une page : **Ajouter un widget ▸ Personnalisé**, sur n'importe quelle table.
-2. Dans le panneau de droite, choisissez **URL personnalisée** et saisissez :
-
+1. **Ajouter un widget ▸ Personnalisé**, sur n'importe quelle table.
+2. Dans le panneau de droite, **URL personnalisée** : l'adresse d'un commit publié, par exemple
    ```
-   https://arthurpanck.github.io/Test-2/
+   https://raw.githack.com/Arthurpanck/Test-2/<commit>/index.html?v=<version>
    ```
+   Utilisez toujours l'adresse d'un commit (et non d'une branche) : elle change à chaque version, ce qui garantit que le navigateur charge des fichiers d'une seule et même version.
+3. Accordez l'accès **« Accès complet au document »** (nécessaire pour lire la structure et les règles).
 
-3. Accordez l'accès **« Accès complet au document »** (nécessaire pour lire la structure).
+Le widget mémorise ses réglages (disposition du schéma, liens et tables affichés, constats « voulus ») dans les options du widget : Grist affiche alors **Enregistrer** dans l'en-tête du widget.
 
-Le widget mémorise la disposition du schéma dans le document : comme pour tout widget, Grist affiche alors **Enregistrer** dans l'en-tête du widget ; cliquez dessus pour la conserver.
+## Ce que fait le widget
 
-## Utilisation
+Six onglets : décrire le document (Schéma, Tables, Accès, Vues), le diagnostiquer (Analyse), produire (Rapport). **Relire le document** relit tout à la demande.
 
-La structure est lue dans les métadonnées du document (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`, `_grist_Views`, `_grist_Pages`) et les règles d'accès dans `_grist_ACLResources` et `_grist_ACLRules`, à l'ouverture puis à chaque modification de la table du widget ; **Relire le document** les relit à la demande. Seuls les propriétaires (ou les personnes autorisées à voir les règles) peuvent lire les règles d'accès : pour les autres, la page Accès l'indique.
+- **Schéma** — tables en cartes, relations de colonne à colonne avec leur cardinalité, disposition automatique (ELK), glisser-déposer mémorisé, zoom, mini-carte, « Aller à une table », export PNG.
+  - Trois vues : **Relations** (clé et colonnes de référence, par défaut), **Colonnes**, **Tables**.
+  - Menu **Tables** : tables, tables de synthèse (violet) et tables de droits (rouge, cadenas), affichées ou masquées avec leurs liens.
+  - Menu **Liens** : références (par défaut), lookups (`lookupOne` en orange, `lookupRecords` en vert, par défaut) et calculs (colonne calculée → colonnes que sa formule lit, désactivés par défaut).
+- **Tables** — une table par carte, au format « Table pour exportation » : colonne, nom affiché, type SQLite, type Grist, rôle (Clé primaire, Donnée, Calculée), calculé ?, formule, documentée ? ; description de la table et des colonnes ; index qui suit le défilement ; export Excel.
+- **Accès** — réglages généraux (permissions avancées activées ou non, et les trois cases de Grist : règle ajoutée pour les propriétaires, structure modifiable par les éditeurs, permissions visibles par tous), matrice « Qui peut faire quoi ? » par profil, attributs utilisateur, règles par défaut puis règles de chaque table et de ses colonnes, en clair ; exports Excel.
+- **Vues** — widgets non officiels, widgets personnalisés de la galerie (accès, colonnes associées), fiches, graphiques et formulaires par page, tables sans page.
+- **Analyse** — un verdict et des constats en quatre niveaux : *À corriger* (ouvert par défaut), *À améliorer*, *Choix à confirmer* (le bouton **C'est voulu** les retire des comptes), *Bon à savoir* ; recherche.
+- **Rapport** — rapport Word (.docx) : résumé, schéma (vue Relations, références seules, sans les tables de synthèse), tables et colonnes, vues, analyse (décochée par défaut), droits d'accès, code DBML ; sommaire cliquable ; aperçu identique au fichier.
 
-## Schéma interactif
+Les constats sur les données lisent les lignes des tables (un échantillon au-delà de 2 000 lignes par table), à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir. La structure vient des métadonnées (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`, `_grist_Views`, `_grist_Pages`), les droits de `_grist_ACLResources` et `_grist_ACLRules`.
 
-L'onglet **Schéma** dessine la base comme dbdiagram.io, aux couleurs du DSFR :
+## Architecture
 
-- **tables en cartes** : clé `id`, colonnes et types, icône de relation, `ƒ` pour les formules ; tables de synthèse en violet, tables absentes du schéma en pointillés ;
-- **relations de colonne à colonne**, tracées à angles droits arrondis, avec leur cardinalité : patte d'oie côté « plusieurs », barre côté « un » ;
-- **disposition automatique** par [ELK](https://eclipse.dev/elk/) (algorithme en couches qui tient compte de la ligne exacte d'où part chaque relation), **Réorganiser** pour la recalculer ;
-- **glisser les tables** (souris ou flèches du clavier) : la disposition est mémorisée avec le widget ;
-- **survol ou clic** sur une table, une colonne ou une relation : ses liens sont mis en évidence, le reste s'estompe ;
-- **zoom** (molette, boutons, touches `+` `-` `0`), **mini-carte** pour les grands schémas, **Aller à une table** ;
-- trois niveaux de détail : **Colonnes**, **Relations** (clés seulement), **Tables** ;
-- **export SVG** (thème clair, prêt pour une documentation) ; l'image PNG du schéma est intégrée au rapport Word.
+Aucune étape de compilation : `index.html` et les modules ES de `assets/` sont servis tels quels. Les bibliothèques externes (ELK pour la disposition, docx pour le Word) sont chargées à la demande.
 
-### Pourquoi ce choix technique
-
-| Solution | Licence | Verdict |
-|---|---|---|
-| Mermaid (version précédente) | MIT | Pas de relation de colonne à colonne, disposition médiocre, aucune interaction |
-| React Flow / xyflow (utilisé par ChartDB, Liam ERD) | MIT | Excellent, mais impose React et une étape de compilation |
-| AntV X6, JointJS | MIT, MPL-2.0 | Moteurs complets mais lourds ; fonctions avancées de JointJS payantes |
-| dbml-renderer (Graphviz) | MIT | Image statique, sans interaction |
-| ChartDB, drawDB, Liam ERD, Azimutt | AGPL-3.0, Apache-2.0, MIT | Applications complètes, non intégrables dans un widget |
-| **Rendu maison + ELK.js** | EPL-2.0 (ELK) | **Retenu** : sans compilation, rendu DSFR maîtrisé, disposition de qualité grâce aux ports |
-
-## Droits d'accès : reprise de « Tables et permissions »
-
-La page **Accès** reprend le rapport du widget [tables-et-permissions](https://github.com/jtab87/grist-plugins/tree/main/tables-et-permissions) (tables, formules, choix, conditions de liste, règles d'accès) et l'améliore :
-
-| Widget d'origine | Ici |
+| Module | Rôle |
 |---|---|
-| Permissions brutes (`+R-CD`) colorées | Une colonne par permission : Lire, Modifier, Créer, Supprimer, Structure, « Autorisé / Refusé / — » |
-| Conditions affichées telles quelles | Traduites quand la forme est connue (« Éditeurs et propriétaires », « Personnes dont Habilitation.Role vaut RH »…), formule gardée dessous |
-| Règles triées par chaîne (`table + colonnes + rulePos`) : « 10 » avant « 9 » | Ordre réel d'application (`rulePos` numérique) |
-| Règles par défaut (`*`) et réglages spéciaux mélangés aux tables | Sections distinctes : réglages généraux, attributs utilisateur, règles par défaut |
-| Nom de la première table jamais affiché | Une carte par table, liée à ses colonnes et au schéma |
-| Colonnes de déclenchement : la première colonne du document ignorée (`indexOf > 0`) | Déclenchement en clair (« aux nouvelles lignes et quand cette colonne change : Statut ») |
-| Texte des formules inséré sans échappement HTML | Tout est échappé |
-| Export HTML | Export CSV et rapport Word |
-| — | Contrôles : attribut ou colonne introuvable, condition sur un attribut inexistant, éditeurs pouvant contourner les restrictions de lecture par formule, copie complète ouverte à tous, adresses e-mail écrites dans les règles, refus sans message, tables sans règle propre |
-
-Grist refuse d'enregistrer une règle sur une colonne inexistante ou placée après la règle « Tous les autres » ; les contrôles du widget couvrent ce qui se casse ensuite (suppression, renommage) et ce que Grist accepte sans le vérifier (attribut `user.X` inconnu).
-
-## Rapport Word adaptatif
-
-Le rapport est décrit une seule fois, puis rendu deux fois : en aperçu HTML dans la page Rapport et en fichier Word (bibliothèque [docx](https://docx.js.org/), chargée à la demande).
-
-- **Sections** : `REPORT_SECTIONS` dans `assets/report.js`. Chaque section renvoie des blocs neutres (titre, paragraphe, chiffres clés, encadré, tableau, image, liste, code). Ajouter, retirer ou réordonner une section met à jour à la fois le bouton de sélection, l'aperçu et le Word.
-- **Table des matières** : titres numérotés (1., 1.1…), points de conduite et numéros de page (champs PAGEREF, que Word propose de mettre à jour à l'ouverture) ; chaque titre reçoit un signet ; le sommaire, placé après le titre, renvoie vers ces signets (liens internes dans le Word, ancres dans l'aperçu). Il est construit à partir des sections retenues.
-- **Contenu** : les constats viennent de `assets/insights.js`, la même source que la page Analyse ; l'image est le schéma tel qu'il est disposé à l'écran.
-- **Police** : Calibri 11 (variable `--doc-font`).
-- **Charte** : couleurs et polices sont lues dans les variables CSS `--doc-*` de `assets/styles.css` (police, couleur principale, couleurs des types, des clés, des niveaux…). Modifier ces variables change l'aperçu, le fichier Word et l'export SVG du schéma, sans toucher au code.
-
-## Défauts de l'ancienne formule, corrigés par le widget
-
-| Défaut | Exemple | Effet |
-|---|---|---|
-| Types détectés par sous-chaîne | `grist.ReferenceList('Interventions')` contient « Int » | colonne `integer`, **relation perdue** |
-| | `grist.Reference('Dates_cles')` contient « Date » | colonne `date`, relation perdue |
-| Booléens non reconnus | `grist.Bool()` | `varchar` au lieu de `boolean` |
-| Date-heure confondue avec date | `grist.DateTime('Europe/Paris')` | `date` au lieu de `timestamp` |
-| `def` dans le corps d'une formule | fonction utilitaire dans une formule | **colonne fantôme** |
-| `class X:` dans un texte multiligne | chaîne contenant `class Brouillon:` | **table fantôme**, et les colonnes suivantes changent de table |
-| Décorateur orphelin | `@grist.formulaType` suivi d'une fonction exclue | type appliqué à la mauvaise colonne |
-
-Le moteur « strict », qui reproduit cette formule à l'identique, n'est plus proposé dans l'interface : il sert d'oracle aux tests (`tests/converter.test.mjs`).
+| `app.js` | Interface et intégration Grist : lecture du document, état, rendu des onglets, événements |
+| `util.js` | Utilitaires communs : échappement HTML, pluriels, comparaison sans accents, dates, colonnes techniques, JSON, métadonnées |
+| `theme.js` | **Seule source des couleurs et polices** des documents (Word, exports, tables et liens du schéma), posées en variables CSS `--doc-*` |
+| `python-text.js` | **Seul lecteur des formules Python** : commentaires, chaînes et f-strings, parenthèses, arguments, `$Colonne`, appels de lookups |
+| `acl-model.js` | **Seul modèle des droits** : lecture des règles, permissions, attributs, conditions (analyse fermée, sans exécution), droit effectif d'un rôle |
+| `converter.js` | Lecture des métadonnées, conversion en DBML, statistiques |
+| `converter-code.js` | Portage strict de l'ancienne formule Python et Vue du code (tests de parité ; non chargé par le widget) |
+| `access.js` | Onglet Accès : règles en clair, réglages généraux, constats sur les droits |
+| `rights-matrix.js` | Matrice « Qui peut faire quoi ? » (évaluation des conditions par profil) |
+| `table-format.js`, `types.js` | Présentation des tables et des types de colonnes |
+| `lookups.js`, `formula-deps.js` | Liens de formule : lookups, colonnes lues par les calculs |
+| `insights.js`, `datacheck.js`, `audit-engine.js`, `usage-audit.js`, `filter-audit.js`, `pages.js` | Constats de l'onglet Analyse : structure, données, contrôles du catalogue, usages, filtres, vues |
+| `audit-catalog.js` | Les contrôles retenus (textes, niveaux). Le registre complet des décisions est dans `tests/audit-decisions.mjs` |
+| `report.js` | Rapport : sections, aperçu HTML, rendu Word |
+| `erd.js`, `erd-geometry.js` | Visualiseur de schéma ; géométrie (tracés, cardinalités, graphe ELK), testée sous Node |
+| `tables-export.js`, `rights-export.js`, `xlsx.js` | Exports Excel |
+| `styles.css`, `dsfr-icons.css` | Compléments au DSFR ; sous-ensemble des icônes (`npm run build:icons`) |
 
 ## Développement
 
-Aucune étape de compilation : `index.html` et les modules de `assets/` sont servis tels quels.
-
-```
-assets/converter.js   conversion (moteurs strict et corrigé) — sans dépendance
-assets/insights.js    constats de la page Analyse et du rapport (libellés, étapes de correction)
-assets/access.js      droits d'accès : lecture des règles, conditions en clair, contrôles
-assets/types.js       libellés français des types de colonnes, détails (formules, choix…)
-assets/datacheck.js   profil des données et défauts d'un document mal structuré
-assets/report.js      rapport : sections, aperçu HTML, rendu Word, charte (--doc-*)
-assets/erd.js         visualiseur de schéma (tables, relations, interactions, exports)
-assets/erd-geometry.js géométrie du visualiseur (tracés, cardinalités, graphe ELK) — testée sous Node
-assets/app.js         interface et intégration Grist (grist-plugin-api)
-assets/styles.css     compléments au DSFR
-assets/dsfr-icons.css sous-ensemble des icônes DSFR (scripts/build-icons.mjs)
-tests/                tests du convertisseur et de l'interface
-```
-
-### Tests
-
 ```sh
-npm ci         # dépendances de test (docx, jszip)
-npm test       # convertisseur (comparaison avec la formule Python d'origine, Python 3 requis), géométrie, rapport Word
-npm run test:ui -- captures/   # interface dans Chromium (Playwright), Grist simulé : document de 22 tables avec règles d'accès, et document « mal structuré » de 26 tables avec données (tests/fixtures/mal-structure.mjs)
-npm run test:erd -- captures/  # visualiseur de schéma : disposition, relations, glisser, zoom, exports
-npm run test:deployed -- <url du widget> captures/  # version publiée, métadonnées réelles d'un document
-
-# Aperçu d'une branche avant fusion (ne pas utiliser en production) :
-# https://raw.githack.com/Arthurpanck/Test-2/<branche>/index.html
+npm ci                      # dépendances de développement (docx, jszip, prettier)
+npm test                    # tests unitaires (convertisseur, droits, formules, analyse, rapport, exports)
+npm run test:ui -- captures/    # interface dans Chromium (Playwright), Grist simulé
+npm run test:erd -- captures/   # visualiseur de schéma : disposition, liens, glisser, zoom, exports
+npm run test:deployed -- <url du widget> captures/ [fixture.json]   # version publiée
+npm run format              # mise en forme (Prettier) ; npm run lint pour vérifier
 ```
 
-Le test différentiel exécute la formule d'origine (`tests/reference/grist_dbml_reference.py`, copiée du document) sur plus de 3 000 entrées — fixtures, cas limites et Vues du code générées aléatoirement — et vérifie que le portage JavaScript produit exactement la même sortie ou la même erreur.
+Le test de parité exécute l'ancienne formule Python (`tests/reference/grist_dbml_reference.py`, Python 3 requis) sur plus de 3 000 entrées et vérifie que `converter-code.js` produit exactement la même sortie.
+
+### Publier une version
+
+1. `npm run version -- 3.x.y` : met à jour `package.json` et le paramètre `?v=` de `index.html` (les modules internes n'en portent pas : le numéro est à un seul endroit).
+2. Ajouter la section de la version en tête de `CHANGELOG.md`.
+3. `npm test`, `npm run lint`, puis commit et push.
+4. Dans Grist, pointer le widget vers `https://raw.githack.com/Arthurpanck/Test-2/<commit>/index.html?v=3.x.y` (accès complet).
 
 ## Licences et crédits
 
-- Formule de conversion : [grist-db-parser](https://github.com/arnaud-robin/grist-db-parser) (Arnaud Robin), adaptée dans le document Conversion-DBML.
+- Formule de conversion d'origine : [grist-db-parser](https://github.com/arnaud-robin/grist-db-parser) (Arnaud Robin), adaptée dans le document Conversion-DBML.
+- Page Accès inspirée du widget [tables-et-permissions](https://github.com/jtab87/grist-plugins/tree/main/tables-et-permissions).
 - [DSFR](https://www.systeme-de-design.gouv.fr/) v1.15.4 — usage réservé aux services de l'État (voir ses conditions d'utilisation).
-- [ELK.js](https://github.com/kieler/elkjs) (Eclipse Layout Kernel, EPL-2.0) pour la disposition automatique du schéma, chargé à la demande.
-- [docx](https://github.com/dolanmiu/docx) (MIT) pour le rapport Word, chargé à la demande.
-
-## Audit enrichi 2.7.0
-
-L’analyse applique les 58 propositions retenues lors de la revue du 27 octobre 2026. Les 12 propositions écartées ne sont pas activées. `assets/audit-engine.js` porte les calculs, `assets/audit-catalog.js` les explications et méthodes, `assets/audit-config.js` valide les seules conventions métier acceptées. Les anciennes cartes impossibles à produire dans l’interface normale (identifiants invalides ou dupliqués) sont retirées du verdict.
-
-Chaque nouvelle carte expose sa méthode, l’observation et les limites ; le rapport Word reprend ces informations. Le domaine Données est distinct de Structure, Accès et Pages. Une table ou une ligne non visible n’est jamais déclarée supprimée. Une ressemblance de copie n’est plus considérée comme une fuite prouvée. Les confirmations « C’est voulu » sont invalidées si la version ou la preuve change.
-
-Le profilage est borné : 2000 lignes par table, 100000 cellules pour le document, 200000 caractères de formules. Les ids sont sélectionnés par hachage déterministe, répartis sur les lignes ; cela limite le calcul, pas la quantité transférée par fetchTable. Deux tables sont lues simultanément. Les formules et conditions d’accès ne sont jamais exécutées par le widget. L’analyse des droits reste inconnue pour les expressions non comprises.
-
-Dans Analyse, ouvrir « Règles métier et couverture des contrôles ». Déclarer une clé avec la table et ses colonnes (une seule fiche par tuple). Les règles avancées des options du widget utilisent :
-
-```json
-{
-  "keys": [{"table": "Clients", "columns": ["Code"]}],
-  "dateBounds": [{"table": "Cotisations", "column": "Date", "min": "2024-01-01", "max": "2030-12-31"}],
-  "totals": [{"table": "Commandes", "total": "Total_saisi", "quantity": "Quantite", "price": "Prix"}],
-  "copies": [{"table": "Commandes", "column": "Ville_actuelle", "reference": "Client", "source": "Ville"}]
-}
-```
-
-Ces exemples doivent être adaptés aux identifiants réels. Aucune clé, période, formule de total ou obligation de synchroniser une copie n’est déduite silencieusement des noms de champs. Une copie historique n’est pas une copie courante. Sans règle déclarée, le contrôle est « À configurer », pas « correct ». Les contrôles de pièces jointes demandent leurs métadonnées facultatives. Les montants, courriels et jetons observés ne sont pas ajoutés aux preuves : seulement des ids de lignes et des comptes.
-
-Validation : `npm test` exécute les tests existants, les 58 déclencheurs et leurs cas limites. La vérification MCP utilise les trois documents d’essai ; une correction aller-retour a été contrôlée sur N01, N03, N04 et N29, avec restauration des données. Les 58 contrôles n’ont pas tous un scénario de manipulation réelle des ACL : les cas sensibles sont simulés et le périmètre des vérifications doit rester explicite.
-
-## Filtres visibles 2.8.1
-
-X13 compte les champs de filtre enregistrés, actifs et épinglés par vue Tableau affichée sur une page. À partir de cinq colonnes distinctes lisibles, un « Choix à confirmer » propose des vues préparées sur la même table. Les filtres masqués, les valeurs sélectionnées et les changements temporaires non enregistrés ne sont pas comptés. Le seuil est un indice d’ergonomie, pas une limite Grist. Aucun accès aux lignes métier supplémentaire. Les métadonnées absentes donnent « Non vérifiable », les propriétés ou colonnes censurées un contrôle limité. X04 (lignes vides d’espacement) est abandonné et n’est pas implémenté.
-
-
-## Revue et purge du 29 octobre 2026 — 3.1.0
-
-21 contrôles du catalogue enrichi restent actifs, dont X13. Les contrôles supprimés ne sont plus calculés : doublons de lignes et de clés, variantes de saisie, bornes de dates, comparaisons de totaux, graphes de cycles, divergences de copies et contrôles de droits d’accès retirés. N54 est fusionné dans N53. N67 quitte les constats et devient une section « Informations de la colonne » dans Tables, avec les métadonnées disponibles et la description. Les contrôles historiques retirés (référence non visible, copie possible, recherche de courriel d’habilitation, copie intégrale et deux alertes sur les widgets) sont également désactivés.
-
-Les contrôles N06, N10, N13, N14, N36 et N38 restent disponibles pour arbitrage avec leur calcul expliqué. N13 est maintenant fondé uniquement sur le nom et le type de la colonne. N06, N09, N10 et N14 examinent au plus 200 cellules courtes de l’échantillon par colonne. N31 indexe au plus 100 appels simples de lookupOne et vérifie au plus 200 recherches sources par appel. Aucun des calculs retirés ne s’exécute en arrière-plan.
-
-La récupération réseau reste inchangée : docApi.fetchTable lit la totalité des données que l’utilisateur peut lire, avant l’échantillonnage des calculs (2 000 lignes par table et 100 000 cellules globales). La réduction des calculs ne doit pas être présentée comme une réduction équivalente du téléchargement.
-
-## Deuxième revue du 29 octobre 2026 — 3.3.0
-
-N07, N10, N13, N14, N36, N38 et acl-emails sont retirés, calculs compris. Les niveaux ont été modifiés selon l’arbitrage : attribut inutilisé, source d’attribut absente, tables sans ligne lisible, colonnes sans valeur, espaces invisibles, listes textuelles, lookupOne ambigu, nombreuses pièces jointes, champs de droits modifiables et nom affiché passent à À corriger ; division potentielle par zéro et message de refus sans explication passent à À améliorer.
-
-N41 est rétabli : au moins trois colonnes de saisie d’une même famille portant des années calendaires ou Année 1 / Année 2 / Année 3. Le contrôle ne lit aucune cellule. acl-hidden est conservé en attendant la décision de l’utilisateur après réexplication. Il désigne une limite des éléments lisibles, pas un défaut certain des droits d’accès. La différence entre absence de droits avancés au niveau document (acl-none), absence de règle propre à une table (acl-uncovered), attribut non déclaré et source déclarée introuvable est documentée dans le catalogue de revue.
-
-## Qui peut faire quoi ? et gros documents — 3.2.0
-
-**Matrice des droits (onglet Accès).** Avant les réglages généraux, une matrice donne, pour chaque rôle métier, ce que permettent les règles à une personne de rôle Grist Éditeur : Lire, Modifier, Créer, Supprimer par table et, au choix, par colonne à règles, plus les droits de structure. Le rôle métier est la colonne d'attribut comparée au plus grand nombre de valeurs dans les règles (par exemple `user.Habilitation.Role`). Les conditions sont lues dans un langage fermé (`assets/rights-matrix.js`) : aucun `eval`, aucune exécution de Python. Une condition non comprise donne « ? ». Le widget ne lit aucune ligne métier pour cela. Il lit seulement la table de l'attribut, pour compter les valeurs d'une colonne filtrante (« 7 services »), et ne modifie aucune règle. Une case ouvre le détail des règles examinées, dans l'ordre. Les flèches passent d'une case à l'autre, Échap referme le détail.
-
-**Rapport Word.** La matrice ouvre la section « Droits d'accès », sur des pages en paysage (trois rôles par tableau). Les cas à vérifier dans Grist sont listés après la matrice.
-
-**Export Excel.** Le bouton « Exporter en Excel » de la matrice produit un classeur `.xlsx` écrit sans bibliothèque (`assets/xlsx.js`), avec trois feuilles :
-- la matrice, avec ses couleurs, des filtres, des volets figés et l'impression en paysage ;
-- « Détail par case », un tableau Excel filtrable avec une ligne par rôle, table, colonne et action : résultat, colonnes qui décident, explication, règle qui tranche, règles examinées ;
-- « Paramètres », avec les hypothèses, la légende et les cas à vérifier.
-
-**Gros documents.** Chaque table est réduite à son échantillon dès sa lecture : seuls ses ids restent en mémoire, avec la progression affichée et l'interface qui reste fluide entre deux tables. Le téléchargement par `fetchTable` est inchangé. La mémoire gardée et le temps d'analyse baissent nettement. Les constats sont identiques à ceux calculés sur les tables complètes.
-
-
-La revue finale est livrée en 3.3.0 pour conserver simultanément les modifications de constats et les ajouts parallèles de matrice, exports Word/Excel et préparation des échantillons en mémoire.
-
-## Retouches — 3.4.0
-
-- **Schéma :** « Relations » est la vue par défaut et le premier bouton, avant « Colonnes » puis « Tables ». Le choix fait à la main reste mémorisé. La légende est complète : clé, référence, formule, « plusieurs lignes », « une ligne » et table de synthèse.
-- **Tables :** l'index des tables défile avec la page, sans barre de défilement propre. Les noms longs vont à la ligne.
-- **Accès :**
-  - le bouton « Exporter en Excel » a le même gabarit que la bascule ;
-  - la feuille matrice du classeur reprend la vue « Par table et par colonne » ;
-  - « SRH + SRH » devient « SRH » (même colonne de la personne côté ligne et côté profil) ;
-  - les effets de règle sont formulés « autorise lire et modifier » ;
-  - les réglages « Modifier la structure » et « Règles ajoutées d'office » (`*SPECIAL:SeedRule`) sont expliqués.
-- **Analyse :** « Périmètre des contrôles » devient « Ce qui a été examiné ». Chaque vérification y figure en clair, rangée selon son résultat. Le rapport reprend ce tableau.
-
-## Schéma, tables et lookups — 3.5.0
-
-- **Légende du schéma :** elle distingue la table (en-tête bleu) de la table de synthèse (violet). L'export du schéma se fait en image PNG, à la place du SVG.
-- **Lookups :** une case « Lookups », décochée par défaut, se trouve entre « Aller à une table » et l'export. Le choix est mémorisé.
-  - Elle affiche les `lookupOne` (orange tireté) et les `lookupRecords` (vert pointillé) écrits dans les formules et les formules d'initialisation, de la colonne vers la table cherchée.
-  - La lecture est textuelle, sans exécution : les chaînes et les commentaires sont ignorés.
-  - Une table de synthèse cherchée (`X_summary_Y`) est rattachée à `X_Summary`.
-  - Ces traits ne changent pas la disposition du schéma.
-- **Tables :** chaque table suit le modèle « Table pour exportation » : Colonne (nom en base), Nom affiché, Type SQLite, Type déclaré (Grist), Rôle, Calculé ?, Formule.
-  - Le type SQLite suit `DocStorage._getSqlType()` de grist-core. Par exemple, `DateTime:Europe/Paris` est stocké en BLOB.
-  - Le type déclaré est en français.
-  - Le rôle vaut Clé primaire, Dérivé (v_*) ou Donnée.
-  - La colonne « Calculé ? » vaut Calculé, ou Initialisé pour une formule d'initialisation.
-  - L'export de l'onglet devient un classeur Excel dans ce format.
-- **Rapport :** la section « Tables et colonnes » reprend ce format, en pages paysage. La lecture du schéma mentionne les lookups quand ils sont affichés.
-
-## Lookups de colonne à colonne, documentation des formules — 3.6.0
-
-- **Schéma :**
-  - deux cases encadrées : « Références », cochée par défaut, puis « Lookups », décochée ;
-  - chaque lookup relie la colonne de formule à la colonne de la table cherchée qui donne la donnée : la colonne lue sur le résultat (`.Ville`, `d.Montant for d in …`, `c = …lookupOne(…)` puis `c.Nom`), sinon les colonnes de critère, sinon la table ;
-  - en vue « Relations », les colonnes reliées par un lookup s'affichent quand les lookups sont cochés ;
-  - le bouton d'export s'appelle « Télécharger en PNG ».
-- **Tables :**
-  - « Calculé ? » vaut Calculé, Initialisé (avec le moment où la formule s'applique) ou Non calculé ;
-  - nouvelle colonne « Documentée ? » : Non concerné sans formule, Documentée si la formule contient un commentaire `#` ou une chaîne de documentation, sinon Pas de documentation ;
-  - la description de la colonne s'affiche sous le nom affiché quand elle est renseignée.
-
-  Le rapport Word et l'export Excel reprennent ces colonnes.
-
-## Menu « Liens », table de droits, nature des colonnes — 3.7.0
-
-- **Schéma :**
-  - un bouton « Liens » remplace les deux cases : il ouvre un petit menu avec deux interrupteurs, « Références » et « Lookups », tous deux activés par défaut et désactivables ; le compteur (2/2, 1/2…) rappelle ce qui est affiché, et le choix est mémorisé avec le schéma ;
-  - les tables qui servent aux règles d'accès avancées (attributs d'utilisateur) sont signalées par une couleur propre (rouge depuis la 3.8.0) et un cadenas ; la légende, l'export PNG et le rapport Word reprennent cette couleur « table de droits ».
-- **Tables — colonne « Rôle » :** Clé primaire, puis la nature de la valeur :
-  - **Donnée** : sans formule propre (saisie, import, automatisation) ; une formule d'initialisation qui ne reprend aucune information du document (`NOW()`, `user.Email`) reste une donnée ;
-  - **Calculée** : produite par une formule qui calcule (agrégat, compte, date, arithmétique, condition) ;
-  - **Dérivée** : obtenue d'informations existantes par recopie, extraction, combinaison ou transformation (`$Service.Nom`, `Clients.lookupOne(…).Ville`, `f"{$Prenom} {$Nom}"`, `UPPER($Nom)`).
-- **Interface :** les champs de recherche s'étendent sur la largeur disponible (sauf sur le schéma) ; les contrôles segmentés et les boutons ont un vrai cadre, entier au clic à tous les zooms.
-
-## Colonnes dérivées sur le schéma, table de droits en rouge — 3.8.0
-
-- **Schéma :**
-  - le menu « Liens » a une troisième bascule, « Colonnes dérivées », désactivée par défaut : elle relie chaque colonne dont le rôle est « Dérivée » (même règle que l'onglet Tables) à la colonne qu'elle reprend, en trait mixte violet terminé par une flèche ;
-    - dans la même table (`f"{$Prenom} {$Nom}"`), le lien est une petite boucle sur le côté droit de la table ;
-    - par une référence (`$Service.Nom`, chaînes suivies : `$Service.Direction.Nom`), il va vers la colonne de la table visée ;
-    - par un lookup dont on lit une colonne (`Sites.lookupOne(Code=$Code).Ville`), il va vers cette colonne ; les critères du lookup ne comptent pas ;
-  - en vue « Relations », les colonnes reliées s'affichent quand la bascule est active ; la légende, l'export PNG et le rapport Word reprennent ces liens ;
-  - les tables de droits passent en rouge (#c9191e) pour trancher avec le bleu des tables et le violet des tables de synthèse.
-- **Tables :** une comparaison (`$Statut == "Faite"`, `!=`, `>=`) est bien « Calculée » (elle sortait « Dérivée » en 3.7.0).
-
-## Menu « Tables » du schéma, schéma du rapport, contenu du rapport — 3.9.0
-
-- **Schéma :** un bouton « Tables », à côté de « Liens », ouvre un menu de trois bascules, toutes activées par défaut : Tables, Tables de synthèse, Tables de droits (avec le nombre de tables de chaque type). Une table masquée disparaît avec tous ses liens (références, lookups, colonnes dérivées) ; les autres tables restent à leur place. Le choix est mémorisé avec le schéma. Un seul menu est ouvert à la fois. La barre tient sur une ligne jusqu'à environ 1000 px de large (les deux menus perdent leur icône sous 1600 px).
-- **Rapport — schéma :** l'image ne dépend plus des réglages de l'écran : vue « Relations » (clé et colonnes de référence, les autres colonnes comptées), références seules, sans les tables de synthèse, avec une disposition recalculée aux proportions d'une page A4 en portrait.
-- **Rapport — contenu :** le panneau reprend le modèle de la liste des tables de l'onglet Tables : une ligne par section, avec une case pour l'inclure, son numéro dans le rapport (— si elle est exclue) et le compte en tête (7/7). Un clic sur le nom place l'aperçu sur la section (et l'ajoute si elle était exclue) ; la section lue est mise en avant pendant le défilement. La description de chaque section s'affiche au survol.
-
-## Réglages généraux de Grist, matrice plus lisible — 3.10.0
-
-- **Réglages généraux** (onglet Accès et rapport) : seulement l'état des permissions avancées (activées ou non) et les trois cases de la page « Règles d'accès » de Grist en version open source :
-  - « Ajouter automatiquement une règle pour les propriétaires » (règle SeedRule) ;
-  - « Autoriser les éditeurs à modifier la structure » : Non quand une règle par défaut retire la permission Structure (`user.Access != OWNER` → `-S`), sinon Oui ; si la case est décochée sans règle, le widget le précise ;
-  - « Autoriser tout le monde à voir les permissions avancées » (AccessRules), avec les personnes visées.
-
-  « Copier le document entier » (propre à la version hébergée) n'est plus affiché. Les réglages s'affichent aussi quand le document n'a aucune règle.
-- **Rapport :** dans « Qui peut faire quoi ? », un trait épais sépare les rôles (blanc dans l'en-tête, bleu dans le tableau), dans l'aperçu comme dans le Word. La section Analyse est décochée par défaut. La note sur la police sous « Contenu du rapport » est retirée.
-- **Schéma :** la légende s'étend sur toute la largeur.
-
-
-## Revue du 4 novembre 2026 — version 3.11.0
-
-Les constats `acl-hidden`, `duplicate-table`, `text-ref`, `summary`, `N17`, `N28` et `N57` sont retirés ; leurs calculs dédiés ne s’exécutent plus. Le modèle de visibilité des droits et l’affichage des tables de synthèse restent nécessaires aux autres onglets.
-
-Le constat `typed-as-text` est consacré aux nombres. `boolean-as-text` et `date-as-text` donnent des recommandations et exemples séparés. Les choix uniques (`choice-outside`) et multiples (`N64`) restent distincts. Le nom des pages est examiné aussi lorsqu’il reprend le nom d’une table affichée ; la recommandation propose un titre correspondant à un usage, sans renommage automatique.
-
-Les explications des droits de structure des éditeurs, de l’activation des droits avancés et de la bulle de mémo sont précisées. Un attribut déclaré à source non lisible est distingué d’un nom d’attribut non déclaré.
-
-Validation : 190 tests automatisés. Essai MCP dans `Audit_Types_Choix` : trois recommandations de type et les deux contrôles de choix observés ; correction des deux choix de la ligne 3 puis disparition contrôlée, exemples ensuite rétablis. Aucun droit d’accès réel n’a été modifié pour cet essai.
-
-## Calculs à la place des colonnes dérivées — 3.12.0
-
-- **Tables — colonne « Rôle » :** Clé primaire, Donnée ou Calculée. La notion de « Dérivée » est retirée partout (onglet Tables, rapport Word, export Excel, schéma).
-  - **Donnée** : sans formule propre (saisie, import, automatisation) ; une formule d'initialisation ne propose qu'une première valeur, la colonne reste une donnée (« Calculé ? » indique « Initialisé ») ;
-  - **Calculée** : produite par une formule.
-- **Schéma — lien « Calculs »** (menu « Liens », désactivé par défaut, remplace « Colonnes dérivées ») : de chaque colonne calculée ou initialisée vers les colonnes que sa formule lit pour produire sa valeur :
-  - dans la même table (`$Montant * (1 + $Taux_TVA)`, `f"{$Prenom} {$Nom}"`) : une boucle sur le côté de la table ;
-  - par une référence (`$Service.Nom`, chaînes suivies) ou une liste de lignes (`SUM($group.Montant)`, `[a for a in $group if a.Temps_partiel]`) : vers la colonne de la table visée ;
-  - les critères d'un lookup (`Exercice=$Annee`) comptent ; le lookup lui-même garde son lien orange ou vert.
-
-
-## Revue courante du 4 novembre — version 3.13.0
-
-Les colonnes de saisie et de formule sans type sont regroupées dans `empty`, classé À corriger. `untyped` est fusionné. `N09` est retiré et ses calculs ne s’exécutent plus.
-
-Les choix uniques et multiples sont réunis dans `choice-outside`, À corriger : chaque élément est comparé exactement aux modalités configurées. `N64` est fusionné et son ancien calcul est retiré du moteur enrichi. Les profils plafonnent les ensembles à 2 000 valeurs distinctes et ignorent les erreurs/censures.
-
-`default-name`, `N41`, `N34` et `acl-bypass` passent À corriger ; `acl-uncovered` passe Bon à savoir. Le seuil `X13` est de trois champs affichés dans une même vue Tableau. Les textes courants parlent de vues. Les références, tables larges et colonnes vides ont des explications révisées ; les limites de lecture sont documentées dans les méthodes techniques.
-
-Validation : 196 tests. MCP : trois filtres déclenchent, deux ne déclenchent pas ; les six initiaux sont rétablis. Une carte unique couvre deux colonnes de types Choice et ChoiceList, disparaît après correction, puis réapparaît après rétablissement des exemples. Aucun droit réel du document n’est modifié par ces essais.
-
-## Dernière revue du 4 novembre — version 3.14.0
-
-Le constat des tables sans référence explique les informations rapportées entre tables et les vues reliées dynamiquement ; le cas volontaire est une table de droit d’équipe. `wide-table` est renommé « Table avec de nombreuses colonnes (plus de 20 colonnes) » et se déclenche strictement à partir de 21 colonnes.
-
-`N41`, `acl-attribute`, `acl-unknown-attribute` et `acl-attr-unused` sont retirés, avec leurs calculs dédiés. Les déclarations d’attributs et le modèle de droits restent disponibles pour la matrice et les autres fonctions. `acl-uncovered` est renommé « Table non concernée par des règles avancées ».
-
-`X13` parle de vues de tables et recommande des pages par usage (RH, finances, managers), avec des liens entre vues pour filtrer dynamiquement les tables. Son seuil de trois filtres est inchangé.
-
-Validation : 202 tests. Métadonnées Grist relues : 31 tables ; constats retirés absents ; Personnel correspond au nouveau seuil ; deux déclarations d’attributs conservées dans le modèle des droits.
-
-## Analyse sans filtre par domaine — 3.15.0
-
-- La barre de l'onglet Analyse ne garde que la recherche : le filtre « Domaine » (Tous, Structure, Données, Droits d'accès, Vues) et le bouton « Ce qui a été examiné » (avec son panneau) sont retirés. Chaque carte garde son domaine en étiquette.
-
-## Sans « Vérifications principales » — 3.16.0
-
-- L'onglet Analyse n'affiche plus le panneau « Vérifications principales » : la liste des constats prend toute la largeur. Le rapport Word perd la liste correspondante (« Ce qui a été vérifié »).
-
-
-## 3.17.0 — Références, recherches et récapitulations
-
-Cinq contrôles validés sont intégrés, tous classés À corriger : U01 (utiliser les lignes du groupe), U02 (champ rapporté plutôt que recherche redondante), U03 (bilan manuel de groupes), U06 (table utilisée uniquement comme liste de choix), U07 (sélection manuelle pour un calcul par critères déclarés). U04 reste retiré. Les messages ne comportent pas d’exemples de données.
-
-Le parseur accepte seulement des expressions complètes et des égalités simples. Les commentaires et chaînes ne sont jamais pris pour du code ; aucune formule Python n’est exécutée dans le navigateur. Les critères supplémentaires, recherches ordonnées, tables avec des informations propres, référentiels partagés ou protégés et références calculées sont exclus selon le contrôle. U01 ne réécrit pas automatiquement un lookupOne destiné à sélectionner une ligne ; le constat N31 reste responsable des recherches ambiguës.
-
-Les budgets sont explicites : 200 tables, 10 000 colonnes, 100 index, 200 lignes de départ et 2 000 lignes cibles par index, 100 000 cellules d’index et 200 000 caractères de formules. Les index identiques sont réutilisés. Les contrôles utilisent l’échantillon déjà préparé par l’audit et n’ajoutent aucune lecture réseau.
-
-### Déclarer l’intention pour U07
-
-Une sélection manuelle peut être volontaire : sans critères déclarés, U07 est **non vérifiable**, pas validé par défaut. Pour une colonne calculant uniquement un résultat attendu par critères, une ligne de sa description peut préciser ce contrat :
-
-```text
-@audit-lookup {"table":"Operations","selection":"Selection_manuelle","criteria":{"Annee":"Annee","Region":"Region"},"aggregate":"SUM","field":"Montant"}
-```
-
-Les clés de `criteria` sont les colonnes de la table recherchée ; les valeurs sont les colonnes de la table courante. La déclaration est strictement validée et ne contient aucun code exécutable. La formule doit être une agrégation reconnue sur cette sélection. Une formule utilisant déjà la recherche correspondant au contrat ou une référence calculée n’est pas signalée. Ce mécanisme n’invente jamais les critères à partir des noms de colonnes.
-
-L’aperçu et le rapport Word utilisent les mêmes constats. « Code DBML » est décoché au démarrage du rapport et reste sélectionnable. Les évolutions 3.15/3.16 sont conservées, notamment le retrait des vérifications principales de l’analyse et du rapport.
-
-Validation 3.17.0 : 234 tests réussis, dont 32 tests des usages. Les cinq contrôles ont été observés via MCP dans le laboratoire Grist. Les corrections U01/U02/U06/U07 ont supprimé les cibles concernées, puis les cas ont été rétablis et relus. Pour U03, la vraie synthèse issue de la même source est un contre-exemple sans alerte ; le bilan manuel reste disponible pour démonstration.
-
-## Nettoyage du code, sans changement visible — 3.18.0
-
-Le widget affiche et exporte exactement la même chose qu'en 3.17.0 (vérifié octet par octet sur les six documents de test : les six onglets, l'aperçu du rapport, le Word et les deux Excel). Il charge 27 % de code en moins.
-
-- **Droits d'accès : un seul modèle** (`assets/acl-model.js`) pour la lecture des règles, des permissions et des attributs utilisateur, l'analyse des conditions et le droit effectif d'un rôle, partagé par l'onglet Accès, la matrice et les contrôles. La question « les éditeurs peuvent-ils modifier la structure ? » a désormais une seule réponse ; deux cas limites, absents des documents de test, sont corrigés : une règle `-S` qui ne vise que les lecteurs ne retire plus rien aux éditeurs dans les réglages généraux, et l'ancien réglage spécial `SchemaEdit` compte aussi pour les réglages et le constat.
-- **Formules : un seul lecteur** (`assets/python-text.js`) pour les commentaires, les chaînes (simples, triples, f-strings), les parenthèses, les arguments, les `$Colonne` et les appels de lookups. Une chaîne simple jamais refermée s'arrête désormais à la fin de sa ligne, comme en Python.
-- **Calculs faits une fois** : le portage strict de la formule de conversion (et la Vue du code) passe dans `assets/converter-code.js`, que le widget ne charge plus ; l'échantillon des données est tiré une seule fois et repris par l'analyse ; les statistiques sont calculées une fois par lecture.
-- **Code mort retiré** : `audit-config.js`, `annual-columns.js`, `audit-policy.js` ; le catalogue des contrôles chargé par le widget ne garde que les 15 retenus (le registre complet des décisions passe dans `tests/audit-decisions.mjs`) ; les « Vérifications principales » encore calculées sans être affichées ; les textes inutilisés des réglages spéciaux.
-- **Utilitaires communs** (`assets/util.js`) : échappement HTML, pluriels, comparaison sans accents, dates, colonnes techniques, options JSON, lignes des métadonnées, types de colonnes.
-
-Les tables des données sont toujours lues en entier avant d'être échantillonnées : l'API des widgets Grist (`fetchTable`) ne permet pas d'en lire une partie, et l'échantillon dépend de tous les identifiants.
+- [ELK.js](https://github.com/kieler/elkjs) (EPL-2.0) pour la disposition du schéma, [docx](https://github.com/dolanmiu/docx) (MIT) pour le rapport Word.

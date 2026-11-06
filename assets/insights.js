@@ -9,10 +9,10 @@
  *  - Choix à confirmer : souvent volontaire ; l'utilisateur confirme (« C'est voulu ») ou corrige ;
  *  - Bon à savoir : information.
  */
-import { accessInsights } from './access.js?v=3.18.0';
-import { structureSmells } from './datacheck.js?v=3.18.0';
-import { runAudit } from './audit-engine.js?v=3.18.0';
-import { pageInsights } from './pages.js?v=3.18.0';
+import { accessInsights } from './access.js';
+import { structureSmells } from './datacheck.js';
+import { runAudit } from './audit-engine.js';
+import { pageInsights } from './pages.js';
 
 export const SEVERITIES = {
   blocking: { label: 'À corriger', order: 0 },

@@ -12,16 +12,16 @@
  *
  * Module pur (sans DOM, sauf readTheme) : la génération Word est testée sous Node.
  */
-import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js?v=3.18.0';
-import { esc, plural, frenchDateTime } from './util.js?v=3.18.0';
-import { AUDIT_CATALOG } from './audit-catalog.js?v=3.18.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.18.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.18.0';
-import { BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.18.0';
-import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.18.0';
-import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js?v=3.18.0';
+import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.js';
+import { esc, plural, frenchDateTime } from './util.js';
+import { AUDIT_CATALOG } from './audit-catalog.js';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js';
+import { TABLE_COLUMNS, tableRows } from './table-format.js';
+import { BITS, PERMISSION_LABEL, generalSettings } from './access.js';
+import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js';
+import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js';
 
-import { readTheme } from './theme.js?v=3.18.0';
+import { readTheme } from './theme.js';
 
 export { readTheme };
 export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';

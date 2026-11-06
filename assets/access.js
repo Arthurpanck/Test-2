@@ -20,8 +20,8 @@ import {
   parsePermissions,
   readAcl,
   editorsStructure,
-} from './acl-model.js?v=3.18.0';
-import { maskPython } from './python-text.js?v=3.18.0';
+} from './acl-model.js';
+import { maskPython } from './python-text.js';
 
 export { PERMISSIONS, PERMISSION_LABEL, parsePermissions };
 

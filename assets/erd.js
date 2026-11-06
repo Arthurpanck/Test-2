@@ -8,10 +8,10 @@
  * - Survol ou sélection d'une table ou d'une colonne : ses relations sont mises en évidence.
  * - Export SVG (et PNG pour le rapport Word).
  */
-import { edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph } from './erd-geometry.js?v=3.18.0';
-import { readTheme } from './theme.js?v=3.18.0';
-import { esc, plural } from './util.js?v=3.18.0';
-import { columnTypeLabel, ID_TYPE_LABEL } from './types.js?v=3.18.0';
+import { edgeGeometry, lookupGeometry, loopGeometry, boundsOf, fitTransform, buildElkGraph } from './erd-geometry.js';
+import { readTheme } from './theme.js';
+import { esc, plural } from './util.js';
+import { columnTypeLabel, ID_TYPE_LABEL } from './types.js';
 
 const ELK_VERSION = '0.12.0';
 const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko

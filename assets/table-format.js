@@ -4,8 +4,8 @@
  * Utilisée par l'onglet Tables, le rapport Word et l'export Excel des tables.
  * Module pur.
  */
-import { GRIST_TYPE_LABELS } from './types.js?v=3.18.0';
-import { scanPython } from './python-text.js?v=3.18.0';
+import { GRIST_TYPE_LABELS } from './types.js';
+import { scanPython } from './python-text.js';
 
 export const TABLE_COLUMNS = [
   'Colonne (nom en base)',

@@ -1,5 +1,5 @@
 /** Filtres enregistrés affichés dans les vues Tableau ; aucun accès aux lignes métier. */
-import { columnarToRows, TECHNICAL_COLUMN as technical } from './util.js?v=3.18.0';
+import { columnarToRows, TECHNICAL_COLUMN as technical } from './util.js';
 
 export const VISIBLE_FILTER_THRESHOLD = 3;
 

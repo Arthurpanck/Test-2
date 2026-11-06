@@ -18,8 +18,8 @@ import {
   permissionBits,
   unknown,
   USER_BUILTINS as BUILTIN_USER,
-} from './acl-model.js?v=3.18.0';
-import { columnarToRows } from './util.js?v=3.18.0';
+} from './acl-model.js';
+import { columnarToRows } from './util.js';
 
 export { parseCondition, evaluateCondition, permissionBits };
 

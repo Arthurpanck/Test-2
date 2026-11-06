@@ -5,7 +5,7 @@
  * (origine, accès, colonnes associées).
  * Module pur : testé sous Node.
  */
-import { columnarToRows, fold, parseJsonObject as parseJson } from './util.js?v=3.18.0';
+import { columnarToRows, fold, parseJsonObject as parseJson } from './util.js';
 
 /** Types de vues, avec les libellés de Grist. */
 export const WIDGET_TYPES = {

@@ -11,7 +11,8 @@
     "build:icons": "node scripts/build-icons.mjs",
     "test:deployed": "node tests/ui/run-deployed.mjs",
     "format": "prettier --write \"assets/*.js\" assets/styles.css index.html \"tests/*.mjs\" \"tests/ui/*.mjs\" \"scripts/*.mjs\"",
-    "lint": "prettier --check \"assets/*.js\" assets/styles.css index.html \"tests/*.mjs\" \"tests/ui/*.mjs\" \"scripts/*.mjs\""
+    "lint": "prettier --check \"assets/*.js\" assets/styles.css index.html \"tests/*.mjs\" \"tests/ui/*.mjs\" \"scripts/*.mjs\"",
+    "version": "node scripts/version.mjs"
   },
   "license": "MIT",
   "devDependencies": {

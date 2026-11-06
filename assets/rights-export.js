@@ -3,10 +3,10 @@
  * détail filtrable (une ligne par case) et les paramètres de lecture.
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
-import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js?v=3.18.0';
-import { frenchDateTime as fmtDate } from './util.js?v=3.18.0';
-import { xlsxColor as X } from './theme.js?v=3.18.0';
-import { writeXlsx, colName, cellRef } from './xlsx.js?v=3.18.0';
+import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js';
+import { frenchDateTime as fmtDate } from './util.js';
+import { xlsxColor as X } from './theme.js';
+import { writeXlsx, colName, cellRef } from './xlsx.js';
 
 const BLUE = X('primary'),
   GREY = X('surface'),

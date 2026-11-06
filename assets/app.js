@@ -1,21 +1,21 @@
-import { convertSchema, computeStats, schemaFromMetadata } from './converter.js?v=3.18.0';
-import { esc, plural } from './util.js?v=3.18.0';
-import { applyDocTheme } from './theme.js?v=3.18.0';
+import { convertSchema, computeStats, schemaFromMetadata } from './converter.js';
+import { esc, plural } from './util.js';
+import { applyDocTheme } from './theme.js';
 
 // Couleurs des documents (variables --doc-*) : posées avant tout affichage.
 applyDocTheme();
-import { ErdViewer } from './erd.js?v=3.18.0';
-import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js?v=3.18.0';
-import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js?v=3.18.0';
-import { profileTables } from './datacheck.js?v=3.18.0';
-import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js?v=3.18.0';
-import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js?v=3.18.0';
-import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js?v=3.18.0';
-import { TABLE_COLUMNS, tableRows } from './table-format.js?v=3.18.0';
-import { findLookups } from './lookups.js?v=3.18.0';
-import { findFormulaDeps } from './formula-deps.js?v=3.18.0';
-import { tablesXlsx } from './tables-export.js?v=3.18.0';
-import { matrixXlsx } from './rights-export.js?v=3.18.0';
+import { ErdViewer } from './erd.js';
+import { buildInsights, SEVERITIES, LEVELS, AREAS, targetLabel, insightKey, stepsAfterIntended } from './insights.js';
+import { sampleAuditData, AUDIT_LIMITS, presampleTable } from './audit-engine.js';
+import { profileTables } from './datacheck.js';
+import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js';
+import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js';
+import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js';
+import { TABLE_COLUMNS, tableRows } from './table-format.js';
+import { findLookups } from './lookups.js';
+import { findFormulaDeps } from './formula-deps.js';
+import { tablesXlsx } from './tables-export.js';
+import { matrixXlsx } from './rights-export.js';
 import {
   ACTIONS as MATRIX_ACTIONS,
   ACTION_LABEL,
@@ -26,8 +26,8 @@ import {
   cellSentence,
   cellSteps,
   detectRole,
-} from './rights-matrix.js?v=3.18.0';
-import { REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary } from './report.js?v=3.18.0';
+} from './rights-matrix.js';
+import { REPORT_SECTIONS, buildReport, renderHtml, renderDocx, readTheme, loadDocx, accessSummary } from './report.js';
 
 // Le widget lit toujours la structure du document où il est installé et produit
 // la conversion corrigée (relations et types fidèles au document).
