@@ -27,9 +27,11 @@ export function hasDocumentation(code) {
   return /^\s*("""|''')/.test(src) || scanPython(src).hasComment;
 }
 
-/** « Documentée ? » : Non concerné (pas de formule), Documentée ou Pas de documentation. */
-export const documentationLabel = (formula) =>
-  !formula ? 'Non concerné' : hasDocumentation(formula) ? 'Documentée' : 'Pas de documentation';
+/** « Documentée ? » d'une colonne sans formule (saisie, clé) : la question ne se pose pas. */
+export const NO_FORMULA = '—';
+
+/** « Documentée ? » : Documentée ou Pas de documentation pour une formule ; « — » sans formule. */
+export const documentationLabel = (formula) => (!formula ? NO_FORMULA : hasDocumentation(formula) ? 'Documentée' : 'Pas de documentation');
 
 /**
  * Type de stockage SQLite, comme DocStorage._getSqlType() de grist-core : il dépend de la chaîne
@@ -114,7 +116,7 @@ export function tableRows(t, keep = () => true) {
       role: 'Clé primaire',
       computed: 'Non calculé',
       formula: '',
-      documented: 'Non concerné',
+      documented: NO_FORMULA,
       description: '',
       isKey: true,
     },

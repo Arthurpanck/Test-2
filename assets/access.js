@@ -80,7 +80,13 @@ export function generalSettings(a) {
       state: editorsEditSchema ? 'Oui' : 'Non',
       level: editorsEditSchema && a.restrictsRead ? 'warning' : editorsEditSchema ? 'info' : 'success',
       text: editorsEditSchema
-        ? `Les éditeurs modifient tables, colonnes et dispositions, et écrivent des formules${a.restrictsRead ? ' : une formule peut lire toutes les données, malgré les règles qui en restreignent la lecture' : ''}.${a.hasRules && !explicitAllow ? " La case est décochée dans Grist, mais aucune règle ne retire la permission Structure (Grist l'indique par un avertissement)." : ''}`
+        ? `Les éditeurs modifient tables, colonnes et dispositions, et écrivent des formules${a.restrictsRead ? ' : une formule peut lire toutes les données, malgré les règles qui en restreignent la lecture' : ''}.${
+            a.hasRules
+              ? explicitAllow
+                ? ' La case est cochée dans Grist, et ce choix a été confirmé (avertissement écarté).'
+                : ' C’est le réglage par défaut : la case est cochée dans Grist, qui affiche un avertissement tant qu’elle n’est pas décochée.'
+              : ''
+          }`
         : `Seuls les propriétaires modifient la structure et écrivent des formules (règle par défaut refusant la permission Structure : ${deny.join(' ; ')}).`,
     },
     {
@@ -147,7 +153,43 @@ export function describeCondition(formula, { first = true } = {}) {
     return { text: 'Sur les lignes où la personne est désignée par son adresse', kind: 'row', row: true };
   }
   if (/^not\s+user\.IsLoggedIn$/.test(f)) return { text: 'Personnes non connectées', kind: 'role', row: false };
+  const both = describeConjunction(f);
+  if (both) return both;
   return { text: row ? 'Selon le contenu de la ligne' : 'Selon une condition', kind: row ? 'row' : 'formula', row };
+}
+
+/**
+ * « A and B » dont chaque partie est simple : attribut comparé à un texte (« Fonction » vaut « Manager »),
+ * ligne comparée à la personne (« Service » correspond au sien). Sinon null.
+ * « user.Habilitation.Fonction == 'Manager' and user.Habilitation.Pole == 'RH' »
+ *   → Personnes dont « Habilitation.Fonction » vaut « Manager » et « Habilitation.Pole » vaut « RH »
+ */
+function describeConjunction(f) {
+  if (/[()]|\bor\b|\bnot\b/.test(maskPython(f))) return null;
+  const parts = f.split(/\s+and\s+/);
+  if (parts.length < 2) return null;
+  const who = [],
+    rows = [];
+  for (const raw of parts) {
+    const p = raw.trim();
+    let m = /^user\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s*(==|!=)\s*['"]([^'"]*)['"]$/.exec(p);
+    if (m) {
+      who.push(`« ${m[1]}.${m[2]} » ${m[3] === '==' ? 'vaut' : 'ne vaut pas'} « ${m[4]} »`);
+      continue;
+    }
+    // Ligne comparée à la personne, dans un sens ou dans l'autre
+    const [x, y] = p.split(/\s*==\s*/);
+    const rowSide = [x, y].find((v) => /^(?:rec|newRec)\.[A-Za-z_]\w*$/.test(v || ''));
+    const userSide = [x, y].find((v) => /^user\.[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?$/.test(v || ''));
+    if (y !== undefined && rowSide && userSide) {
+      rows.push(`« ${rowSide.split('.')[1]} » correspond à son « ${userSide.slice(5)} »`);
+      continue;
+    }
+    return null;
+  }
+  if (!who.length) return { text: `Sur les lignes où ${joinFr(rows)}`, kind: 'row', row: true };
+  const text = `Personnes dont ${joinFr(who)}${rows.length ? `, sur les lignes où ${joinFr(rows)}` : ''}`;
+  return { text, kind: rows.length ? 'row' : 'attribute', row: rows.length > 0 };
 }
 
 // Attributs et colonnes cités par une condition (hors chaînes) : « user.Habilitation… », « rec.Service ».
@@ -314,7 +356,7 @@ export function accessInsights(access) {
       why: "Une formule peut lire n'importe quelle table, données cachées comprises : un éditeur peut ainsi les afficher.",
       steps: [
         OPEN_RULES,
-        "Dans les droits d’accès spéciaux, décochez l'autorisation donnée aux éditeurs de modifier la structure.",
+        'Dans les droits d’accès spéciaux, décochez la case « Autoriser les éditeurs à modifier la structure » (cochée par défaut).',
         REFRESH_STEP,
       ],
       targets: [],

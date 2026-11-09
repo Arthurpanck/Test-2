@@ -120,6 +120,7 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
     verdict = {
       level: 'blocking',
       title: `${n} point${n > 1 ? 's' : ''} à corriger`,
+      sentence: `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`,
       text: `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. Suivez les étapes ci-dessous.`,
     };
   } else {

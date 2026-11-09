@@ -16,7 +16,7 @@ import { SEVERITIES, AREAS, targetLabel, stepsAfterIntended } from './insights.j
 import { esc, plural, frenchDateTime } from './util.js';
 import { AUDIT_CATALOG } from './audit-catalog.js';
 import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js';
-import { TABLE_COLUMNS, tableRows } from './table-format.js';
+import { TABLE_COLUMNS, tableRows, NO_FORMULA } from './table-format.js';
 import { BITS, PERMISSION_LABEL, generalSettings } from './access.js';
 import { originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js';
 import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './rights-matrix.js';
@@ -68,18 +68,22 @@ export function generalRows(a) {
   ]);
 }
 
+const PERM_WIDTH = { R: 11, U: 12, C: 11, D: 13, S: 13 }; // en % de la largeur du tableau
 const PERM_CELL = { allow: { text: 'Autorisé', color: 'ready' }, deny: { text: 'Refusé', color: 'blocking' } };
 
 /** Tableau d'un ensemble de règles (une ligne par règle, une colonne par permission). */
 export function ruleTable(rules, bits) {
-  const w = 13; // assez large pour « Supprimer » ou « Structure » sur une ligne
-  const rest = 100 - w * bits.length;
-  const who = Math.round(rest * 0.58);
+  // Permissions : chaque colonne juste assez large pour son titre (« Supprimer », « Structure ») et
+  // « Autorisé » sur une ligne. « Qui » prend la plus grande part du reste, pour que les conditions
+  // (user.Habilitation.Fonction == 'RH') ne soient pas coupées en plein mot.
+  const width = (b) => PERM_WIDTH[b] || 13;
+  const rest = 100 - bits.reduce((n, b) => n + width(b), 0);
+  const who = Math.round(rest * 0.64);
   return {
     type: 'table',
     columns: [
       { label: 'Qui', width: who },
-      ...bits.map((b) => ({ label: PERMISSION_LABEL[b], width: w })),
+      ...bits.map((b) => ({ label: PERMISSION_LABEL[b], width: width(b) })),
       { label: 'Message', width: rest - who },
     ],
     rows: rules.map((r) => [
@@ -177,9 +181,21 @@ export function matrixBlocks(mx) {
   return blocks;
 }
 
+/** Où lire le détail des constats : la partie « Analyse » du rapport, sinon l'onglet du widget. */
+const analysisPlace = (ctx) =>
+  ctx.sections?.includes('analysis') ? 'dans la partie « Analyse » de ce rapport' : 'dans l’onglet « Analyse » du widget';
+
+/** Verdict du résumé : la phrase de l'analyse, et où trouver les étapes de correction. */
+function summaryVerdictText(ctx) {
+  const v = ctx.insights.verdict;
+  if (v.level !== 'blocking') return v.text;
+  return `${v.sentence || v.text} Les étapes de correction sont ${analysisPlace(ctx)}.`;
+}
+
 /**
  * Sections du rapport, dans l'ordre des pages de la vue. Chacune renvoie des blocs.
- * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schemaSummaries, schema: { png, width, height } | null }
+ * `ctx` : { docName, date, stats, tables, insights, access, profiles, pages, dbml, schemaSummaries, schema: { png, width, height } | null,
+ *   sections (ajouté par buildReport : les sections retenues) }
  */
 export const REPORT_SECTIONS = [
   {
@@ -197,7 +213,7 @@ export const REPORT_SECTIONS = [
             { value: ctx.stats.formulas, label: ctx.stats.formulas > 1 ? 'formules' : 'formule' },
           ],
         },
-        { type: 'callout', level: ctx.insights.verdict.level, title: ctx.insights.verdict.title, text: ctx.insights.verdict.text },
+        { type: 'callout', level: ctx.insights.verdict.level, title: ctx.insights.verdict.title, text: summaryVerdictText(ctx) },
         { type: 'heading', level: 2, text: 'Tables du document' },
         {
           type: 'table',
@@ -277,7 +293,7 @@ export const REPORT_SECTIONS = [
             {
               text: r.documented,
               color: r.documented === 'Documentée' ? 'ready' : r.documented === 'Pas de documentation' ? 'improve' : 'muted',
-              bold: r.documented !== 'Non concerné',
+              bold: r.documented !== NO_FORMULA,
             },
           ]),
         });
@@ -422,13 +438,12 @@ export const REPORT_SECTIONS = [
       if (issues.length) {
         blocks.push({ type: 'heading', level: 2, text: "Points d'attention" });
         blocks.push({ type: 'list', items: issues.map((i) => `${SEVERITIES[i.severity].label} — ${i.title}`) });
-        if (ctx.sections?.includes('analysis') ?? true)
-          blocks.push({
-            type: 'paragraph',
-            color: 'muted',
-            size: 'small',
-            text: 'Le détail et la marche à suivre sont dans la partie « Analyse ».',
-          });
+        blocks.push({
+          type: 'paragraph',
+          color: 'muted',
+          size: 'small',
+          text: `Le détail et la marche à suivre sont ${analysisPlace(ctx)}.`,
+        });
       }
       const rest = [];
       if (m.tableOnlyPages.length) rest.push(`Pages qui ne contiennent que des tableaux : ${m.tableOnlyPages.join(', ')}.`);
@@ -562,10 +577,10 @@ export const REPORT_SECTIONS = [
         blocks.push({
           type: 'table',
           columns: [
-            { label: 'Attribut', width: 22 },
+            { label: 'Attribut', width: 30 },
             { label: 'Cherché dans', width: 30 },
             { label: 'Avec', width: 20 },
-            { label: 'État', width: 28 },
+            { label: 'État', width: 20 },
           ],
           rows: a.attributes.map((x) => [
             { text: `user.${x.name}`, mono: true, bold: true },
@@ -630,8 +645,11 @@ export const REPORT_SECTIONS = [
 ];
 
 /** Blocs du rapport complet pour les sections choisies. */
-export function buildReport(ctx, sectionIds = REPORT_SECTIONS.map((s) => s.id)) {
+export function buildReport(context, sectionIds = REPORT_SECTIONS.map((s) => s.id)) {
   const chosen = REPORT_SECTIONS.filter((s) => sectionIds.includes(s.id));
+  // Les sections savent ce que contient le rapport : un renvoi « voir la partie Analyse » n'a de
+  // sens que si cette partie y figure.
+  const ctx = { ...context, sections: chosen.map((s) => s.id) };
   const blocks = [
     {
       type: 'title',

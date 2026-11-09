@@ -123,8 +123,8 @@ test("type déclaré en français, rôle, calcul et documentation, colonnes dans
     ],
   };
   assert.deepEqual(tableRows(t).map(rowValues), [
-    ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', 'Non concerné'],
-    ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', 'Non concerné'],
+    ['id', '', 'INTEGER', '', 'Clé primaire', 'Non calculé', '', '—'],
+    ['nom', '✏️ Nom', 'TEXT', 'Texte', 'Donnée', 'Non calculé', '', '—'],
     ['nom_complet', '💻 Nom complet', 'TEXT', 'Texte', 'Calculée', 'Calculé', "CONCATENATE(nom,' ',prenom)", 'Pas de documentation'],
     ['v_nb', '', 'INTEGER', 'Entier', 'Calculée', 'Calculé', '# Nombre de conflits\nlen(X.lookupRecords(a=$id))', 'Documentée'],
     ['date_creation', '', 'BLOB', 'Date et Heure (Europe/Paris)', 'Donnée', 'Initialisé', 'NOW()', 'Pas de documentation'],

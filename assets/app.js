@@ -11,11 +11,11 @@ import { profileTables } from './datacheck.js';
 import { buildPages, originText, typeCounts, columnLines, ACCESS_LABELS } from './pages.js';
 import { buildAccess, BITS, PERMISSION_LABEL, generalSettings } from './access.js';
 import { columnTypeLabel, detailLines, ID_TYPE_LABEL } from './types.js';
-import { TABLE_COLUMNS, tableRows } from './table-format.js';
+import { TABLE_COLUMNS, tableRows, NO_FORMULA } from './table-format.js';
 import { findLookups } from './lookups.js';
 import { findFormulaDeps } from './formula-deps.js';
 import { tablesXlsx } from './tables-export.js';
-import { matrixXlsx } from './rights-export.js';
+import { matrixXlsx, rulesXlsx } from './rights-export.js';
 import {
   ACTIONS as MATRIX_ACTIONS,
   ACTION_LABEL,
@@ -561,7 +561,7 @@ function renderTables() {
         <td>${r.isKey ? `<strong>${esc(r.role)}</strong>` : esc(r.role)}</td>
         <td>${r.computed === 'Non calculé' ? `<span class="col-muted">${esc(r.computed)}</span>` : `<span class="col-flag">${esc(r.computed)}</span>${r.when ? `<span class="col-desc">${esc(r.when)}</span>` : ''}`}</td>
         <td>${r.formula ? `<code class="col-formula">${esc(r.formula)}</code>` : ''}</td>
-        <td>${r.documented === 'Non concerné' ? `<span class="col-muted">${esc(r.documented)}</span>` : r.documented === 'Documentée' ? `<span class="col-doc col-doc--ok">${esc(r.documented)}</span>` : `<span class="col-doc col-doc--ko">${esc(r.documented)}</span>`}</td></tr>`;
+        <td>${r.documented === NO_FORMULA ? `<span class="col-muted" title="Sans formule">${esc(r.documented)}</span>` : r.documented === 'Documentée' ? `<span class="col-doc col-doc--ok">${esc(r.documented)}</span>` : `<span class="col-doc col-doc--ko">${esc(r.documented)}</span>`}</td></tr>`;
         })
         .join('');
       const pk = '';
@@ -1196,50 +1196,6 @@ function renderWidgets() {
   body.innerHTML = `<div class="view">${header}${sections.join('')}</div>`;
 }
 
-function accessCsv() {
-  const a = state.access;
-  const cell = (v) => (/[";\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const state2 = (r, b) => (r.perms[b] === 'allow' ? 'autorisé' : r.perms[b] === 'deny' ? 'refusé' : '');
-  const rows = [
-    [
-      'Table',
-      'Colonnes',
-      'Ordre',
-      'Qui',
-      'Condition',
-      ...['R', 'U', 'C', 'D', 'S'].map((b) => PERMISSION_LABEL[b]),
-      'Permissions (Grist)',
-      'Message',
-    ],
-  ];
-  const add = (table, cols, list) =>
-    list.forEach((r, i) =>
-      rows.push([table, cols, i + 1, r.who.text, r.formula, ...['R', 'U', 'C', 'D', 'S'].map((b) => state2(r, b)), r.permText, r.memo]),
-    );
-  add('(toutes les tables)', '*', a.defaults);
-  for (const t of a.tables) {
-    add(t.tableId, '*', t.rules);
-    for (const c of t.columns) add(t.tableId, c.colIds.join(', '), c.rules);
-  }
-  for (const sp of a.special) add(`(réglage) ${sp.label}`, sp.id, sp.rules);
-  for (const x of a.attributes)
-    rows.push([
-      '(attribut utilisateur)',
-      '',
-      '',
-      `user.${x.name}`,
-      `${x.tableId}.${x.lookupColId} = user.${x.charId}`,
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      x.problems.join(', '),
-    ]);
-  return '\ufeff' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
-}
-
 function gotoAccess(table) {
   if (state.accessFilter) {
     state.accessFilter = '';
@@ -1722,7 +1678,10 @@ function bindAccessEvents() {
     }, 120),
   );
   els['btn-access-csv'].addEventListener('click', () => {
-    if (state.access?.hasRules) downloadFile('regles-acces-document.csv', accessCsv(), 'text/csv;charset=utf-8');
+    if (!state.access?.hasRules) return;
+    const bytes = rulesXlsx(state.access, generalSettings(state.access), { docName: state.docName, date: new Date() });
+    downloadFile(`regles-acces-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast("Classeur Excel des règles d'accès téléchargé.");
   });
 }
 

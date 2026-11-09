@@ -239,7 +239,7 @@ function mergeCond(a, b) {
 
 /**
  * Évalue une condition pour un groupe.
- * @param {object} ctx { attributes: Set des attributs définis, roleAttr, roleCol, roleValue }
+ * @param {object} ctx { attributes: Set des attributs définis, roleAttr, roleCol, roleValue, subCol, subValue }
  * @returns true, false, ou une condition variable { symbolic: 'cond', rows, profile, unknown }
  */
 export function evaluateCondition(tree, ctx) {
@@ -262,6 +262,8 @@ function resolvePath(path, ctx) {
   if (!col) return sym(USERVAR, { path, label: attr });
   if (more.length) return sym(USERVAR, { path, label: col });
   if (attr === ctx.roleAttr && col === ctx.roleCol) return ctx.roleValue;
+  // Sous-rôle du groupe (« Pole » pour « Manager · Pole RH ») : sa valeur est connue aussi.
+  if (attr === ctx.roleAttr && ctx.subCol && col === ctx.subCol && ctx.subValue !== undefined) return ctx.subValue;
   return sym(USERVAR, { path, label: col });
 }
 

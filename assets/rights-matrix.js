@@ -128,6 +128,94 @@ export function filteringColumns(model, attr) {
   return out;
 }
 
+/** Valeur « autre » d'un sous-rôle : différente de toutes celles que citent les règles. */
+export const OTHER_VALUE = '\u0000autre';
+
+/**
+ * Sous-rôles : une deuxième colonne de la même habilitation, comparée à des valeurs texte dans les
+ * mêmes conditions que le rôle (« Fonction == 'Manager' and Pole == 'RH' »). Le rôle « Manager » se
+ * divise alors en « Manager · Pole RH », « Manager · Pole Finances » et « Manager · autre Pole ».
+ * @returns {Map<string, { col, values: string[] }>} par valeur du rôle
+ */
+export function detectSubRoles(model, role) {
+  const found = new Map(); // valeur du rôle → Map(colonne → valeurs)
+  const literalsOf = (t) => {
+    // « user.Attr.Col == 'x' » ou « 'x' == user.Attr.Col » ou « user.Attr.Col in ['x', 'y'] »
+    if (t?.type !== 'compare' || !['==', 'in'].includes(t.op)) return null;
+    for (const [p, v] of [
+      [t.a, t.b],
+      [t.b, t.a],
+    ]) {
+      const m = p?.type === 'path' && new RegExp(`^user\\.${role.attr}\\.([A-Za-z_]\\w*)$`).exec(p.value);
+      if (!m) continue;
+      const texts =
+        v?.type === 'literal' && typeof v.value === 'string'
+          ? [v.value]
+          : v?.type === 'list'
+            ? v.values.filter((x) => x.type === 'literal' && typeof x.value === 'string').map((x) => x.value)
+            : [];
+      if (texts.length) return { col: m[1], texts };
+    }
+    return null;
+  };
+  const conjuncts = (t) => (t?.type === 'and' ? [...conjuncts(t.a), ...conjuncts(t.b)] : [t]);
+  const visit = (t) => {
+    if (!t || typeof t !== 'object') return;
+    if (t.type === 'and') {
+      const parts = conjuncts(t).map(literalsOf).filter(Boolean);
+      const main = parts.filter((x) => x.col === role.col);
+      const others = parts.filter((x) => x.col !== role.col);
+      for (const m of main)
+        for (const v of m.texts)
+          for (const o of others) {
+            if (!found.has(v)) found.set(v, new Map());
+            const cols = found.get(v);
+            if (!cols.has(o.col)) cols.set(o.col, []);
+            for (const x of o.texts) if (!cols.get(o.col).includes(x)) cols.get(o.col).push(x);
+          }
+      return;
+    }
+    for (const k of ['a', 'b']) visit(t[k]);
+  };
+  for (const g of model.resources) for (const r of g.rules) visit(r.tree);
+  const out = new Map();
+  for (const [value, cols] of found) {
+    // La colonne la plus citée pour cette valeur du rôle
+    const [col, values] = [...cols.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+    out.set(value, { col, values });
+  }
+  return out;
+}
+
+/**
+ * Deux valeurs du rôle toujours citées ensemble : chaque condition qui nomme l'une nomme aussi l'autre
+ * (« Poste == 'Commercial' or Poste == 'Commerciale' »).
+ * @returns {(a: string, b: string) => boolean}
+ */
+function coMentioned(model, role) {
+  const mentions = [];
+  const collect = (t, set) => {
+    if (!t || typeof t !== 'object') return;
+    if (t.type === 'compare')
+      for (const [p, v] of [
+        [t.a, t.b],
+        [t.b, t.a],
+      ]) {
+        if (p?.type !== 'path' || p.value !== `user.${role.attr}.${role.col}`) continue;
+        if (v?.type === 'literal') set.add(v.value);
+        if (v?.type === 'list') v.values.forEach((x) => x.type === 'literal' && set.add(x.value));
+      }
+    for (const k of ['a', 'b']) collect(t[k], set);
+  };
+  for (const g of model.resources)
+    for (const r of g.rules) {
+      const set = new Set();
+      collect(r.tree, set);
+      if (set.size) mentions.push(set);
+    }
+  return (a, b) => mentions.every((set) => set.has(a) === set.has(b));
+}
+
 /**
  * Groupes de colonnes de la matrice : une valeur du rôle métier par groupe, plus « Tous les autres ».
  * @param {object} attrData  données colonnaires de la table de l'attribut (facultatif), pour « 7 services »
@@ -138,18 +226,43 @@ export function matrixGroups(model, attrData = null) {
   const attr = model.attributes.find((a) => a.name === role.attr);
   const filter = filteringColumns(model, role.attr)[0];
   const rows = attrData ? columnarToRows(attrData) : [];
-  const groups = role.values.map((value) => {
-    let sub = `${role.attr}.${role.col} = « ${value} »`;
-    if (filter && rows.length) {
-      const n = new Set(
-        rows
-          .filter((r) => r[role.col] === value)
-          .map((r) => r[filter])
-          .filter((x) => x !== null && x !== undefined && x !== ''),
-      ).size;
-      if (n > 1) sub += ` · ${n} ${filter.toLowerCase()}s`;
-    }
-    return { key: value, name: value, sub, value };
+  const subRoles = detectSubRoles(model, role);
+  /** « · 4 services » : valeurs distinctes de la colonne filtrante parmi les habilitations du groupe. */
+  const count = (keep) => {
+    if (!filter || !rows.length) return '';
+    const n = new Set(
+      rows
+        .filter(keep)
+        .map((r) => r[filter])
+        .filter((x) => x !== null && x !== undefined && x !== ''),
+    ).size;
+    return n > 1 ? ` · ${n} ${filter.toLowerCase()}s` : '';
+  };
+  const groups = role.values.flatMap((value) => {
+    const base = `${role.attr}.${role.col} = « ${value} »`;
+    const sr = subRoles.get(value);
+    if (!sr) return [{ key: value, name: value, sub: base + count((r) => r[role.col] === value), value }];
+    // Rôle divisé par ses sous-rôles, puis « autre » pour les habilitations hors des valeurs citées.
+    return [
+      ...sr.values.map((w) => ({
+        key: `${value}|${w}`,
+        name: `${value} · ${sr.col} ${w}`,
+        sub: `${base} et ${sr.col} = « ${w} »` + count((r) => r[role.col] === value && r[sr.col] === w),
+        value,
+        subCol: sr.col,
+        subValue: w,
+      })),
+      {
+        key: `${value}|*`,
+        name: `${value} · autre ${sr.col}`,
+        sub:
+          `${base}, ${sr.col} autre que ${sr.values.map((w) => `« ${w} »`).join(', ')}` +
+          count((r) => r[role.col] === value && !sr.values.includes(r[sr.col])),
+        value,
+        subCol: sr.col,
+        subValue: OTHER_VALUE,
+      },
+    ];
   });
   groups.push({ key: '__autres', name: 'Tous les autres', sub: 'Autre rôle ou sans habilitation', value: null });
   return { role: { ...role, table: attr?.tableId || '' }, groups };
@@ -192,6 +305,8 @@ export function permissionFor(model, { table, column = null, bit, group, role })
     roleAttr: role?.attr,
     roleCol: role?.col,
     roleValue: group?.value ?? null,
+    subCol: group?.subCol,
+    subValue: group?.subValue,
   };
   const ls = layers(model, table, column);
   if (ls.some((l) => l.length > 1))
@@ -380,11 +495,36 @@ export { ACTION_LABEL };
  */
 export function buildMatrix(acl, tableIds, attrData = null) {
   const model = prepareMatrixModel(acl);
-  const { role, groups } = matrixGroups(model, attrData);
+  const { role, groups: allGroups } = matrixGroups(model, attrData);
   const rows = matrixRows(model, tableIds);
+  const computed = allGroups.map((g) => rows.map((row) => rowCells(model, row, g, role)));
+  // Des valeurs que les règles ne distinguent jamais (« Commercial » et « Commerciale », toujours
+  // citées ensemble, dans les mêmes conditions) ont les mêmes cases : une seule colonne
+  // « Commercial ou Commerciale ». Deux fonctions qui ont seulement les mêmes droits restent séparées.
+  const signature = (gi) => JSON.stringify(computed[gi].map((cs) => cs.map((c) => [c.state, c.labels])));
+  const together = role ? coMentioned(model, role) : () => false;
+  const mergeable = (g) => g.value !== null && !g.subCol;
+  const merged = []; // { group, gi (cases de référence), values }
+  allGroups.forEach((g, gi) => {
+    const same =
+      mergeable(g) &&
+      merged.find((m) => mergeable(m.group) && m.values.every((v) => together(v, g.value)) && signature(m.gi) === signature(gi));
+    if (same) same.values.push(g.value);
+    else merged.push({ group: g, gi, values: g.value !== null ? [g.value] : [] });
+  });
+  const groups = merged.map(({ group, values }) =>
+    values.length > 1
+      ? {
+          ...group,
+          key: values.join('|'),
+          name: values.join(' ou '),
+          sub: `${role.attr}.${role.col} = ${values.map((v) => `« ${v} »`).join(' ou ')} · mêmes droits`,
+          values,
+        }
+      : group,
+  );
   const cells = new Map();
-  for (const row of rows)
-    groups.forEach((g, gi) => rowCells(model, row, g, role).forEach((c) => cells.set(`${row.key}|${gi}|${c.bit}`, c)));
+  merged.forEach((m, gi) => rows.forEach((row, ri) => computed[m.gi][ri].forEach((c) => cells.set(`${row.key}|${gi}|${c.bit}`, c))));
   return {
     model,
     role,

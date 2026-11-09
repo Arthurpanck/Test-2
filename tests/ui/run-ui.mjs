@@ -131,12 +131,12 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
       echeance[3].startsWith('Référence → Dates_cles') &&
       echeance[4] === 'Donnée' &&
       echeance[5] === 'Non calculé' &&
-      echeance[7] === 'Non concerné',
+      echeance[7] === '—',
     `tables : ligne d'une référence (${echeance.slice(2).join(' | ')})`,
   );
   check(
     (await frame.locator('.tbl tr.is-key').first().locator('td').allTextContents()).join('|') ===
-      'id||INTEGER||Clé primaire|Non calculé||Non concerné',
+      'id||INTEGER||Clé primaire|Non calculé||—',
     'tables : clé primaire',
   );
   const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
@@ -146,6 +146,8 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     xl.suggestedFilename().endsWith('.xlsx') &&
       xs.includes('Type déclaré (Grist)') &&
       xs.includes('Référence → Dates_cles') &&
+      xs.includes('Description') &&
+      xs.includes('Paramètres et lecture') &&
       Boolean(xz.file('xl/tables/table1.xml')),
     'export Excel des tables',
   );
@@ -520,11 +522,15 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#access-filter').fill('');
   await page.waitForTimeout(250);
   check((await frame.locator('#access-all').count()) === 0, 'accès : plus de choix « Tables avec règles / Toutes »');
-  const [csv] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
-  const csvText = await readFile(await csv.path(), 'utf8');
+  const [rx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
+  const rz = await JSZip.loadAsync(await readFile(await rx.path()));
+  const rs = await rz.file('xl/sharedStrings.xml').async('string');
   check(
-    csvText.includes('Agents;*;4;Tous les autres;;refusé;refusé;refusé;refusé;;-CRUD;Fiches réservées au service RH.'),
-    'accès : export CSV des règles',
+    /^regles-acces-.+\.xlsx$/.test(rx.suggestedFilename()) &&
+      rs.includes('Fiches réservées au service RH.') &&
+      rs.includes('Réglages généraux') &&
+      Boolean(rz.file('xl/tables/table1.xml')),
+    `accès : export Excel des règles (${rx.suggestedFilename()})`,
   );
 
   // Rapport

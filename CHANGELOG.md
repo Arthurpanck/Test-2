@@ -2,6 +2,18 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.20.0 — Rapport, exports Excel et sous-rôles des droits d'accès
+- **Rapport Word** : le résumé ne renvoie plus vers des « étapes ci-dessous » absentes. Il indique où sont les étapes de correction : la partie « Analyse » si elle est cochée, sinon l'onglet « Analyse » du widget (de même dans la partie Vues).
+- **Structure modifiable par les éditeurs** : le réglage général et le constat disent maintenant la même chose. Sans règle, la case de Grist est **cochée** (réglage par défaut, avec un avertissement) ; le constat demande de la décocher.
+- **« Documentée ? »** : « — » pour une colonne sans formule (au lieu de « Non concerné »), à l'écran, dans le Word et dans l'Excel.
+- **Export Excel des tables** : présenté comme celui de la matrice (titre, chiffres de chaque table, en-têtes gris, pastilles « Documentée » / « Pas de documentation », impression en paysage), avec une colonne **Description** (tables et colonnes) et une feuille « Paramètres » qui explique chaque colonne.
+- **Export des règles d'accès** : un classeur Excel au nom du document (au lieu d'un CSV « regles-acces-document.csv ») : une ligne par condition, dans l'ordre où Grist les applique, avec les réglages généraux et les attributs utilisateur.
+- **« Qui peut faire quoi ? »** :
+  - un rôle précisé par une deuxième colonne de l'habilitation (« Fonction == 'Manager' and Pole == 'RH' ») se divise en **sous-rôles** : « Manager · Pole RH », « Manager · Pole Finances », « Manager · autre Pole ». Avant, la case affichait « Pole » comme si le pôle devait seulement être renseigné ;
+  - des valeurs que les règles citent toujours ensemble (« Commercial » et « Commerciale ») forment une seule colonne « Commercial ou Commerciale ».
+- **Conditions composées en clair** : « Personnes dont « Habilitation.Fonction » vaut « Manager » et « Habilitation.Pole » vaut « RH » », « …, sur les lignes où « Service » correspond à son « Habilitation.Service » » (au lieu de « Selon une condition »).
+- **Word** : colonnes « Qui » et « Attribut » plus larges, pour que les conditions ne soient plus coupées en plein mot.
+
 ## 3.19.0 — Nettoyage du code, suite et fin
 Le widget affiche et exporte la même chose qu'en 3.18.0 (vérifié sur les six documents de test, en clair et en sombre : contenu des six onglets, aperçu du rapport, Word, Excel et 120 captures), à trois corrections près :
 
