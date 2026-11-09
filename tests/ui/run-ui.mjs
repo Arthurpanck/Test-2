@@ -541,7 +541,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     /^droits-acces-.+\.xlsx$/.test(rx.suggestedFilename()) &&
       rs.includes('Fiches réservées au service RH.') &&
       rs.includes('Réglages généraux') &&
-      Boolean(rz.file('xl/tables/table1.xml')),
+      !rz.file('xl/tables/table1.xml'),
     `accès : export Excel des droits d’accès (${rx.suggestedFilename()})`,
   );
 
@@ -688,7 +688,6 @@ for (const [label, viewport, dark] of [
         .then((t) => t.includes('Droits d’accès par table')),
       "matrice : le reste de l'onglet est inchangé",
     );
-    // Export Excel : matrice, détail filtrable, paramètres
     // La matrice n'a plus son propre bouton : elle est dans l'export Excel de l'onglet Accès.
     check((await mx.locator('[data-matrix-xlsx]').count()) === 0, 'matrice : pas de bouton Excel séparé');
     const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
@@ -700,16 +699,15 @@ for (const [label, viewport, dark] of [
     const wbx = await xz.file('xl/workbook.xml').async('string');
     const sst = await xz.file('xl/sharedStrings.xml').async('string');
     check(
-      ["Droits d'accès", 'Toutes les règles', 'Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) =>
-        wbx.includes(`name="${n}"`),
-      ) &&
-        wbx.includes('_xlnm._FilterDatabase') &&
-        Boolean(xz.file('xl/tables/table1.xml')),
-      'accès : classeur droits d’accès, toutes les règles, puis les trois feuilles de la matrice',
+      ["Droits d'accès", 'Qui peut faire quoi', 'Paramètres'].every((n) => wbx.includes(`name="${n}"`)) &&
+        !wbx.includes('Toutes les règles') &&
+        !wbx.includes('Détail par case') &&
+        wbx.includes('_xlnm._FilterDatabase'),
+      'accès : trois onglets, droits d’accès, matrice et paramètres',
     );
     check(
-      sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Oui, seulement sur les lignes de son Email.'),
-      'matrice : groupes et explications dans le classeur',
+      sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Fiches réservées au service RH.'),
+      'accès : groupes de la matrice et messages des règles dans le classeur',
     );
     // Rapport : la matrice au début des droits d'accès
     await frame.locator('#tab-report').click();

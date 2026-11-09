@@ -46,7 +46,7 @@ test('tables : descriptions reprises, pastilles, feuilles de détail et de param
   assert.ok(zip.file('xl/tables/table1.xml'));
 });
 
-test('droits d’accès : présentés comme les tables, avec la matrice en onglets', async () => {
+test('droits d’accès : présentés comme les tables, puis la matrice et ses paramètres', async () => {
   const access = buildAccess({ resources: doc.resources, rules: doc.rules });
   const mx = buildMatrix(
     { resources: doc.resources, rules: doc.rules },
@@ -55,7 +55,7 @@ test('droits d’accès : présentés comme les tables, avec la matrice en ongle
   const wb = accessWorkbook(access, generalSettings(access), mx, { docName: 'Doc', date });
   assert.deepEqual(
     wb.sheets.map((s) => s.name),
-    ["Droits d'accès", 'Toutes les règles', 'Qui peut faire quoi', 'Détail par case', 'Paramètres'],
+    ["Droits d'accès", 'Qui peut faire quoi', 'Paramètres'],
   );
   const main = texts(wb.sheets[0]);
   assert.match(main[0][0], /^Droits d'accès · \d+ conditions$/);
@@ -74,12 +74,10 @@ test('droits d’accès : présentés comme les tables, avec la matrice en ongle
     ],
   );
   assert.ok(main.some((r) => r[0] === 'Colonnes Quotite, Derniere_connexion'));
-  const flat = texts(wb.sheets[1]);
-  const agents = flat.find((r) => r[0] === 'Agents' && r[1] === 'Quotite, Derniere_connexion');
-  assert.deepEqual(agents.slice(5, 7), ['Refusé', '—']);
-  assert.equal(wb.sheets[1].table.ref.split(':')[0], 'A1');
+  const quotite = main.findIndex((r) => r[0] === 'Colonnes Quotite, Derniere_connexion');
+  assert.deepEqual(main[quotite + 2].slice(2, 4), ['Refusé', '—'], 'Lire refusé, Modifier non décidé');
   const zip = await JSZip.loadAsync(accessXlsx(access, generalSettings(access), mx, { docName: 'Doc', date }));
-  assert.ok(zip.file('xl/tables/table2.xml'), 'deux tableaux Excel : règles et détail de la matrice');
+  assert.ok(!zip.file('xl/tables/table1.xml'), 'plus de tableau Excel séparé');
   // Excel ne recalcule pas la hauteur des lignes à l'ouverture : un texte long renvoyé à la ligne a une hauteur posée.
   const sheet = await zip.file('xl/worksheets/sheet1.xml').async('string');
   const row = (n) => Number(new RegExp(`<row r="${n}" ht="([\\d.]+)"`).exec(sheet)?.[1] || 0);

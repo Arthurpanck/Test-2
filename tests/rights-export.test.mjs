@@ -31,10 +31,10 @@ test('écrivain xlsx : lettres de colonnes, CRC, zip lisible', async () => {
 
 test('matrice : groupes, structure, filtres, volets figés, couleurs', async () => {
   const wb = matrixWorkbook(mx, { docName: 'Test widget – document complexe', date });
-  const [m, d, p] = wb.sheets;
+  const [m, p] = wb.sheets;
   assert.deepEqual(
     wb.sheets.map((s) => s.name),
-    ['Qui peut faire quoi', 'Détail par case', 'Paramètres'],
+    ['Qui peut faire quoi', 'Paramètres'],
   );
   const text = (r) => m.rows[r].cells.map((c) => (c && typeof c === 'object' ? c.v : c));
   assert.equal(text(0)[0], 'Qui peut faire quoi ? · 22 tables');
@@ -70,26 +70,13 @@ test('matrice : groupes, structure, filtres, volets figés, couleurs', async () 
   assert.equal(row('Agents.Quotite').cells[1].s, 'column', 'colonne en retrait');
   assert.equal(row('Formations').cells[3].s, 'uk');
   assert.equal(m.rows.length, 7 + 1 + 22 + 4, 'structure, tables puis colonnes à règles');
-  // Détail : une ligne par case (structure, 4 actions par table, Lire et Modifier par colonne), en tableau Excel
-  assert.equal(d.rows.length - 1, 3 * (1 + 22 * 4 + 4 * 2));
-  assert.equal(d.table.ref, `A1:J${d.rows.length}`);
-  const agentsF = d.rows
-    .find((r) => r.cells[0].v === 'Finances' && r.cells[2].v === 'Agents' && r.cells[4].v === 'Lire')
-    .cells.map((c) => c.v);
-  assert.deepEqual(agentsF.slice(5, 9), [
-    'Sous condition',
-    'Email',
-    'Oui, seulement sur les lignes de son Email.',
-    'Règle 7 · refuse tout',
-  ]);
-  assert.match(agentsF[9], /^1\. Règle 4 · autorise tout — Ne s'applique pas — user\.Access in \[OWNER\]\n/);
   assert.ok(
     p.rows.some((r) => r.cells[0]?.v === 'Formations · Modifier'),
     'cases à vérifier',
   );
 });
 
-test("fichier .xlsx : parties, tableau, filtre nommé, titres d'impression", async () => {
+test("fichier .xlsx : parties, filtre nommé, titres d'impression", async () => {
   const buf = matrixXlsx(mx, { docName: 'Test widget – document complexe', date });
   mkdirSync(path.join(here, '..', 'captures'), { recursive: true });
   writeFileSync(path.join(here, '..', 'captures', 'qui-peut-faire-quoi.xlsx'), buf);
@@ -97,14 +84,12 @@ test("fichier .xlsx : parties, tableau, filtre nommé, titres d'impression", asy
   const wbXml = await zip.file('xl/workbook.xml').async('string');
   assert.match(wbXml, /_xlnm\._FilterDatabase" localSheetId="0" hidden="1">'Qui peut faire quoi'!\$A\$7:\$N\$34</);
   assert.match(wbXml, /_xlnm\.Print_Titles" localSheetId="0">'Qui peut faire quoi'!\$5:\$7</);
-  const table = await zip.file('xl/tables/table1.xml').async('string');
-  assert.match(table, /name="Droits" displayName="Droits" ref="A1:J\d+"/);
-  assert.match(table, /<tableColumn id="6" name="Résultat"\/>/);
+  assert.ok(!zip.file('xl/tables/table1.xml'), 'pas de feuille de détail');
   const s1 = await zip.file('xl/worksheets/sheet1.xml').async('string');
   assert.match(s1, /<pane xSplit="2" ySplit="7" topLeftCell="C8" activePane="bottomRight" state="frozen"\/>/);
   assert.match(s1, /<mergeCell ref="A3:N3"\/>/);
   assert.match(s1, /orientation="landscape"/);
   const styles = await zip.file('xl/styles.xml').async('string');
   assert.ok(styles.includes('FFDFFEE6') && styles.includes('FFFFE9E9') && styles.includes('horizontal="centerContinuous"'));
-  assert.ok(zip.file('xl/worksheets/_rels/sheet2.xml.rels'));
+  assert.ok(!zip.file('xl/worksheets/_rels/sheet2.xml.rels'), 'deux feuilles, sans tableau Excel');
 });

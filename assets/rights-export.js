@@ -1,9 +1,9 @@
 /**
- * Export Excel de l'onglet Accès : droits d'accès (réglages, attributs, règles par table), toutes les
- * règles en tableau filtrable, puis « Qui peut faire quoi ? » (matrice, détail par case, paramètres).
+ * Export Excel de l'onglet Accès : droits d'accès (réglages, attributs, règles par table), puis
+ * « Qui peut faire quoi ? » (matrice et paramètres de lecture).
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
-import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js';
+import { ACTIONS, ACTION_LABEL, unknownCases } from './rights-matrix.js';
 import { frenchDateTime as fmtDate } from './util.js';
 import { xlsxColor as X } from './theme.js';
 import { writeXlsx, colName, cellRef } from './xlsx.js';
@@ -46,7 +46,7 @@ const STYLES = {
   blank: { border: { bottom: LINE } },
   na: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { h: 'center', v: 'center' } },
   naEdge: { font: { size: 10, color: X('line') }, border: { bottom: LINE, left: EDGE }, align: { h: 'center', v: 'center' } },
-  // Feuilles « Détail par case » et « Paramètres »
+  // Feuille « Paramètres »
   head: { font: { bold: true, size: 10, color: X('text') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center', wrap: true } },
   text: { font: { size: 10 }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
   textMuted: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
@@ -152,55 +152,7 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
     printTitles: '$5:$7',
   };
 
-  // ---- Feuille 2 : une ligne par case, en tableau Excel ----
-  const headers = [
-    'Rôle métier',
-    'Niveau',
-    'Table',
-    'Colonne',
-    'Action',
-    'Résultat',
-    'Ce qui décide',
-    'Explication',
-    'Règle qui tranche',
-    "Règles examinées, dans l'ordre",
-  ];
-  const detail = [{ height: 20, cells: headers.map((h) => ({ v: h, s: 'head' })) }];
-  for (const row of mx.rows) {
-    const bits = row.kind === 'structure' ? ['S'] : row.kind === 'column' ? ['R', 'U'] : ACTIONS.map(([b]) => b);
-    mx.groups.forEach((g, gi) => {
-      for (const bit of bits) {
-        const c = mx.cell(row.key, gi, bit);
-        const steps = cellSteps(c, bit).map((s, i) => `${i + 1}. ${s.title} — ${s.badge}${s.condition ? ` — ${s.condition}` : ''}`);
-        detail.push({
-          cells: [
-            { v: g.name, s: 'text' },
-            { v: { structure: 'Structure', table: 'Table', column: 'Colonne' }[row.kind], s: 'textMuted' },
-            { v: row.kind === 'structure' ? 'Toutes les tables' : row.table, s: 'text' },
-            { v: row.column || '', s: 'text' },
-            { v: bit === 'S' ? 'Modifier la structure' : ACTION_LABEL[bit], s: 'text' },
-            { v: cellCategory(c), s: `${tone(c)}Left` },
-            { v: c.labels?.length ? c.labels.join(' + ') : '', s: 'text' },
-            { v: cellSentence(c, { attrTable }), s: 'text' },
-            { v: decisiveRule(c), s: 'text' },
-            { v: steps.join('\n'), s: 'mono' },
-          ],
-        });
-      }
-    });
-  }
-  const detailSheet = {
-    name: 'Détail par case',
-    tabColor: X('ready'),
-    landscape: true,
-    cols: [16, 11, 26, 20, 20, 16, 22, 60, 30, 80],
-    rows: detail,
-    freeze: { rows: 1, cols: 0 },
-    table: { name: 'Droits', ref: `A1:${cellRef(detail.length - 1, headers.length - 1)}`, style: 'TableStyleLight1' },
-    printTitles: '$1:$1',
-  };
-
-  // ---- Feuille 3 : paramètres et lecture ----
+  // ---- Feuille 2 : paramètres et lecture ----
   const p = [
     { height: 24, cells: [{ v: 'Paramètres et lecture', s: 'title' }] },
     { height: 6, cells: [] },
@@ -286,7 +238,7 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
     creator: 'Widget Grist « Audit de structure »',
     date,
     styles: STYLES,
-    sheets: [matrix, detailSheet, params],
+    sheets: [matrix, params],
   };
 }
 
@@ -331,7 +283,7 @@ const ACCESS_STYLES = {
 };
 const PERM = { allow: ['Autorisé', 'aAllow'], deny: ['Refusé', 'aDeny'] };
 const ACCESS_HELP =
-  "Réglages généraux, attributs utilisateur, puis les règles du document et de chaque table, colonnes comprises. Les conditions s'appliquent dans l'ordre : la première qui correspond à la personne décide, action par action ; « — » : rien n'est décidé ici. Les règles d'une colonne passent avant celles de sa table, puis celles du document. Onglets suivants : toutes les règles en tableau filtrable, puis « Qui peut faire quoi ? ».";
+  "Réglages généraux, attributs utilisateur, puis les règles du document et de chaque table, colonnes comprises. Les conditions s'appliquent dans l'ordre : la première qui correspond à la personne décide, action par action ; « — » : rien n'est décidé ici. Les règles d'une colonne passent avant celles de sa table, puis celles du document. Onglets suivants : « Qui peut faire quoi ? » et ses paramètres de lecture.";
 
 /**
  * Classeur des droits d'accès. Module pur.
@@ -414,9 +366,6 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
   block('Droits d’accès par défaut', `Toutes les tables · ${plural(access.defaults.length, 'condition', 'conditions')}`);
   if (access.defaults.length) ruleRows(access.defaults, BITS);
   else rows.push({ cells: [{ v: 'Aucune règle par défaut.', s: 'aMuted' }] });
-  const flat = [];
-  const flatAdd = (table, cols, list) => list.forEach((r, i) => flat.push({ table, cols, order: i + 1, r }));
-  flatAdd('Toutes les tables', 'Tout le document', access.defaults);
   for (const t of access.tables) {
     const n = t.rules.length + t.columns.reduce((k, c) => k + c.rules.length, 0);
     const cols = t.columns.map((c) => c.colIds.join(', '));
@@ -425,12 +374,10 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
       [plural(n, 'condition', 'conditions'), cols.length ? `colonnes protégées : ${cols.join(' ; ')}` : ''].filter(Boolean).join(' · '),
     );
     if (t.rules.length) ruleRows(t.rules, ['R', 'U', 'C', 'D']);
-    flatAdd(t.tableId, 'Toute la table', t.rules);
     for (const c of t.columns) {
       rows.push({ height: 10, cells: [] });
       rows.push({ height: 18, cells: [{ v: `${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${c.colIds.join(', ')}`, s: 'aSub' }] });
       ruleRows(c.rules, ['R', 'U']);
-      flatAdd(t.tableId, c.colIds.join(', '), c.rules);
     }
   }
   const specials = access.special.filter((sp) => sp.rules.length);
@@ -439,7 +386,6 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
     for (const sp of specials) {
       rows.push({ height: 18, cells: [{ v: sp.label, s: 'aSub' }] });
       ruleRows(sp.rules, BITS);
-      flatAdd(`Réglage : ${sp.label}`, sp.id, sp.rules);
     }
   }
   const main = {
@@ -453,52 +399,13 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
     freeze: { rows: 3, cols: 0 },
   };
 
-  // Toutes les règles, en tableau filtrable
-  const headers = [
-    'Table',
-    'Colonnes',
-    'Ordre',
-    'Qui',
-    'Condition',
-    ...BITS.map((b) => ACTION_LABEL[b] || b),
-    'Permissions (Grist)',
-    'Message en cas de refus',
-  ];
-  const fr = [{ height: 22, cells: headers.map((h) => ({ v: h, s: 'aHead' })) }];
-  for (const { table, cols, order, r } of flat)
-    fr.push({
-      cells: [
-        { v: table, s: 'aWho' },
-        { v: cols, s: cols === 'Toute la table' || cols === 'Tout le document' ? 'aMuted' : 'aText' },
-        { v: order, s: 'aOrder' },
-        { v: r.who.text, s: 'aText' },
-        { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'aMono' : 'aMuted' },
-        ...BITS.map((b) => {
-          const [v, st] = PERM[r.perms[b]] || ['—', 'aNone'];
-          return { v, s: st };
-        }),
-        { v: r.permText, s: 'aMono' },
-        { v: r.memo || '', s: 'aMemo' },
-      ],
-    });
-  const flatSheet = {
-    name: 'Toutes les règles',
-    tabColor: X('type'),
-    landscape: true,
-    cols: [22, 24, 7, 34, 46, 11, 11, 11, 11, 11, 16, 44],
-    rows: fr,
-    freeze: { rows: 1, cols: 2 },
-    table: { name: 'Regles', ref: `A1:${cellRef(fr.length - 1, headers.length - 1)}`, style: 'TableStyleLight1' },
-    printTitles: '$1:$1',
-  };
-
   const matrix = mx?.hasRules ? matrixWorkbook(mx, { docName, date }) : null;
   return {
     title: `Droits d'accès · ${doc}`,
     creator: 'Widget Grist « Audit de structure »',
     date,
     styles: { ...STYLES, ...ACCESS_STYLES },
-    sheets: [main, flatSheet, ...(matrix ? matrix.sheets : [])],
+    sheets: [main, ...(matrix ? matrix.sheets : [])],
   };
 }
 
