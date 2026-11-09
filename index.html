@@ -13,10 +13,10 @@
       );
     </script>
     <link rel="stylesheet" href="assets/vendor/dsfr/dsfr.main.min.css" />
-    <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.26.0" />
-    <link rel="stylesheet" href="assets/styles.css?v=3.26.0" />
+    <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.27.0" />
+    <link rel="stylesheet" href="assets/styles.css?v=3.27.0" />
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-    <script type="module" src="assets/app.js?v=3.26.0"></script>
+    <script type="module" src="assets/app.js?v=3.27.0"></script>
   </head>
   <body>
     <div class="app">
@@ -283,7 +283,11 @@
             </fieldset>
           </div>
           <div class="toolbar__group toolbar__end">
-            <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse" id="btn-csv" type="button">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse"
+              id="btn-tables-xlsx"
+              type="button"
+            >
               Exporter les tables (Excel)
             </button>
           </div>
@@ -307,7 +311,7 @@
           <div class="toolbar__group toolbar__end">
             <button
               class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse"
-              id="btn-access-csv"
+              id="btn-access-xlsx"
               type="button"
             >
               Exporter en Excel
@@ -354,7 +358,7 @@
           <div class="toolbar__group toolbar__end">
             <button
               class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse"
-              id="btn-widgets-xlsx"
+              id="btn-views-xlsx"
               type="button"
             >
               Exporter en Excel
@@ -380,6 +384,9 @@
         <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
           <p class="toolbar__hint">L'aperçu reprend exactement le contenu du fichier Word.</p>
           <div class="toolbar__group toolbar__end">
+            <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line" id="btn-full-xlsx" type="button">
+              Exporter tout en Excel
+            </button>
             <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">
               Télécharger le rapport Word
             </button>

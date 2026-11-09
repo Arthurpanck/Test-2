@@ -17,6 +17,7 @@ import { findFormulaDeps } from './formula-deps.js';
 import { tablesXlsx } from './tables-export.js';
 import { accessXlsx } from './rights-export.js';
 import { viewsXlsx } from './views-export.js';
+import { fullXlsx } from './full-export.js';
 import {
   ACTIONS as MATRIX_ACTIONS,
   ACTION_LABEL,
@@ -78,11 +79,12 @@ for (const id of [
   'cols-all',
   'cols-refs',
   'cols-formulas',
-  'btn-csv',
+  'btn-tables-xlsx',
   'tables-body',
   'access-filter',
-  'btn-access-csv',
-  'btn-widgets-xlsx',
+  'btn-access-xlsx',
+  'btn-views-xlsx',
+  'btn-full-xlsx',
   'access-body',
   'widgets-filter',
   'wkind-all',
@@ -431,6 +433,7 @@ function applyOptions(options) {
 
 function render() {
   renderHeader();
+  renderExportButtons();
   renderTables();
   renderAnalysis();
   renderAccess();
@@ -865,17 +868,52 @@ const fileBase = () =>
     .replace(/^-|-$/g, '')
     .toLowerCase() || 'document';
 
-/** Onglet Accès en classeur Excel : droits d'accès, toutes les règles, puis « Qui peut faire quoi ? ». */
-function downloadAccessXlsx() {
-  if (!state.access?.hasRules) return;
+/**
+ * Exports Excel, par bouton : nom du fichier, ce qu'il faut pour l'activer, contenu.
+ * Le classeur complet (onglet Rapport) réunit les trois autres.
+ */
+const EXCEL_EXPORTS = {
+  'btn-tables-xlsx': { file: 'tables', what: 'des tables', ready: () => state.out, build: (o) => tablesXlsx(state.out.tables, o) },
+  'btn-access-xlsx': {
+    file: 'droits-acces',
+    what: "des droits d'accès",
+    ready: () => state.access?.hasRules,
+    build: (o) => accessXlsx(state.access, generalSettings(state.access), matrixData(), o),
+  },
+  'btn-views-xlsx': { file: 'vues', what: 'des vues', ready: () => state.out && state.pages, build: (o) => viewsXlsx(state.pages, o) },
+  'btn-full-xlsx': {
+    file: 'audit',
+    what: 'complet',
+    ready: () => state.out,
+    build: (o) =>
+      fullXlsx(
+        {
+          tables: state.out.tables,
+          access: state.access,
+          settings: state.access ? generalSettings(state.access) : [],
+          mx: matrixData(),
+          pages: state.pages,
+          stats: state.stats,
+        },
+        o,
+      ),
+  },
+};
+function downloadXlsx(id) {
+  const x = EXCEL_EXPORTS[id];
+  if (!x.ready()) return;
   try {
-    const bytes = accessXlsx(state.access, generalSettings(state.access), matrixData(), { docName: state.docName, date: new Date() });
-    downloadFile(`droits-acces-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    toast("Classeur Excel des droits d'accès téléchargé.");
+    const bytes = x.build({ docName: state.docName, date: new Date() });
+    downloadFile(`${x.file}-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast(`Classeur Excel ${x.what} téléchargé.`);
   } catch (err) {
     console.error(err);
     toast(`L'export Excel n'a pas pu être produit : ${err.message || err}`, 'error');
   }
+}
+/** Boutons d'export actifs selon ce qui a été lu. */
+function renderExportButtons() {
+  for (const [id, x] of Object.entries(EXCEL_EXPORTS)) els[id].disabled = !x.ready();
 }
 
 // ---------------------------------------------------------------------------
@@ -1027,7 +1065,6 @@ function renderAccess() {
     return;
   }
   const a = state.access;
-  els['btn-access-csv'].disabled = !a || !a.hasRules;
   if (!a) {
     body.innerHTML = emptyState(
       "<p>Les règles d'accès du document n'ont pas pu être lues. Seuls les propriétaires du document (ou les personnes autorisées à voir les droits d’accès) peuvent les consulter.</p>",
@@ -1123,7 +1160,6 @@ const WIDGET_KIND = { external: ['Externe', 'improve'], document: ['Dans le docu
 
 function renderWidgets() {
   const body = els['widgets-body'];
-  els['btn-widgets-xlsx'].disabled = !state.out || !state.pages;
   if (!state.out) {
     body.innerHTML = unavailableMessage();
     return;
@@ -1684,6 +1720,7 @@ function gotoTable(name) {
 /** Branche les contrôles de la page, onglet par onglet (l'ordre d'enregistrement compte pour les écouteurs du document). */
 function bindEvents() {
   els['btn-refresh'].addEventListener('click', () => loadSchema({ manual: true }));
+  for (const id of Object.keys(EXCEL_EXPORTS)) els[id].addEventListener('click', () => downloadXlsx(id));
 
   bindTablesEvents();
   bindAccessEvents();
@@ -1697,7 +1734,7 @@ function bindEvents() {
   bindDynamicActions();
 }
 
-/** Onglet Tables : filtre, colonnes affichées, export Excel. */
+/** Onglet Tables : filtre, colonnes affichées. */
 function bindTablesEvents() {
   // Tables
   els['filter-input'].addEventListener(
@@ -1715,18 +1752,9 @@ function bindTablesEvents() {
       }
     });
   }
-  els['btn-csv'].addEventListener('click', () => {
-    if (!state.out) return;
-    downloadFile(
-      `tables-${fileBase()}.xlsx`,
-      tablesXlsx(state.out.tables, { docName: state.docName, date: new Date() }),
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    toast('Classeur Excel des tables téléchargé.');
-  });
 }
 
-/** Onglet Accès : filtre et export Excel des règles. */
+/** Onglet Accès : filtre des règles. */
 function bindAccessEvents() {
   // Droits d'accès
   els['access-filter'].addEventListener(
@@ -1736,21 +1764,6 @@ function bindAccessEvents() {
       renderAccess();
     }, 120),
   );
-  els['btn-access-csv'].addEventListener('click', downloadAccessXlsx);
-  els['btn-widgets-xlsx'].addEventListener('click', () => {
-    if (!state.pages) return;
-    try {
-      downloadFile(
-        `vues-${fileBase()}.xlsx`,
-        viewsXlsx(state.pages, { docName: state.docName, date: new Date() }),
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      toast('Classeur Excel des vues téléchargé.');
-    } catch (err) {
-      console.error(err);
-      toast(`L'export Excel n'a pas pu être produit : ${err.message || err}`, 'error');
-    }
-  });
 }
 
 /** Onglet Tables : l'index suit le défilement. */

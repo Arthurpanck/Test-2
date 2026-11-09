@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { buildMatrix } from '../assets/rights-matrix.js';
-import { matrixWorkbook, matrixXlsx } from '../assets/rights-export.js';
+import { matrixWorkbook } from '../assets/rights-export.js';
 import { writeXlsx, colName, crc32 } from '../assets/xlsx.js';
 import * as doc from './fixtures/droits-complexe.mjs';
 
@@ -77,7 +77,7 @@ test('matrice : groupes, structure, filtres, volets figés, couleurs', async () 
 });
 
 test("fichier .xlsx : parties, filtre nommé, titres d'impression", async () => {
-  const buf = matrixXlsx(mx, { docName: 'Test widget – document complexe', date });
+  const buf = writeXlsx(matrixWorkbook(mx, { docName: 'Test widget – document complexe', date }));
   mkdirSync(path.join(here, '..', 'captures'), { recursive: true });
   writeFileSync(path.join(here, '..', 'captures', 'qui-peut-faire-quoi.xlsx'), buf);
   const zip = await JSZip.loadAsync(buf);

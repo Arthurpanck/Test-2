@@ -139,7 +139,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
       'id||INTEGER||Clé primaire|Non calculé||—',
     'tables : clé primaire',
   );
-  const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-csv').click()]);
+  const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-tables-xlsx').click()]);
   const xz = await JSZip.loadAsync(await readFile(await xl.path()));
   const xs = await xz.file('xl/sharedStrings.xml').async('string');
   check(
@@ -534,7 +534,7 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   await frame.locator('#access-filter').fill('');
   await page.waitForTimeout(250);
   check((await frame.locator('#access-all').count()) === 0, 'accès : plus de choix « Tables avec règles / Toutes »');
-  const [rx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
+  const [rx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-xlsx').click()]);
   const rz = await JSZip.loadAsync(await readFile(await rx.path()));
   const rs = await rz.file('xl/sharedStrings.xml').async('string');
   check(
@@ -561,6 +561,14 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const zip = await JSZip.loadAsync(await readFile(path.join(outDir, 'rapport-complexe.docx')));
   const xml = await zip.file('word/document.xml').async('string');
   check(xml.includes('user.Habilitation') && xml.includes('>Initialisé<'), "rapport complexe : droits d'accès et formules");
+  const [fx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-full-xlsx').click()]);
+  const fz = await JSZip.loadAsync(await readFile(await fx.path()));
+  const fwb = await fz.file('xl/workbook.xml').async('string');
+  check(
+    /^audit-.+\.xlsx$/.test(fx.suggestedFilename()) &&
+      ['Sommaire', 'Tables', 'Droits d', 'Qui peut faire quoi', 'Paramètres · accès'].every((n) => fwb.includes(`name="${n}`)),
+    `rapport : export Excel complet (${fx.suggestedFilename()})`,
+  );
   check(errors.length === 0, `complexe : aucune erreur console (${errors.join(' | ')})`);
   await context.close();
 }
@@ -690,7 +698,7 @@ for (const [label, viewport, dark] of [
     );
     // La matrice n'a plus son propre bouton : elle est dans l'export Excel de l'onglet Accès.
     check((await mx.locator('[data-matrix-xlsx]').count()) === 0, 'matrice : pas de bouton Excel séparé');
-    const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
+    const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-xlsx').click()]);
     check(
       xl.suggestedFilename().startsWith('droits-acces-') && xl.suggestedFilename().endsWith('.xlsx'),
       `accès : nom du fichier Excel (${xl.suggestedFilename()})`,
@@ -799,7 +807,7 @@ for (const [label, viewport, dark] of [
     'onglet Vues : tableaux exclus, autres vues par page',
   );
   check((await frame.locator('.widget-cols--missing').count()) === 3, 'onglet Vues : colonnes à associer signalées');
-  const [vx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-widgets-xlsx').click()]);
+  const [vx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-views-xlsx').click()]);
   const vz = await JSZip.loadAsync(await readFile(await vx.path()));
   const vs = await vz.file('xl/sharedStrings.xml').async('string');
   check(

@@ -36,7 +36,7 @@ test('tables : descriptions reprises, pastilles, feuilles de détail et de param
   );
   const total = wb.sheets[0].rows.find((r) => r.cells[0]?.v === 'Total');
   assert.equal(total.cells[7].v, 'Pas de documentation');
-  assert.equal(total.cells[7].s, 'noDoc');
+  assert.equal(total.cells[7].s, 'pillWarn');
   assert.ok(
     texts(wb.sheets[0]).some((r) => r[0] === 'Une ligne par agent.'),
     'description de la table',
@@ -60,7 +60,7 @@ test('droits d’accès : présentés comme les tables, puis la matrice et ses p
   const main = texts(wb.sheets[0]);
   assert.match(main[0][0], /^Droits d'accès · \d+ conditions$/);
   // Blocs : réglages (dans l'ordre de Grist), attributs, défaut, puis chaque table
-  const titles = wb.sheets[0].rows.filter((r) => r.cells[0]?.s === 'aTitle').map((r) => r.cells[0].v);
+  const titles = wb.sheets[0].rows.filter((r) => /(^|\.)block$/.test(r.cells[0]?.s)).map((r) => r.cells[0].v);
   assert.deepEqual(titles.slice(0, 3), ['Réglages généraux', 'Attributs utilisateur', 'Droits d’accès par défaut']);
   assert.ok(titles.includes('Agents'));
   const first = main.findIndex((r) => r[0] === 'Réglage');

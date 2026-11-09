@@ -25,7 +25,7 @@ test('vues : une page par bloc, toutes les vues, puis le reste ; feuille filtrab
   assert.match(main[0][0], new RegExp(`^Vues du document · ${m.pages.length} pages, ${m.widgetCount} vues$`));
   assert.match(main[1][0], /^Doc · lu le 9 novembre 2026/);
   // Un bloc par page, dans l'ordre du document, puis les deux listes du bas de l'onglet
-  const titles = wb.sheets[0].rows.filter((r) => r.cells[0]?.s === 'page').map((r) => r.cells[0].v.replace(/^↳ /, ''));
+  const titles = wb.sheets[0].rows.filter((r) => r.cells[0]?.s === 'block').map((r) => r.cells[0].v.replace(/^↳ /, ''));
   assert.deepEqual(titles, [
     ...m.pages.map((p) => p.name || '(sans nom)'),
     'Pages qui ne contiennent que des tableaux',
@@ -40,8 +40,8 @@ test('vues : une page par bloc, toutes les vues, puis le reste ; feuille filtrab
   const ext = m.custom.find((w) => w.custom.origin === 'external');
   const extRow = wb.sheets[1].rows.find((r) => r.cells[8]?.v === ext.custom.url);
   assert.ok(extRow, 'adresse de la vue externe');
-  assert.equal(extRow.cells[6].s, 'ko', 'accès complet donné à un site externe');
-  assert.equal(extRow.cells[9].s, 'ko');
+  assert.equal(extRow.cells[6].s, 'pillWarn', 'accès complet donné à un site externe');
+  assert.equal(extRow.cells[9].s, 'pillWarn');
   // Vue de la galerie avec des champs à associer
   const map = m.gallery.find((w) => w.custom.missingColumns.length);
   const mapRow = wb.sheets[1].rows.find(

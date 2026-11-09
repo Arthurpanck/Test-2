@@ -4,23 +4,27 @@
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
 import { ACTIONS, ACTION_LABEL, unknownCases } from './rights-matrix.js';
-import { frenchDateTime as fmtDate } from './util.js';
+import { frenchDateTime as fmtDate, plural } from './util.js';
 import { xlsxColor as X } from './theme.js';
 import { writeXlsx, colName, cellRef } from './xlsx.js';
+import { BASE_STYLES, COLOR, CREATOR, combineWorkbooks, paramsSheet, sheetBuilder } from './xlsx-kit.js';
 
-const BLUE = X('primary'),
-  GREY = X('surface'),
-  LINE = X('subtle'),
-  EDGE = X('border'),
-  WHITE = X('onPrimary');
+const BLUE = COLOR.blue,
+  GREY = COLOR.grey,
+  LINE = COLOR.line,
+  EDGE = COLOR.edge,
+  WHITE = COLOR.white;
 const TONE = { ok: [X('fillOk'), X('ready')], ko: [X('fillKo'), X('blocking')], uk: [X('subtle'), X('neutral')] };
 
 // Feuille « Qui peut faire quoi » : le rendu de la vue « Par table et par colonne » de l'onglet Accès
 // (en-têtes gris, colonnes en retrait, cases en badges séparés par un liseré blanc).
 const STYLES = {
-  title: { font: { bold: true, size: 16, color: X('text') } },
-  subtitle: { font: { size: 10, color: X('muted') } },
-  note: { font: { size: 10, color: X('muted') }, align: { wrap: true, v: 'top' } },
+  title: BASE_STYLES.title,
+  subtitle: BASE_STYLES.subtitle,
+  note: BASE_STYLES.note,
+  pHead: BASE_STYLES.pHead,
+  pKey: BASE_STYLES.pKey,
+  pText: BASE_STYLES.pText,
   hGroup: { font: { bold: true, size: 11, color: X('text') }, fill: GREY, border: { top: EDGE } },
   hGroupEdge: { font: { bold: true, size: 11, color: X('text') }, fill: GREY, border: { top: EDGE, left: EDGE } },
   hSub: { font: { size: 9, color: X('muted') }, fill: GREY },
@@ -46,12 +50,6 @@ const STYLES = {
   blank: { border: { bottom: LINE } },
   na: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { h: 'center', v: 'center' } },
   naEdge: { font: { size: 10, color: X('line') }, border: { bottom: LINE, left: EDGE }, align: { h: 'center', v: 'center' } },
-  // Feuille « Paramètres »
-  head: { font: { bold: true, size: 10, color: X('text') }, fill: GREY, border: { bottom: EDGE }, align: { v: 'center', wrap: true } },
-  text: { font: { size: 10 }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  textMuted: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  mono: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  key: { font: { bold: true, size: 10 }, border: { bottom: LINE }, fill: GREY, align: { v: 'top', wrap: true } },
   ...Object.fromEntries(
     Object.entries(TONE).flatMap(([k, [fill, color]]) => {
       const font = { bold: true, size: 9, color };
@@ -153,42 +151,19 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
   };
 
   // ---- Feuille 2 : paramètres et lecture ----
-  const p = [
-    { height: 24, cells: [{ v: 'Paramètres et lecture', s: 'title' }] },
-    { height: 6, cells: [] },
-  ];
-  const kv = (k, v, s = 'text') =>
-    p.push({
-      cells: [
-        { v: k, s: 'key' },
-        { v, s },
-      ],
-    });
-  kv('Document', docName || 'Document Grist');
-  kv('Règles lues le', fmtDate(date));
-  kv(
-    'Rôle Grist supposé',
-    'Éditeur. Les propriétaires et les lecteurs ne sont pas représentés ; les conditions sur user.Access sont lues pour un éditeur.',
-  );
-  kv(
-    'Rôle métier',
-    mx.role
-      ? `${mx.role.attr}.${mx.role.col}${attrTable ? `, lu dans la table ${attrTable}` : ''} : la colonne comparée au plus grand nombre de valeurs dans les règles.`
-      : 'Aucun rôle métier reconnu dans les règles : un seul groupe « Éditeurs ».',
-  );
-  for (const g of mx.groups) kv(`Groupe « ${g.name} »`, g.sub);
-  kv(
-    'Ordre appliqué',
-    "Règles de la colonne, puis de la table, puis du document ; la première qui s'applique décide, action par action. Sans règle qui décide, le droit par défaut d'un éditeur s'applique (tout est permis).",
-  );
-  kv('Personnes nommées', 'Les exceptions pour une personne précise (user.Email == …) ne sont pas représentées.');
-  p.push({ height: 6, cells: [] });
-  p.push({
+  const kv = (k, v, s = 'pText') => ({
     cells: [
-      { v: 'Légende', s: 'head' },
-      { v: '', s: 'head' },
+      { v: k, s: 'pKey' },
+      { v, s },
     ],
   });
+  const headRow = (v) => ({
+    cells: [
+      { v, s: 'pHead' },
+      { v: '', s: 'pHead' },
+    ],
+  });
+  const extra = [{ height: 6, cells: [] }, headRow('Légende')];
   for (const [v, s, text] of [
     ['Oui', 'okLeft', 'Permis sur toutes les lignes.'],
     ['Non', 'koLeft', 'Refusé sur toutes les lignes.'],
@@ -205,46 +180,62 @@ export function matrixWorkbook(mx, { docName = '', date = new Date() } = {}) {
     ],
     ['—', 'na', 'Sans objet : on ne crée ni ne supprime une colonne seule.'],
   ])
-    p.push({
+    extra.push({
       cells: [
         { v, s },
-        { v: text, s: 'text' },
+        { v: text, s: 'pText' },
       ],
     });
   const unknown = unknownCases(mx);
   if (unknown.length) {
-    p.push({ height: 6, cells: [] });
-    p.push({
-      cells: [
-        { v: 'À vérifier dans Grist', s: 'head' },
-        { v: '', s: 'head' },
-      ],
-    });
+    extra.push({ height: 6, cells: [] }, headRow('À vérifier dans Grist'));
     for (const u of unknown) {
       const where =
         u.row.kind === 'structure' ? 'Droits de structure' : u.row.kind === 'column' ? `${u.row.table}.${u.row.label}` : u.row.label;
-      kv(
-        `${where} · ${u.actions.join(', ')}`,
-        `${u.note || `La condition « ${u.formula} » utilise un attribut inexistant ou une forme non comprise.`}${u.groups.length < mx.groups.length ? ` (${u.groups.join(', ')})` : ''}`,
+      extra.push(
+        kv(
+          `${where} · ${u.actions.join(', ')}`,
+          `${u.note || `La condition « ${u.formula} » utilise un attribut inexistant ou une forme non comprise.`}${u.groups.length < mx.groups.length ? ` (${u.groups.join(', ')})` : ''}`,
+        ),
       );
     }
   }
-  p.push({ height: 6, cells: [] });
-  kv('Avertissement', MATRIX_WARNING, 'note');
-  const params = { name: 'Paramètres', tabColor: X('muted'), showGrid: false, cols: [34, 100], rows: p };
+  extra.push({ height: 6, cells: [] }, kv('Avertissement', MATRIX_WARNING, 'note'));
+  const params = {
+    ...paramsSheet({
+      doc: docName || 'Document Grist',
+      date,
+      dateLabel: 'Règles lues le',
+      facts: [
+        [
+          'Rôle Grist supposé',
+          'Éditeur. Les propriétaires et les lecteurs ne sont pas représentés ; les conditions sur user.Access sont lues pour un éditeur.',
+        ],
+        [
+          'Rôle métier',
+          mx.role
+            ? `${mx.role.attr}.${mx.role.col}${attrTable ? `, lu dans la table ${attrTable}` : ''} : la colonne comparée au plus grand nombre de valeurs dans les règles.`
+            : 'Aucun rôle métier reconnu dans les règles : un seul groupe « Éditeurs ».',
+        ],
+        ...mx.groups.map((g) => [`Groupe « ${g.name} »`, g.sub]),
+        [
+          'Ordre appliqué',
+          "Règles de la colonne, puis de la table, puis du document ; la première qui s'applique décide, action par action. Sans règle qui décide, le droit par défaut d'un éditeur s'applique (tout est permis).",
+        ],
+        ['Personnes nommées', 'Les exceptions pour une personne précise (user.Email == …) ne sont pas représentées.'],
+      ],
+      extra,
+    }),
+    cols: [34, 100],
+  };
 
   return {
     title: `Qui peut faire quoi ? · ${docName || 'Document Grist'}`,
-    creator: 'Widget Grist « Audit de structure »',
+    creator: CREATOR,
     date,
     styles: STYLES,
     sheets: [matrix, params],
   };
-}
-
-/** @returns {Uint8Array} le fichier .xlsx */
-export function matrixXlsx(mx, opts) {
-  return writeXlsx(matrixWorkbook(mx, opts));
 }
 
 // ---------------------------------------------------------------------------
@@ -252,36 +243,7 @@ export function matrixXlsx(mx, opts) {
 // l'export des tables (titre, un bloc par table, en-têtes gris, pastilles), avec la matrice en onglets.
 // ---------------------------------------------------------------------------
 
-const PILL = (color, fill) => ({
-  font: { bold: true, size: 9, color },
-  fill,
-  border: { all: WHITE, style: 'medium' },
-  align: { h: 'center', v: 'top', wrap: true },
-});
-const ACCESS_STYLES = {
-  aTitle: { font: { bold: true, size: 13, color: BLUE }, border: { bottom: BLUE }, align: { v: 'bottom' } },
-  aMeta: { font: { size: 9, color: X('muted') }, border: { bottom: BLUE }, align: { v: 'bottom' } },
-  aRule: { border: { bottom: BLUE } },
-  aSub: { font: { bold: true, size: 10, color: BLUE }, align: { v: 'bottom' } },
-  aHead: {
-    font: { bold: true, size: 9, color: X('neutral') },
-    fill: GREY,
-    border: { bottom: EDGE, top: EDGE },
-    align: { v: 'center', wrap: true },
-  },
-  aWho: { font: { bold: true, size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  aText: { font: { size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  aMuted: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  aMono: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  aMemo: { font: { size: 9, color: X('muted') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  aOrder: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { h: 'center', v: 'top' } },
-  aNone: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { h: 'center', v: 'top' } },
-  aAllow: PILL(X('ready'), X('fillOk')),
-  aDeny: PILL(X('blocking'), X('fillKo')),
-  aWarn: PILL(X('improve'), X('fillKo')),
-  aInfo: PILL(X('neutral'), X('subtle')),
-};
-const PERM = { allow: ['Autorisé', 'aAllow'], deny: ['Refusé', 'aDeny'] };
+const PERM = { allow: ['Autorisé', 'pillOk'], deny: ['Refusé', 'pillKo'] };
 const ACCESS_HELP =
   "Réglages généraux, attributs utilisateur, puis les règles du document et de chaque table, colonnes comprises. Les conditions s'appliquent dans l'ordre : la première qui correspond à la personne décide, action par action ; « — » : rien n'est décidé ici. Les règles d'une colonne passent avant celles de sa table, puis celles du document. Onglets suivants : « Qui peut faire quoi ? » et ses paramètres de lecture.";
 
@@ -295,46 +257,30 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
   const doc = docName || 'Document Grist';
   const BITS = ['R', 'U', 'C', 'D', 'S'];
   const W = 8; // colonnes : Qui, Condition, 5 permissions, Message
-  const merges = [`A3:${colName(W - 1)}3`];
-  const rows = [];
-  const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
   const conditionCount = access.ruleCount ?? 0;
-  rows.push({ height: 26, cells: [{ v: `Droits d'accès · ${plural(conditionCount, 'condition', 'conditions')}`, s: 'title' }] });
-  rows.push({
-    height: 16,
-    cells: [
-      {
-        v: `${doc} · lu le ${fmtDate(date)} · ${plural(access.tables.length, 'table protégée', 'tables protégées')} · ${plural(access.attributes.length, 'attribut', 'attributs')}`,
-        s: 'subtitle',
-      },
-    ],
+  const sheet = sheetBuilder(W, {
+    title: `Droits d'accès · ${plural(conditionCount, 'condition', 'conditions')}`,
+    subtitle: `${doc} · lu le ${fmtDate(date)} · ${plural(access.tables.length, 'table protégée', 'tables protégées')} · ${plural(access.attributes.length, 'attribut', 'attributs')}`,
+    help: ACCESS_HELP,
+    helpHeight: 42,
   });
-  rows.push({ height: 42, cells: [{ v: ACCESS_HELP, s: 'note' }] });
-
-  /** Titre de bloc sur toute la largeur : nom, chiffres, filet bleu. */
-  const block = (title, meta = '') => {
-    rows.push({ height: 14, cells: [] });
-    merges.push(`A${rows.length + 1}:B${rows.length + 1}`);
-    rows.push({
-      height: 24,
-      cells: [{ v: title, s: 'aTitle' }, { v: '', s: 'aRule' }, { v: meta, s: 'aMeta' }, ...Array(W - 3).fill({ v: '', s: 'aRule' })],
-    });
-  };
-  const head = (labels) => rows.push({ height: 20, cells: labels.map((v) => ({ v, s: 'aHead' })) });
+  const { rows } = sheet;
+  const block = (title, meta) => sheet.block(title, meta);
+  const head = (labels) => sheet.head(labels, 20);
   /** Règles d'un ensemble (document, table, colonnes) : une ligne par condition. */
   const ruleRows = (list, bits) => {
     head(['Qui', 'Condition', ...BITS.map((b) => (bits.includes(b) ? ACTION_LABEL[b] || b : '')), 'Message en cas de refus']);
     for (const r of list)
       rows.push({
         cells: [
-          { v: r.who.text, s: 'aWho' },
-          { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'aMono' : 'aMuted' },
+          { v: r.who.text, s: 'strong' },
+          { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'mono' : 'muted' },
           ...BITS.map((b) => {
-            if (!bits.includes(b)) return { v: '', s: 'aText' };
-            const [v, st] = PERM[r.perms[b]] || ['—', 'aNone'];
+            if (!bits.includes(b)) return { v: '', s: 'text' };
+            const [v, st] = PERM[r.perms[b]] || ['—', 'dash'];
             return { v, s: st };
           }),
-          { v: r.memo || '', s: 'aMemo' },
+          { v: r.memo || '', s: 'small' },
         ],
       });
   };
@@ -345,27 +291,27 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
   for (const g of settings)
     rows.push({
       cells: [
-        { v: g.name, s: 'aWho' },
-        { v: g.text, s: 'aMemo' },
-        { v: g.state, s: g.level === 'warning' ? 'aWarn' : g.level === 'success' || g.on ? 'aAllow' : 'aInfo' },
+        { v: g.name, s: 'strong' },
+        { v: g.text, s: 'small' },
+        { v: g.state, s: g.level === 'warning' ? 'pillWarn' : g.level === 'success' || g.on ? 'pillOk' : 'pillInfo' },
       ],
     });
   // Attributs utilisateur
   block('Attributs utilisateur', plural(access.attributes.length, 'attribut', 'attributs'));
   head(['Attribut', 'Cherché dans', 'État', '', '', '', '', '']);
-  if (!access.attributes.length) rows.push({ cells: [{ v: 'Aucun attribut utilisateur.', s: 'aMuted' }] });
+  if (!access.attributes.length) rows.push({ cells: [{ v: 'Aucun attribut utilisateur.', s: 'muted' }] });
   for (const x of access.attributes)
     rows.push({
       cells: [
-        { v: `user.${x.name}`, s: 'aMono' },
-        { v: `${x.tableId}.${x.lookupColId}, en comparant à user.${x.charId}`, s: 'aText' },
-        { v: x.problems.length ? x.problems.join(', ') : 'Correct', s: x.problems.length ? 'aDeny' : 'aAllow' },
+        { v: `user.${x.name}`, s: 'mono' },
+        { v: `${x.tableId}.${x.lookupColId}, en comparant à user.${x.charId}`, s: 'text' },
+        { v: x.problems.length ? x.problems.join(', ') : 'Correct', s: x.problems.length ? 'pillKo' : 'pillOk' },
       ],
     });
   // Règles par défaut, puis chaque table et ses colonnes
   block('Droits d’accès par défaut', `Toutes les tables · ${plural(access.defaults.length, 'condition', 'conditions')}`);
   if (access.defaults.length) ruleRows(access.defaults, BITS);
-  else rows.push({ cells: [{ v: 'Aucune règle par défaut.', s: 'aMuted' }] });
+  else rows.push({ cells: [{ v: 'Aucune règle par défaut.', s: 'muted' }] });
   for (const t of access.tables) {
     const n = t.rules.length + t.columns.reduce((k, c) => k + c.rules.length, 0);
     const cols = t.columns.map((c) => c.colIds.join(', '));
@@ -376,7 +322,7 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
     if (t.rules.length) ruleRows(t.rules, ['R', 'U', 'C', 'D']);
     for (const c of t.columns) {
       rows.push({ height: 10, cells: [] });
-      rows.push({ height: 18, cells: [{ v: `${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${c.colIds.join(', ')}`, s: 'aSub' }] });
+      rows.push({ height: 18, cells: [{ v: `${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${c.colIds.join(', ')}`, s: 'blockSub' }] });
       ruleRows(c.rules, ['R', 'U']);
     }
   }
@@ -384,7 +330,7 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
   if (specials.length) {
     block('Réglages spéciaux', 'Cases de la page « Règles d’accès » de Grist');
     for (const sp of specials) {
-      rows.push({ height: 18, cells: [{ v: sp.label, s: 'aSub' }] });
+      rows.push({ height: 18, cells: [{ v: sp.label, s: 'blockSub' }] });
       ruleRows(sp.rules, BITS);
     }
   }
@@ -395,18 +341,12 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
     landscape: true,
     cols: [34, 44, 11, 11, 11, 11, 11, 44],
     rows,
-    merges,
+    merges: sheet.merges,
     freeze: { rows: 3, cols: 0 },
   };
-
-  const matrix = mx?.hasRules ? matrixWorkbook(mx, { docName, date }) : null;
-  return {
-    title: `Droits d'accès · ${doc}`,
-    creator: 'Widget Grist « Audit de structure »',
-    date,
-    styles: { ...STYLES, ...ACCESS_STYLES },
-    sheets: [main, ...(matrix ? matrix.sheets : [])],
-  };
+  const book = { title: `Droits d'accès · ${doc}`, creator: CREATOR, date, styles: BASE_STYLES, sheets: [main] };
+  if (!mx?.hasRules) return book;
+  return combineWorkbooks([{ book }, { book: matrixWorkbook(mx, { docName, date }), label: 'matrice' }], { title: book.title, date });
 }
 
 /** @returns {Uint8Array} le fichier .xlsx */

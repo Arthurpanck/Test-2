@@ -2,6 +2,13 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.27.0 — Export Excel complet, exports Excel factorisés
+- **Rapport : bouton « Exporter tout en Excel »**. Un seul classeur avec un sommaire (chiffres clés, liste des feuilles et leur contenu, parties absentes), puis les exports des onglets Tables, Accès et Vues, chacun avec sa feuille « Paramètres » (« Paramètres · tables », « · accès », « · vues »). Il ne dépend pas des données : il est disponible dès l'affichage du schéma.
+- **Relecture du code** :
+  - les trois exports Excel partagent maintenant `xlsx-kit.js` : styles, en-tête de feuille, blocs à filet bleu, feuille « Paramètres » et assemblage de classeurs. Les styles, l'en-tête et la légende n'étaient plus écrits trois fois ; le contenu des fichiers est identique à la 3.26.0 (vérifié feuille par feuille), à un détail près : le nom des pages de l'export des vues passe en 13 pt comme les tables ;
+  - `app.js` : un seul tableau des exports Excel (nom du fichier, condition, contenu) et un seul gestionnaire de téléchargement, au lieu de trois copies ; boutons renommés (`btn-tables-xlsx`, `btn-access-xlsx`, `btn-views-xlsx`) ;
+  - `matrixXlsx` retiré (le bouton de la matrice seule n'existe plus depuis la 3.24.0).
+
 ## 3.26.0 — Bibliothèques dans le dépôt, export Excel des vues
 - **Plus aucun CDN** : le DSFR (styles, polices Marianne et Spectral, icônes), ELK (disposition du schéma) et docx (export Word) sont copiés dans `assets/vendor/`, aux mêmes versions qu'avant (1.15.4, 0.12.0, 9.10.0), tels que publiés sur npm et avec leurs licences. Le widget ne dépend plus que de l'endroit où il est publié et de `grist-plugin-api.js`, servi par Grist. `npm run vendor` refait la copie (versions dans `scripts/vendor.mjs`) ; il remplace `npm run build:icons`.
 - **Onglet Vues : bouton « Exporter en Excel »**, présenté comme les exports des tables et des droits d'accès :
