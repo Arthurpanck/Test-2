@@ -799,6 +799,16 @@ for (const [label, viewport, dark] of [
     'onglet Vues : tableaux exclus, autres vues par page',
   );
   check((await frame.locator('.widget-cols--missing').count()) === 3, 'onglet Vues : colonnes à associer signalées');
+  const [vx] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-widgets-xlsx').click()]);
+  const vz = await JSZip.loadAsync(await readFile(await vx.path()));
+  const vs = await vz.file('xl/sharedStrings.xml').async('string');
+  check(
+    /^vues-.+\.xlsx$/.test(vx.suggestedFilename()) &&
+      vs.includes('widgets.exemple.fr') &&
+      vs.includes('Tables affichées sur aucune page') &&
+      Boolean(vz.file('xl/tables/table1.xml')),
+    `onglet Vues : export Excel (${vx.suggestedFilename()})`,
+  );
   await frame.locator('label[for="wkind-gallery"]').click();
   check(
     (await frame.locator('.widget-card').count()) === 2 &&

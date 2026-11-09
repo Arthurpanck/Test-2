@@ -53,8 +53,9 @@ Aucune étape de compilation : `index.html` et les modules ES de `assets/` sont 
 | `audit-catalog.js` | Les contrôles retenus (textes, niveaux). Le registre complet des décisions est dans `tests/audit-decisions.mjs` |
 | `report.js` | Rapport : sections, aperçu HTML, rendu Word |
 | `erd.js`, `erd-geometry.js` | Visualiseur de schéma ; géométrie (tracés, cardinalités, graphe ELK), testée sous Node |
-| `tables-export.js`, `rights-export.js`, `xlsx.js` | Exports Excel |
-| `styles.css`, `dsfr-icons.css` | Compléments au DSFR ; sous-ensemble des icônes (`npm run build:icons`) |
+| `tables-export.js`, `rights-export.js`, `views-export.js`, `xlsx.js` | Exports Excel (Tables, Accès, Vues) |
+| `styles.css`, `dsfr-icons.css` | Compléments au DSFR ; sous-ensemble des icônes (généré par `npm run vendor`) |
+| `vendor/` | DSFR, ELK et docx copiés tels que publiés sur npm, avec leurs licences (voir `assets/vendor/README.md`) |
 
 ## Développement
 
@@ -65,6 +66,7 @@ npm run test:ui -- captures/    # interface dans Chromium (Playwright), Grist si
 npm run test:erd -- captures/   # visualiseur de schéma : disposition, liens, glisser, zoom, exports
 npm run test:deployed -- <url du widget> captures/ [fixture.json]   # version publiée
 npm run format              # mise en forme (Prettier) ; npm run lint pour vérifier
+npm run vendor              # recopie DSFR, ELK et docx dans assets/vendor (versions dans scripts/vendor.mjs)
 ```
 
 Les tests unitaires sont dans `tests/` (un fichier par module) ; `tests/revues/` garde les arbitrages des revues des constats (niveaux, formulations, retraits), et `tests/removed-findings.test.mjs` fait tourner toute l'analyse sur chaque document de `tests/fixtures/` pour vérifier qu'aucun constat retiré ne réapparaît.

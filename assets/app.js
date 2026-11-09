@@ -16,6 +16,7 @@ import { findLookups } from './lookups.js';
 import { findFormulaDeps } from './formula-deps.js';
 import { tablesXlsx } from './tables-export.js';
 import { accessXlsx } from './rights-export.js';
+import { viewsXlsx } from './views-export.js';
 import {
   ACTIONS as MATRIX_ACTIONS,
   ACTION_LABEL,
@@ -81,6 +82,7 @@ for (const id of [
   'tables-body',
   'access-filter',
   'btn-access-csv',
+  'btn-widgets-xlsx',
   'access-body',
   'widgets-filter',
   'wkind-all',
@@ -1121,6 +1123,7 @@ const WIDGET_KIND = { external: ['Externe', 'improve'], document: ['Dans le docu
 
 function renderWidgets() {
   const body = els['widgets-body'];
+  els['btn-widgets-xlsx'].disabled = !state.out || !state.pages;
   if (!state.out) {
     body.innerHTML = unavailableMessage();
     return;
@@ -1734,6 +1737,20 @@ function bindAccessEvents() {
     }, 120),
   );
   els['btn-access-csv'].addEventListener('click', downloadAccessXlsx);
+  els['btn-widgets-xlsx'].addEventListener('click', () => {
+    if (!state.pages) return;
+    try {
+      downloadFile(
+        `vues-${fileBase()}.xlsx`,
+        viewsXlsx(state.pages, { docName: state.docName, date: new Date() }),
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      toast('Classeur Excel des vues téléchargé.');
+    } catch (err) {
+      console.error(err);
+      toast(`L'export Excel n'a pas pu être produit : ${err.message || err}`, 'error');
+    }
+  });
 }
 
 /** Onglet Tables : l'index suit le défilement. */

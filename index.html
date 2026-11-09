@@ -12,11 +12,11 @@
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
       );
     </script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.4/dist/dsfr.main.min.css" />
-    <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.25.0" />
-    <link rel="stylesheet" href="assets/styles.css?v=3.25.0" />
+    <link rel="stylesheet" href="assets/vendor/dsfr/dsfr.main.min.css" />
+    <link rel="stylesheet" href="assets/dsfr-icons.css?v=3.26.0" />
+    <link rel="stylesheet" href="assets/styles.css?v=3.26.0" />
     <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
-    <script type="module" src="assets/app.js?v=3.25.0"></script>
+    <script type="module" src="assets/app.js?v=3.26.0"></script>
   </head>
   <body>
     <div class="app">
@@ -351,6 +351,15 @@
               </div>
             </fieldset>
           </div>
+          <div class="toolbar__group toolbar__end">
+            <button
+              class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line toolbar__collapse"
+              id="btn-widgets-xlsx"
+              type="button"
+            >
+              Exporter en Excel
+            </button>
+          </div>
         </div>
         <div class="page__body" id="widgets-body"></div>
       </section>
@@ -371,7 +380,9 @@
         <div class="toolbar" role="toolbar" aria-label="Outils du rapport">
           <p class="toolbar__hint">L'aperçu reprend exactement le contenu du fichier Word.</p>
           <div class="toolbar__group toolbar__end">
-            <button class="fr-btn fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">Télécharger le rapport Word</button>
+            <button class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line" id="btn-docx" type="button">
+              Télécharger le rapport Word
+            </button>
           </div>
         </div>
         <div class="page__body report">

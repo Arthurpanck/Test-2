@@ -16,7 +16,15 @@ export const fixture = (name) => readFile(path.join(root, 'tests/fixtures', name
 /** Métadonnées d'une fixture au format docApi.fetchTable (voir tests/helpers.mjs). */
 export const metadata = fixtureMetadata;
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css' };
+const TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.css': 'text/css',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+};
 
 export async function start(outDir) {
   await mkdir(outDir, { recursive: true });

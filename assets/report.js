@@ -24,7 +24,8 @@ import { ACTIONS as MX_ACTIONS, cellText, cellTone, unknownCases } from './right
 import { readTheme } from './theme.js';
 
 export { readTheme };
-export const DOCX_URL = 'https://cdn.jsdelivr.net/npm/docx@9.10.0/dist/index.iife.js';
+// docx 9.10.0, copié dans assets/vendor/docx (scripts/vendor.mjs) : aucun CDN.
+export const DOCX_URL = new URL('./vendor/docx/index.iife.js', import.meta.url).href;
 
 // ---------------------------------------------------------------------------
 // Thème : couleurs et polices de theme.js (variables CSS --doc-*)

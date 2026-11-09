@@ -2,6 +2,14 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.26.0 — Bibliothèques dans le dépôt, export Excel des vues
+- **Plus aucun CDN** : le DSFR (styles, polices Marianne et Spectral, icônes), ELK (disposition du schéma) et docx (export Word) sont copiés dans `assets/vendor/`, aux mêmes versions qu'avant (1.15.4, 0.12.0, 9.10.0), tels que publiés sur npm et avec leurs licences. Le widget ne dépend plus que de l'endroit où il est publié et de `grist-plugin-api.js`, servi par Grist. `npm run vendor` refait la copie (versions dans `scripts/vendor.mjs`) ; il remplace `npm run build:icons`.
+- **Onglet Vues : bouton « Exporter en Excel »**, présenté comme les exports des tables et des droits d'accès :
+  - feuille « Vues » : un bloc par page, dans l'ordre du document, avec toutes ses vues (tableaux compris) : type, table, vue suivie, origine, accès, colonnes associées, adresse, points à vérifier en pastilles (rouge : champs à associer, site externe avec accès complet ; violet : site externe, communauté, code dans le document ; vert : galerie Grist Labs). À la fin, les pages qui ne contiennent que des tableaux et les tables affichées sur aucune page ;
+  - feuille « Toutes les vues » : les mêmes lignes en tableau Excel filtrable ;
+  - feuille « Paramètres » : document, date de lecture, légende des colonnes.
+- **Rapport** : le bouton « Télécharger le rapport Word » a la même couleur que les autres boutons d'export.
+
 ## 3.25.0 — Schéma affiché sans attendre les données
 - **Ouverture en deux temps** : la vue lit d'abord les métadonnées du document (tables, colonnes, règles, pages). Le schéma, les tables, les droits d'accès et les vues s'affichent dès ce moment. Les lignes des tables sont lues ensuite, en arrière-plan.
 - **Analyse et Rapport** attendent la fin de cette lecture : ils affichent l'avancement (« Lecture des données : 12 sur 22 tables… ») au lieu d'un verdict partiel. L'export Word est disponible une fois les données lues.

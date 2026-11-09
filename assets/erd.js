@@ -13,10 +13,11 @@ import { readTheme } from './theme.js';
 import { esc, plural } from './util.js';
 import { columnTypeLabel, ID_TYPE_LABEL } from './types.js';
 
-const ELK_VERSION = '0.12.0';
-const ELK_API_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-api.js`; // 10 Ko
-const ELK_WORKER_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk-worker.min.js`; // moteur, 1,6 Mo
-const ELK_BUNDLED_URL = `https://cdn.jsdelivr.net/npm/elkjs@${ELK_VERSION}/lib/elk.bundled.js`; // repli
+// ELK 0.12.0, copié dans assets/vendor/elkjs (scripts/vendor.mjs) : aucun CDN.
+const vendor = (file) => new URL(`./vendor/elkjs/${file}`, import.meta.url).href;
+const ELK_API_URL = vendor('elk-api.js'); // 10 Ko
+const ELK_WORKER_URL = vendor('elk-worker.min.js'); // moteur, 1,6 Mo
+const ELK_BUNDLED_URL = vendor('elk.bundled.js'); // repli
 const LAYOUT_TIMEOUT = 20000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MIN_ZOOM = 0.15;
@@ -54,7 +55,7 @@ function withTimeout(promise, ms, message) {
 let elkPromise = null;
 /**
  * Instance ELK partagée. Le moteur tourne dans un Web Worker (créé depuis une URL blob qui
- * importe le script du CDN) pour ne jamais bloquer l'interface ; à défaut, il tourne sur le fil
+ * importe le script copié dans le dépôt) pour ne jamais bloquer l'interface ; à défaut, il tourne sur le fil
  * principal.
  */
 export function getElk() {
