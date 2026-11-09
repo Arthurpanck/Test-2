@@ -916,6 +916,27 @@ for (const [name, viewport, dark] of [
   await shot(page, `${name}.png`);
   const overflow = await frame.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(overflow <= 0, `${name} : pas de défilement horizontal (${overflow}px)`);
+  if (!dark) {
+    // Les six onglets (et le compteur de l'Analyse) tiennent dans la barre, sans la faire défiler
+    const tabsRight = await frame.evaluate(() => document.querySelector('#tab-report').getBoundingClientRect().right);
+    check(tabsRight <= viewport.width, `${name} : six onglets visibles (Rapport à ${Math.round(tabsRight)}px)`);
+    // Fiches des tables dans la largeur : le tableau défile dans sa fiche, le bouton reste visible
+    await frame.locator('#tab-tables').click();
+    await page.waitForTimeout(400);
+    const widest = await frame.evaluate(() =>
+      Math.max(...[...document.querySelectorAll('.tbl, .card__actions')].map((e) => e.getBoundingClientRect().right)),
+    );
+    check(widest <= viewport.width, `${name} : fiches des tables dans la largeur (${Math.round(widest)}px)`);
+    // « id » : la clé de chaque table
+    await frame.locator('#filter-input').fill('id');
+    await page.waitForTimeout(300);
+    check(
+      (await frame.locator('.tbl').count()) === (await frame.locator('.tables-index button').count()) &&
+        (await frame.locator('.tbl tr.is-match').count()) >= 1,
+      'recherche « id » : toutes les tables, ligne de la clé repérée',
+    );
+    await frame.locator('#filter-input').fill('');
+  }
   if (dark) check((await frame.evaluate(() => document.documentElement.dataset.frTheme)) === 'dark', 'sombre : thème DSFR sombre');
   check(errors.length === 0, `${name} : aucune erreur console (${errors.join(' | ')})`);
   await context.close();

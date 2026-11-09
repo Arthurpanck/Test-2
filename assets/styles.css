@@ -144,6 +144,18 @@ body {
     display: none;
   }
 }
+/* Vue étroite (panneau latéral de Grist) : les onglets non sélectionnés n'affichent que leur icône
+   (le nom reste lu par les lecteurs d'écran et s'affiche au survol), pour que les six onglets et le
+   compteur de l'Analyse restent visibles sans faire défiler la barre. */
+@media (max-width: 40em) {
+  .tab:not([aria-selected='true']) {
+    font-size: 0;
+    gap: 0;
+  }
+  .tab:not([aria-selected='true']) .tab__alert {
+    margin-left: 0.25rem;
+  }
+}
 @media (max-width: 52em) {
   .pages {
     padding: 0 0.75rem;
@@ -1037,8 +1049,11 @@ button.chip:hover {
 /* Widget de largeur moyenne : l'index passe au-dessus des tables, en pastilles sur plusieurs lignes,
    pour laisser toute la largeur aux sept colonnes. */
 @media (max-width: 80em) {
+  /* Une seule ligne : en colonne avec retour à la ligne, la largeur suivrait le contenu et les fiches
+     déborderaient à droite (bouton « Voir sur le schéma » et dernières colonnes coupés). */
   .tables-layout {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
   }
   .tables-index {

@@ -2,6 +2,11 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.29.0 — Corrections trouvées en testant comme un utilisateur
+- **Tables, vue de largeur moyenne** (moins de 80 em, par exemple 760 px) : les fiches des tables débordaient à droite, et le bouton « Voir sur le schéma » ainsi que les dernières colonnes (Formule, Documentée ?) étaient coupés sans pouvoir défiler. Les fiches tiennent dans la largeur ; leur tableau défile à l'intérieur.
+- **Vue étroite** (moins de 40 em, par exemple un panneau latéral de Grist) : les onglets Analyse et Rapport, et le compteur des points à corriger, sortaient de la barre sans qu'on le voie. Les onglets non sélectionnés n'affichent plus que leur icône (nom au survol et pour les lecteurs d'écran) : les six tiennent dans la barre.
+- **Recherche dans l'onglet Tables** : « id » ne trouvait rien, alors que chaque table a cette clé. Toutes les tables sont trouvées et la ligne de la clé est repérée.
+
 ## 3.28.0 — Règle des propriétaires en tête de l'Analyse
 - Le constat « Les propriétaires n'ont pas d'office tous les droits » passe en tête des constats « À corriger », dans l'onglet Analyse comme dans le rapport Word (5.1). Sans cette règle, un propriétaire peut perdre l'accès à des tables, et l'audit lui-même lit le document avec ses droits. Les autres constats gardent leur ordre.
 

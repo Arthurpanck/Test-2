@@ -554,7 +554,8 @@ function renderTables() {
     .map((t) => ({ ...t, shownColumns: t.columns.filter(keep) }))
     .filter(
       (t) =>
-        (!q || matches(t.name) || t.shownColumns.some((c) => matches(c.name) || matches(c.label))) &&
+        // « id » : la clé, présente dans chaque table, n'est pas dans t.columns mais s'affiche en tête
+        (!q || matches(t.name) || matches('id') || t.shownColumns.some((c) => matches(c.name) || matches(c.label))) &&
         (state.cols === 'all' || t.shownColumns.length),
     );
 
@@ -597,7 +598,7 @@ function renderTables() {
             c?.isFormula ? 'is-formula' : '',
             c?.ref ? 'is-ref' : '',
             c?.empty ? 'is-empty' : '',
-            c && (matches(c.name) || matches(c.label)) ? 'is-match' : '',
+            (c ? matches(c.name) || matches(c.label) : r.isKey && matches('id')) ? 'is-match' : '',
           ]
             .filter(Boolean)
             .join(' ');
