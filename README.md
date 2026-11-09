@@ -30,7 +30,7 @@ Six onglets : décrire le document (Schéma, Tables, Accès, Vues), le diagnosti
 - **Analyse** — un verdict et des constats en quatre niveaux : *À corriger* (ouvert par défaut), *À améliorer*, *Choix à confirmer* (le bouton **C'est voulu** les retire des comptes), *Bon à savoir* ; recherche.
 - **Rapport** — rapport Word (.docx) : résumé, schéma (vue Relations, références seules, sans les tables de synthèse), tables et colonnes, vues, analyse (décochée par défaut), droits d'accès, code DBML ; sommaire cliquable ; aperçu identique au fichier.
 
-Les constats sur les données lisent les lignes des tables (un échantillon au-delà de 2 000 lignes par table), à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir. La structure vient des métadonnées (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`, `_grist_Views`, `_grist_Pages`), les droits de `_grist_ACLResources` et `_grist_ACLRules`.
+Les constats sur les données lisent les lignes des tables (un échantillon au-delà de 2 000 lignes par table), à l'ouverture et sur « Relire le document » ; ils portent sur ce que la personne connectée peut voir. La structure vient des métadonnées (`_grist_Tables`, `_grist_Tables_column`, `_grist_Views_section`, `_grist_Views`, `_grist_Pages`), les droits de `_grist_ACLResources` et `_grist_ACLRules`. La lecture se fait en deux temps : les métadonnées d'abord, et le schéma, les tables, les droits et les vues s'affichent aussitôt ; les lignes des tables ensuite, en arrière-plan, et seuls l'Analyse et le Rapport les attendent (avancement dans l'en-tête).
 
 ## Architecture
 

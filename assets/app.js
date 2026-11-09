@@ -106,6 +106,8 @@ const state = {
   schemaAt: null,
   schemaError: null,
   schemaLoading: false,
+  dataLoading: false, // structure affichée, données en cours de lecture (Analyse et Rapport attendent)
+  reloadPending: false, // relecture demandée pendant une lecture : relancée à la fin
   out: null, // { tables, dbml }
   insights: null,
   acl: null, // { resources, rules } lus dans le document, ou null si illisibles
@@ -228,32 +230,50 @@ darkQuery?.addEventListener?.('change', syncTheme);
 // Lecture de la structure et calcul
 // ---------------------------------------------------------------------------
 
-function recompute() {
+function recompute({ quiet = false } = {}) {
   state.out = state.schema ? convertSchema(state.schema) : null;
   state.stats = state.out ? computeStats(state.out.tables) : null; // calculées une fois par lecture
   state.access = state.out && state.acl ? buildAccess({ ...state.acl, schema: state.schema }) : null;
   state.pages = state.out && state.pagesMeta ? buildPages(state.pagesMeta) : null;
-  state.insights = state.out
-    ? buildInsights(state.out.tables, state.access, {
-        profiles: state.profiles,
-        accepted: state.accepted,
-        pages: state.pages,
-        audit: { schema: state.schema, data: state.data, sampled: state.sampled, meta: state.auditMeta, failedTables: state.failedTables },
-      })
-    : null;
+  // L'analyse attend les données : pas de verdict partiel qui changerait une fois la lecture finie.
+  state.insights =
+    state.out && !state.dataLoading
+      ? buildInsights(state.out.tables, state.access, {
+          profiles: state.profiles,
+          accepted: state.accepted,
+          pages: state.pages,
+          audit: {
+            schema: state.schema,
+            data: state.data,
+            sampled: state.sampled,
+            meta: state.auditMeta,
+            failedTables: state.failedTables,
+          },
+        })
+      : null;
   render();
-  if (state.out) {
+  if (state.out && !quiet) {
     const s = state.stats;
     announce(`Structure mise à jour : ${plural(s.tables, 'table', 'tables')}, ${plural(s.relations, 'relation', 'relations')}.`);
   }
 }
 
+/**
+ * Lecture en deux temps. 1. Les métadonnées (tables, colonnes, règles, pages) : quelques requêtes,
+ * puis le schéma, les tables, les droits et les vues s'affichent aussitôt. 2. Les données de chaque
+ * table, en arrière-plan : seules l'Analyse et le Rapport les attendent.
+ */
 async function loadSchema({ manual = false } = {}) {
-  if (!inGrist || state.schemaLoading) return;
+  if (!inGrist) return;
+  if (state.schemaLoading || state.dataLoading) {
+    state.reloadPending = true; // le document a changé pendant la lecture : relu à la fin
+    return;
+  }
+  state.reloadPending = false;
   state.schemaLoading = true;
   renderHeader();
+  const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
   try {
-    const optional = (name) => Promise.resolve(gristApi.docApi.fetchTable(name)).catch(() => null);
     const [tables, columns, sections, resources, rules, pages, views, filters] = await Promise.all([
       gristApi.docApi.fetchTable('_grist_Tables'),
       gristApi.docApi.fetchTable('_grist_Tables_column'),
@@ -268,16 +288,6 @@ async function loadSchema({ manual = false } = {}) {
     state.pagesMeta = pages && views && sections ? { pages, views, sections, tables, columns, selfUrl: location.href } : null;
     state.schema = schemaFromMetadata(tables, columns, { sections });
     state.acl = resources && rules ? { resources, rules } : null;
-    // Matrice « Qui peut faire quoi ? » : la table de l'attribut du rôle métier, seulement pour
-    // compter les valeurs d'une colonne filtrante (« 7 services ») ; illisible ou absente : sans compte.
-    state.matrixAttrData = null;
-    if (state.acl) {
-      const m = prepareMatrixModel(state.acl);
-      const role = detectRole(m);
-      const attrTable = role && m.attributes.find((a) => a.name === role.attr)?.tableId;
-      if (attrTable) state.matrixAttrData = await optional(attrTable);
-    }
-    await loadData({ force: manual });
     state.schemaError = null;
     state.schemaAt = new Date();
   } catch (err) {
@@ -285,8 +295,42 @@ async function loadSchema({ manual = false } = {}) {
   } finally {
     state.schemaLoading = false;
   }
+  if (state.schemaError) {
+    recompute();
+    return finishLoad();
+  }
+  // 1. La structure s'affiche sans attendre les données.
+  state.dataLoading = true;
   recompute();
-  if (manual && !state.schemaError) toast('Structure du document relue.', 'info');
+  try {
+    // Matrice « Qui peut faire quoi ? » : la table de l'attribut du rôle métier, seulement pour
+    // compter les valeurs d'une colonne filtrante (« 7 services ») ; illisible ou absente : sans compte.
+    let attrData = null;
+    if (state.acl) {
+      const m = prepareMatrixModel(state.acl);
+      const role = detectRole(m);
+      const attrTable = role && m.attributes.find((a) => a.name === role.attr)?.tableId;
+      if (attrTable) attrData = await optional(attrTable);
+    }
+    if (attrData !== state.matrixAttrData) {
+      state.matrixAttrData = attrData;
+      renderAccess();
+    }
+    // 2. Les données, en arrière-plan.
+    await loadData({ force: manual });
+  } catch (err) {
+    console.warn('Lecture des données interrompue', err);
+  } finally {
+    state.dataLoading = false;
+    state.loadProgress = null;
+  }
+  recompute({ quiet: true });
+  if (manual) toast('Structure du document relue.', 'info');
+  finishLoad();
+}
+/** Une modification du document arrivée pendant la lecture est prise en compte à la fin. */
+function finishLoad() {
+  if (state.reloadPending) loadSchemaSoon();
 }
 const loadSchemaSoon = debounce(() => loadSchema(), 1200);
 
@@ -305,7 +349,7 @@ async function loadData({ force = false } = {}) {
   const queue = ids.slice();
   let done = 0;
   state.loadProgress = { done, total: ids.length };
-  renderHeader();
+  renderLoading();
   const worker = async () => {
     while (queue.length) {
       const id = queue.shift();
@@ -315,7 +359,7 @@ async function loadData({ force = false } = {}) {
         failed.add(id);
       }
       state.loadProgress = { done: ++done, total: ids.length };
-      renderHeader();
+      renderLoading();
       await yieldToBrowser(); // l'interface reste fluide entre deux tables
     }
   };
@@ -335,6 +379,13 @@ async function loadData({ force = false } = {}) {
     }
   }
   state.profileKey = key;
+}
+
+/** Avancement de la lecture : en-tête, et onglets qui attendent les données s'ils sont affichés. */
+function renderLoading() {
+  renderHeader();
+  if (state.tab === 'analysis') renderAnalysis();
+  if (state.tab === 'report') renderReport();
 }
 
 /** Rend la main au navigateur (affichage, clics) entre deux étapes longues. */
@@ -395,8 +446,14 @@ function unavailableMessage() {
     return emptyState(
       "<p>Cette vue s'utilise dans Grist : ajoutez-le comme vue personnalisée avec l'accès « Accès complet au document ».</p>",
     );
-  if (state.loadProgress)
-    return emptyState(`<p>Lecture des données : ${state.loadProgress.done} sur ${state.loadProgress.total} tables…</p>`);
+  if (state.dataLoading || state.loadProgress) {
+    const p = state.loadProgress;
+    const progress = p ? `Lecture des données : ${p.done} sur ${p.total} tables…` : 'Lecture des données…';
+    const hint = state.out
+      ? '<p class="empty__hint">Cette partie attend les données. Le schéma, les tables, les droits d’accès et les vues sont déjà disponibles.</p>'
+      : '';
+    return emptyState(`<p>${progress}</p>${hint}`);
+  }
   if (state.schemaLoading) return emptyState('<p>Lecture de la structure du document…</p>');
   return emptyState("<p>La structure du document n'est pas disponible.</p>");
 }
@@ -415,11 +472,11 @@ function renderHeader() {
   }
   if (state.loadProgress)
     els['read-at'].textContent = `Lecture des données : ${state.loadProgress.done}/${state.loadProgress.total} tables`;
-  else if (state.schemaLoading) els['read-at'].textContent = 'Lecture en cours…';
+  else if (state.schemaLoading || state.dataLoading) els['read-at'].textContent = 'Lecture en cours…';
   else if (state.schemaAt)
     els['read-at'].textContent = `Lue à ${state.schemaAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
   else els['read-at'].textContent = '';
-  els['btn-refresh'].disabled = !inGrist || state.schemaLoading;
+  els['btn-refresh'].disabled = !inGrist || state.schemaLoading || state.dataLoading;
 
   if (!inGrist) {
     els['doc-alert'].innerHTML =
@@ -1246,7 +1303,7 @@ function renderReportSections() {
   }
   els['report-count'].textContent = `${state.reportSections.size}/${REPORT_SECTIONS.length}`;
   els['report-count'].setAttribute('aria-label', `${state.reportSections.size} sections sur ${REPORT_SECTIONS.length}`);
-  els['btn-docx'].disabled = !state.out || !state.reportSections.size;
+  els['btn-docx'].disabled = !state.out || state.dataLoading || !state.reportSections.size;
 }
 
 /**
@@ -1328,7 +1385,7 @@ function setReportBody(html) {
 
 async function renderReport() {
   renderReportSections();
-  if (!state.out) {
+  if (!state.out || state.dataLoading) {
     setReportBody(unavailableMessage());
     return;
   }
@@ -1361,7 +1418,7 @@ async function renderReport() {
 }
 
 async function downloadReport() {
-  if (!state.out) return;
+  if (!state.out || !state.insights) return;
   const btn = els['btn-docx'];
   const label = btn.textContent;
   btn.disabled = true;

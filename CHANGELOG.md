@@ -2,6 +2,12 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.25.0 — Schéma affiché sans attendre les données
+- **Ouverture en deux temps** : la vue lit d'abord les métadonnées du document (tables, colonnes, règles, pages). Le schéma, les tables, les droits d'accès et les vues s'affichent dès ce moment. Les lignes des tables sont lues ensuite, en arrière-plan.
+- **Analyse et Rapport** attendent la fin de cette lecture : ils affichent l'avancement (« Lecture des données : 12 sur 22 tables… ») au lieu d'un verdict partiel. L'export Word est disponible une fois les données lues.
+- Sur un document de 22 tables dont chaque lecture prend 0,3 s, le schéma apparaît en 1,1 s au lieu de 4,6 s.
+- Une modification du document pendant la lecture n'est plus perdue : la vue relit le document à la fin.
+
 ## 3.24.0 — Export Excel des droits d'accès en trois onglets
 - L'export Excel de l'onglet Accès garde trois onglets : « Droits d'accès » (réglages, attributs, règles table par table), « Qui peut faire quoi » et « Paramètres » (légende de la matrice). Les onglets « Toutes les règles » (doublon de la première feuille) et « Détail par case » sont retirés.
 
