@@ -55,3 +55,28 @@ test('constat « propriétaires » : réglage non coché, ou propriétaires priv
   assert.match(it.summary, /Ni les droits d’accès par défaut ni aucune table/);
   assert.deepEqual(it.targets, [{ table: 'T', column: undefined, note: 'Lire : refusé' }]);
 });
+
+test('Analyse : la règle des propriétaires en tête des constats « à corriger »', async () => {
+  const { buildInsights } = await import('../assets/insights.js');
+  const access = buildAccess({
+    resources: [res(1, '*', '*'), res(2, 'T', '*')],
+    rules: [rule(1, 2, 1, 'user.Access == OWNER', 'all'), rule(2, 2, 2, '', '-CUD')],
+  });
+  // Colonnes vides au nom par défaut : d'autres constats « à corriger », calculés avant ceux des droits
+  const ins = buildInsights(
+    [
+      {
+        name: 'T',
+        columns: [
+          { name: 'A', gristType: { name: 'Any' }, isFormula: false },
+          { name: 'B', gristType: { name: 'Any' }, isFormula: true, details: { formula: '' } },
+        ],
+      },
+    ],
+    access,
+  );
+  const blocking = ins.items.filter((i) => i.severity === 'blocking');
+  assert.ok(blocking.length > 1, blocking.map((i) => i.id).join(', '));
+  assert.equal(blocking[0].id, 'acl-owner');
+  assert.equal(ins.items[0].id, 'acl-owner');
+});

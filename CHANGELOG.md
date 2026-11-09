@@ -2,6 +2,9 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.28.0 — Règle des propriétaires en tête de l'Analyse
+- Le constat « Les propriétaires n'ont pas d'office tous les droits » passe en tête des constats « À corriger », dans l'onglet Analyse comme dans le rapport Word (5.1). Sans cette règle, un propriétaire peut perdre l'accès à des tables, et l'audit lui-même lit le document avec ses droits. Les autres constats gardent leur ordre.
+
 ## 3.27.0 — Export Excel complet, exports Excel factorisés
 - **Rapport : bouton « Exporter tout en Excel »**. Un seul classeur avec un sommaire (chiffres clés, liste des feuilles et leur contenu, parties absentes), puis les exports des onglets Tables, Accès et Vues, chacun avec sa feuille « Paramètres » (« Paramètres · tables », « · accès », « · vues »). Il ne dépend pas des données : il est disponible dès l'affichage du schéma.
 - **Relecture du code** :

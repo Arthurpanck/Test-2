@@ -25,6 +25,11 @@ export const LEVELS = Object.keys(SEVERITIES);
 const REFRESH_STEP = 'Revenez dans cette vue et cliquez sur « Relire le document ».';
 
 /** Domaines des constats. */
+/**
+ * Constats affichés en tête de leur niveau. La règle pour les propriétaires vient en premier : sans
+ * elle, un propriétaire peut perdre l'accès à des tables, et cette vue lit le document avec ses droits.
+ */
+export const FIRST = new Set(['acl-owner']);
 export const AREAS = { structure: 'Structure', data: 'Données', access: "Droits d'accès", pages: 'Vues' };
 
 /** Clé d'un constat, pour mémoriser qu'il est « voulu » : change si les éléments concernés changent. */
@@ -95,7 +100,9 @@ export function buildInsights(tables, access = null, { profiles = null, accepted
   const auditResult = audit ? runAudit({ ...audit, access, pages }) : null;
   items.push(...pageInsights(pages).filter((i) => !(auditResult && i.id === 'table-without-page')));
   if (auditResult) items.push(...auditResult.items);
-  items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order);
+  // Par niveau ; à niveau égal, les constats de FIRST d'abord (tri stable : l'ordre de calcul reste sinon).
+  const first = (it) => (FIRST.has(it.id) ? 0 : 1);
+  items.sort((a, b) => SEVERITIES[a.severity].order - SEVERITIES[b.severity].order || first(a) - first(b));
 
   const acceptedItems = accepted ? items.filter((it) => it.severity === 'choice' && accepted.has(insightKey(it))) : [];
   const active = items.filter((it) => !acceptedItems.includes(it));
