@@ -1,6 +1,6 @@
 /**
- * Export Excel de « Qui peut faire quoi ? » : la matrice de l'onglet Accès, une feuille de
- * détail filtrable (une ligne par case) et les paramètres de lecture.
+ * Export Excel de l'onglet Accès : droits d'accès (réglages, attributs, règles par table), toutes les
+ * règles en tableau filtrable, puis « Qui peut faire quoi ? » (matrice, détail par case, paramètres).
  * Module pur : le classeur est décrit ici, écrit par xlsx.js.
  */
 import { ACTIONS, ACTION_LABEL, cellSentence, cellSteps, cellCategory, decisiveRule, unknownCases } from './rights-matrix.js';
@@ -296,166 +296,213 @@ export function matrixXlsx(mx, opts) {
 }
 
 // ---------------------------------------------------------------------------
-// Export Excel des règles d'accès (bouton « Exporter les règles » de l'onglet Accès)
+// Export Excel des droits d'accès (bouton « Exporter en Excel » de l'onglet Accès) : présenté comme
+// l'export des tables (titre, un bloc par table, en-têtes gris, pastilles), avec la matrice en onglets.
 // ---------------------------------------------------------------------------
 
-const RULE_BITS = ['R', 'U', 'C', 'D', 'S'];
-const RULE_STYLES = {
-  title: STYLES.title,
-  subtitle: STYLES.subtitle,
-  note: STYLES.note,
-  head: STYLES.head,
-  text: STYLES.text,
-  textMuted: STYLES.textMuted,
-  mono: STYLES.mono,
-  key: STYLES.key,
-  strong: { font: { bold: true, size: 10 }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
-  order: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { h: 'center', v: 'top' } },
-  allow: {
-    font: { bold: true, size: 9, color: X('ready') },
-    fill: X('fillOk'),
-    border: { all: WHITE, style: 'medium' },
-    align: { h: 'center', v: 'top' },
+const PILL = (color, fill) => ({
+  font: { bold: true, size: 9, color },
+  fill,
+  border: { all: WHITE, style: 'medium' },
+  align: { h: 'center', v: 'top', wrap: true },
+});
+const ACCESS_STYLES = {
+  aTitle: { font: { bold: true, size: 13, color: BLUE }, border: { bottom: BLUE }, align: { v: 'bottom' } },
+  aMeta: { font: { size: 9, color: X('muted') }, border: { bottom: BLUE }, align: { v: 'bottom' } },
+  aRule: { border: { bottom: BLUE } },
+  aSub: { font: { bold: true, size: 10, color: BLUE }, align: { v: 'bottom' } },
+  aHead: {
+    font: { bold: true, size: 9, color: X('neutral') },
+    fill: GREY,
+    border: { bottom: EDGE, top: EDGE },
+    align: { v: 'center', wrap: true },
   },
-  deny: {
-    font: { bold: true, size: 9, color: X('blocking') },
-    fill: X('fillKo'),
-    border: { all: WHITE, style: 'medium' },
-    align: { h: 'center', v: 'top' },
-  },
-  none: STYLES.na,
-  ok: { font: { bold: true, size: 9, color: X('ready') }, fill: X('fillOk'), border: { bottom: LINE }, align: { v: 'top' } },
-  ko: { font: { bold: true, size: 9, color: X('blocking') }, fill: X('fillKo'), border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aWho: { font: { bold: true, size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aText: { font: { size: 10, color: X('text') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aMuted: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aMono: { font: { size: 9, name: 'Consolas', color: X('neutral') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aMemo: { font: { size: 9, color: X('muted') }, border: { bottom: LINE }, align: { v: 'top', wrap: true } },
+  aOrder: { font: { size: 10, color: X('neutral') }, border: { bottom: LINE }, align: { h: 'center', v: 'top' } },
+  aNone: { font: { size: 10, color: X('line') }, border: { bottom: LINE }, align: { h: 'center', v: 'top' } },
+  aAllow: PILL(X('ready'), X('fillOk')),
+  aDeny: PILL(X('blocking'), X('fillKo')),
+  aWarn: PILL(X('improve'), X('fillKo')),
+  aInfo: PILL(X('neutral'), X('subtle')),
 };
+const PERM = { allow: ['Autorisé', 'aAllow'], deny: ['Refusé', 'aDeny'] };
+const ACCESS_HELP =
+  "Réglages généraux, attributs utilisateur, puis les règles du document et de chaque table, colonnes comprises. Les conditions s'appliquent dans l'ordre : la première qui correspond à la personne décide, action par action ; « — » : rien n'est décidé ici. Les règles d'une colonne passent avant celles de sa table, puis celles du document. Onglets suivants : toutes les règles en tableau filtrable, puis « Qui peut faire quoi ? ».";
 
 /**
- * Classeur des règles d'accès : une ligne par condition (dans l'ordre où Grist les applique),
- * les réglages généraux et les attributs utilisateur. Module pur.
+ * Classeur des droits d'accès. Module pur.
  * @param {object} access  buildAccess()
  * @param {Array} settings  generalSettings(access)
+ * @param {object|null} mx  buildMatrix() : ses feuilles sont ajoutées en onglets
  */
-export function rulesWorkbook(access, settings = [], { docName = '', date = new Date() } = {}) {
+export function accessWorkbook(access, settings = [], mx = null, { docName = '', date = new Date() } = {}) {
   const doc = docName || 'Document Grist';
+  const BITS = ['R', 'U', 'C', 'D', 'S'];
+  const W = 8; // colonnes : Qui, Condition, 5 permissions, Message
+  const merges = [`A3:${colName(W - 1)}3`];
+  const rows = [];
+  const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+  const conditionCount = access.ruleCount ?? 0;
+  rows.push({ height: 26, cells: [{ v: `Droits d'accès · ${plural(conditionCount, 'condition', 'conditions')}`, s: 'title' }] });
+  rows.push({
+    height: 16,
+    cells: [
+      {
+        v: `${doc} · lu le ${fmtDate(date)} · ${plural(access.tables.length, 'table protégée', 'tables protégées')} · ${plural(access.attributes.length, 'attribut', 'attributs')}`,
+        s: 'subtitle',
+      },
+    ],
+  });
+  rows.push({ height: 42, cells: [{ v: ACCESS_HELP, s: 'note' }] });
+
+  /** Titre de bloc sur toute la largeur : nom, chiffres, filet bleu. */
+  const block = (title, meta = '') => {
+    rows.push({ height: 14, cells: [] });
+    merges.push(`A${rows.length + 1}:B${rows.length + 1}`);
+    rows.push({
+      height: 24,
+      cells: [{ v: title, s: 'aTitle' }, { v: '', s: 'aRule' }, { v: meta, s: 'aMeta' }, ...Array(W - 3).fill({ v: '', s: 'aRule' })],
+    });
+  };
+  const head = (labels) => rows.push({ height: 20, cells: labels.map((v) => ({ v, s: 'aHead' })) });
+  /** Règles d'un ensemble (document, table, colonnes) : une ligne par condition. */
+  const ruleRows = (list, bits) => {
+    head(['Qui', 'Condition', ...BITS.map((b) => (bits.includes(b) ? ACTION_LABEL[b] || b : '')), 'Message en cas de refus']);
+    for (const r of list)
+      rows.push({
+        cells: [
+          { v: r.who.text, s: 'aWho' },
+          { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'aMono' : 'aMuted' },
+          ...BITS.map((b) => {
+            if (!bits.includes(b)) return { v: '', s: 'aText' };
+            const [v, st] = PERM[r.perms[b]] || ['—', 'aNone'];
+            return { v, s: st };
+          }),
+          { v: r.memo || '', s: 'aMemo' },
+        ],
+      });
+  };
+
+  // Réglages généraux (la règle pour les propriétaires en tête)
+  block('Réglages généraux', 'Valables pour tout le document');
+  head(['Réglage', 'Explication', 'État', '', '', '', '', '']);
+  for (const g of settings)
+    rows.push({
+      cells: [
+        { v: g.name, s: 'aWho' },
+        { v: g.text, s: 'aMemo' },
+        { v: g.state, s: g.level === 'warning' ? 'aWarn' : g.level === 'success' || g.on ? 'aAllow' : 'aInfo' },
+      ],
+    });
+  // Attributs utilisateur
+  block('Attributs utilisateur', plural(access.attributes.length, 'attribut', 'attributs'));
+  head(['Attribut', 'Cherché dans', 'État', '', '', '', '', '']);
+  if (!access.attributes.length) rows.push({ cells: [{ v: 'Aucun attribut utilisateur.', s: 'aMuted' }] });
+  for (const x of access.attributes)
+    rows.push({
+      cells: [
+        { v: `user.${x.name}`, s: 'aMono' },
+        { v: `${x.tableId}.${x.lookupColId}, en comparant à user.${x.charId}`, s: 'aText' },
+        { v: x.problems.length ? x.problems.join(', ') : 'Correct', s: x.problems.length ? 'aDeny' : 'aAllow' },
+      ],
+    });
+  // Règles par défaut, puis chaque table et ses colonnes
+  block('Droits d’accès par défaut', `Toutes les tables · ${plural(access.defaults.length, 'condition', 'conditions')}`);
+  if (access.defaults.length) ruleRows(access.defaults, BITS);
+  else rows.push({ cells: [{ v: 'Aucune règle par défaut.', s: 'aMuted' }] });
+  const flat = [];
+  const flatAdd = (table, cols, list) => list.forEach((r, i) => flat.push({ table, cols, order: i + 1, r }));
+  flatAdd('Toutes les tables', 'Tout le document', access.defaults);
+  for (const t of access.tables) {
+    const n = t.rules.length + t.columns.reduce((k, c) => k + c.rules.length, 0);
+    const cols = t.columns.map((c) => c.colIds.join(', '));
+    block(
+      t.tableId,
+      [plural(n, 'condition', 'conditions'), cols.length ? `colonnes protégées : ${cols.join(' ; ')}` : ''].filter(Boolean).join(' · '),
+    );
+    if (t.rules.length) ruleRows(t.rules, ['R', 'U', 'C', 'D']);
+    flatAdd(t.tableId, 'Toute la table', t.rules);
+    for (const c of t.columns) {
+      rows.push({ height: 10, cells: [] });
+      rows.push({ height: 18, cells: [{ v: `${c.colIds.length > 1 ? 'Colonnes' : 'Colonne'} ${c.colIds.join(', ')}`, s: 'aSub' }] });
+      ruleRows(c.rules, ['R', 'U']);
+      flatAdd(t.tableId, c.colIds.join(', '), c.rules);
+    }
+  }
+  const specials = access.special.filter((sp) => sp.rules.length);
+  if (specials.length) {
+    block('Réglages spéciaux', 'Cases de la page « Règles d’accès » de Grist');
+    for (const sp of specials) {
+      rows.push({ height: 18, cells: [{ v: sp.label, s: 'aSub' }] });
+      ruleRows(sp.rules, BITS);
+      flatAdd(`Réglage : ${sp.label}`, sp.id, sp.rules);
+    }
+  }
+  const main = {
+    name: "Droits d'accès",
+    tabColor: BLUE,
+    showGrid: false,
+    landscape: true,
+    cols: [34, 44, 11, 11, 11, 11, 11, 44],
+    rows,
+    merges,
+    freeze: { rows: 3, cols: 0 },
+  };
+
+  // Toutes les règles, en tableau filtrable
   const headers = [
     'Table',
     'Colonnes',
     'Ordre',
     'Qui',
     'Condition',
-    ...RULE_BITS.map((b) => ACTION_LABEL[b] || b),
+    ...BITS.map((b) => ACTION_LABEL[b] || b),
     'Permissions (Grist)',
     'Message en cas de refus',
   ];
-  const PERM = { allow: ['Autorisé', 'allow'], deny: ['Refusé', 'deny'] };
-  const rows = [{ height: 22, cells: headers.map((h) => ({ v: h, s: 'head' })) }];
-  const add = (table, cols, list) =>
-    list.forEach((r, i) =>
-      rows.push({
-        cells: [
-          { v: table, s: 'strong' },
-          { v: cols, s: cols === 'Toute la table' || cols === 'Tout le document' ? 'textMuted' : 'text' },
-          { v: i + 1, s: 'order' },
-          { v: r.who.text, s: 'text' },
-          { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'mono' : 'textMuted' },
-          ...RULE_BITS.map((b) => {
-            const [v, s] = PERM[r.perms[b]] || ['—', 'none'];
-            return { v, s };
-          }),
-          { v: r.permText, s: 'mono' },
-          { v: r.memo || '', s: 'text' },
-        ],
-      }),
-    );
-  add('Toutes les tables', 'Tout le document', access.defaults);
-  for (const t of access.tables) {
-    add(t.tableId, 'Toute la table', t.rules);
-    for (const c of t.columns) add(t.tableId, c.colIds.join(', '), c.rules);
-  }
-  for (const sp of access.special) add(`Réglage : ${sp.label}`, sp.id, sp.rules);
-  const ruleCount = rows.length - 1;
-  const last = headers.length - 1;
-  const intro = [
-    { height: 26, cells: [{ v: `Règles d'accès · ${ruleCount} condition${ruleCount > 1 ? 's' : ''}`, s: 'title' }] },
-    { height: 16, cells: [{ v: `${doc} · lu le ${fmtDate(date)}`, s: 'subtitle' }] },
-    {
-      height: 30,
+  const fr = [{ height: 22, cells: headers.map((h) => ({ v: h, s: 'aHead' })) }];
+  for (const { table, cols, order, r } of flat)
+    fr.push({
       cells: [
-        {
-          v: "Pour chaque table, puis chaque groupe de colonnes, les conditions s'appliquent dans l'ordre : la première qui correspond à la personne décide, action par action. « — » : rien n'est décidé ici, la condition suivante s'applique. Les règles d'une colonne passent avant celles de sa table, puis celles du document.",
-          s: 'note',
-        },
+        { v: table, s: 'aWho' },
+        { v: cols, s: cols === 'Toute la table' || cols === 'Tout le document' ? 'aMuted' : 'aText' },
+        { v: order, s: 'aOrder' },
+        { v: r.who.text, s: 'aText' },
+        { v: r.formula || '(toutes les autres personnes)', s: r.formula ? 'aMono' : 'aMuted' },
+        ...BITS.map((b) => {
+          const [v, st] = PERM[r.perms[b]] || ['—', 'aNone'];
+          return { v, s: st };
+        }),
+        { v: r.permText, s: 'aMono' },
+        { v: r.memo || '', s: 'aMemo' },
       ],
-    },
-    { height: 8, cells: [] },
-  ];
-  const all = [...intro, ...rows];
-  const first = intro.length + 1;
-  const rulesSheet = {
-    name: "Règles d'accès",
-    tabColor: BLUE,
+    });
+  const flatSheet = {
+    name: 'Toutes les règles',
+    tabColor: X('type'),
     landscape: true,
     cols: [22, 24, 7, 34, 46, 11, 11, 11, 11, 11, 16, 44],
-    rows: all,
-    merges: [`A3:${colName(last)}3`],
-    freeze: { rows: first, cols: 0 },
-    table: { name: 'Regles', ref: `A${first}:${cellRef(all.length - 1, last)}`, style: 'TableStyleLight1' },
-    printTitles: `$${first}:$${first}`,
+    rows: fr,
+    freeze: { rows: 1, cols: 2 },
+    table: { name: 'Regles', ref: `A1:${cellRef(fr.length - 1, headers.length - 1)}`, style: 'TableStyleLight1' },
+    printTitles: '$1:$1',
   };
 
-  // ---- Réglages généraux et attributs utilisateur ----
-  const p = [
-    { height: 24, cells: [{ v: 'Réglages généraux', s: 'title' }] },
-    { height: 6, cells: [] },
-    {
-      cells: [
-        { v: 'Réglage', s: 'head' },
-        { v: 'État', s: 'head' },
-        { v: 'Explication', s: 'head' },
-      ],
-    },
-  ];
-  for (const g of settings)
-    p.push({
-      cells: [
-        { v: g.name, s: 'key' },
-        { v: g.state, s: g.level === 'warning' ? 'ko' : g.level === 'success' ? 'ok' : 'strong' },
-        { v: g.text, s: 'text' },
-      ],
-    });
-  p.push({ height: 12, cells: [] });
-  p.push({ height: 22, cells: [{ v: 'Attributs utilisateur', s: 'title' }] });
-  p.push({
-    cells: [
-      { v: 'Attribut', s: 'head' },
-      { v: 'Cherché dans', s: 'head' },
-      { v: 'En comparant à', s: 'head' },
-      { v: 'État', s: 'head' },
-    ],
-  });
-  if (!access.attributes.length) p.push({ cells: [{ v: 'Aucun attribut utilisateur.', s: 'textMuted' }] });
-  for (const x of access.attributes)
-    p.push({
-      cells: [
-        { v: `user.${x.name}`, s: 'mono' },
-        { v: `${x.tableId}.${x.lookupColId}`, s: 'text' },
-        { v: `user.${x.charId}`, s: 'mono' },
-        { v: x.problems.length ? x.problems.join(', ') : 'Correct', s: x.problems.length ? 'ko' : 'ok' },
-      ],
-    });
-  p.push({ height: 12, cells: [] });
-  p.push({ cells: [{ v: MATRIX_WARNING, s: 'note' }] });
-  const settingsSheet = { name: 'Réglages et attributs', tabColor: X('muted'), showGrid: false, cols: [40, 30, 90, 30], rows: p };
-
+  const matrix = mx?.hasRules ? matrixWorkbook(mx, { docName, date }) : null;
   return {
-    title: `Règles d'accès · ${doc}`,
+    title: `Droits d'accès · ${doc}`,
     creator: 'Widget Grist « Audit de structure »',
     date,
-    styles: RULE_STYLES,
-    sheets: [rulesSheet, settingsSheet],
+    styles: { ...STYLES, ...ACCESS_STYLES },
+    sheets: [main, flatSheet, ...(matrix ? matrix.sheets : [])],
   };
 }
 
 /** @returns {Uint8Array} le fichier .xlsx */
-export function rulesXlsx(access, settings, opts) {
-  return writeXlsx(rulesWorkbook(access, settings, opts));
+export function accessXlsx(access, settings, mx, opts) {
+  return writeXlsx(accessWorkbook(access, settings, mx, opts));
 }

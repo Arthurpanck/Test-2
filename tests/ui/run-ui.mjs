@@ -538,11 +538,11 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
   const rz = await JSZip.loadAsync(await readFile(await rx.path()));
   const rs = await rz.file('xl/sharedStrings.xml').async('string');
   check(
-    /^regles-acces-.+\.xlsx$/.test(rx.suggestedFilename()) &&
+    /^droits-acces-.+\.xlsx$/.test(rx.suggestedFilename()) &&
       rs.includes('Fiches réservées au service RH.') &&
       rs.includes('Réglages généraux') &&
       Boolean(rz.file('xl/tables/table1.xml')),
-    `accès : export Excel des règles (${rx.suggestedFilename()})`,
+    `accès : export Excel des droits d’accès (${rx.suggestedFilename()})`,
   );
 
   // Rapport
@@ -689,19 +689,23 @@ for (const [label, viewport, dark] of [
       "matrice : le reste de l'onglet est inchangé",
     );
     // Export Excel : matrice, détail filtrable, paramètres
-    const [xl] = await Promise.all([page.waitForEvent('download'), mx.locator('[data-matrix-xlsx]').click()]);
+    // La matrice n'a plus son propre bouton : elle est dans l'export Excel de l'onglet Accès.
+    check((await mx.locator('[data-matrix-xlsx]').count()) === 0, 'matrice : pas de bouton Excel séparé');
+    const [xl] = await Promise.all([page.waitForEvent('download'), frame.locator('#btn-access-csv').click()]);
     check(
-      xl.suggestedFilename().startsWith('qui-peut-faire-quoi-') && xl.suggestedFilename().endsWith('.xlsx'),
-      `matrice : nom du fichier Excel (${xl.suggestedFilename()})`,
+      xl.suggestedFilename().startsWith('droits-acces-') && xl.suggestedFilename().endsWith('.xlsx'),
+      `accès : nom du fichier Excel (${xl.suggestedFilename()})`,
     );
     const xz = await JSZip.loadAsync(await readFile(await xl.path()));
     const wbx = await xz.file('xl/workbook.xml').async('string');
     const sst = await xz.file('xl/sharedStrings.xml').async('string');
     check(
-      ['Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) => wbx.includes(`name="${n}"`)) &&
+      ["Droits d'accès", 'Toutes les règles', 'Qui peut faire quoi', 'Détail par case', 'Paramètres'].every((n) =>
+        wbx.includes(`name="${n}"`),
+      ) &&
         wbx.includes('_xlnm._FilterDatabase') &&
         Boolean(xz.file('xl/tables/table1.xml')),
-      'matrice : classeur à trois feuilles, filtres et tableau Excel',
+      'accès : classeur droits d’accès, toutes les règles, puis les trois feuilles de la matrice',
     );
     check(
       sst.includes('Habilitation.Role = « RH » · 7 services') && sst.includes('Oui, seulement sur les lignes de son Email.'),

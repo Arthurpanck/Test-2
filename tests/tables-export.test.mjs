@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
 import { tablesWorkbook, tablesXlsx } from '../assets/tables-export.js';
-import { rulesWorkbook, rulesXlsx } from '../assets/rights-export.js';
+import { accessWorkbook, accessXlsx } from '../assets/rights-export.js';
+import { buildMatrix } from '../assets/rights-matrix.js';
 import { buildAccess, generalSettings } from '../assets/access.js';
 import * as doc from './fixtures/droits-complexe.mjs';
 
@@ -45,20 +46,30 @@ test('tables : descriptions reprises, pastilles, feuilles de détail et de param
   assert.ok(zip.file('xl/tables/table1.xml'));
 });
 
-test('règles d’accès : une ligne par condition, réglages et attributs, au nom du document', async () => {
+test('droits d’accès : présentés comme les tables, avec la matrice en onglets', async () => {
   const access = buildAccess({ resources: doc.resources, rules: doc.rules });
-  const wb = rulesWorkbook(access, generalSettings(access), { docName: 'Doc', date });
+  const mx = buildMatrix(
+    { resources: doc.resources, rules: doc.rules },
+    access.tables.map((t) => t.tableId),
+  );
+  const wb = accessWorkbook(access, generalSettings(access), mx, { docName: 'Doc', date });
   assert.deepEqual(
     wb.sheets.map((s) => s.name),
-    ["Règles d'accès", 'Réglages et attributs'],
+    ["Droits d'accès", 'Toutes les règles', 'Qui peut faire quoi', 'Détail par case', 'Paramètres'],
   );
-  const rows = texts(wb.sheets[0]);
-  assert.match(rows[0][0], /^Règles d'accès · \d+ conditions$/);
-  const header = rows.findIndex((r) => r[0] === 'Table');
-  assert.equal(wb.sheets[0].table.ref.split(':')[0], `A${header + 1}`, 'tableau Excel à partir de la ligne d’en-tête');
-  const agents = rows.find((r) => r[0] === 'Agents' && r[1] === 'Quotite, Derniere_connexion');
+  const main = texts(wb.sheets[0]);
+  assert.match(main[0][0], /^Droits d'accès · \d+ conditions$/);
+  // Blocs : réglages (la règle pour les propriétaires en tête), attributs, défaut, puis chaque table
+  const titles = wb.sheets[0].rows.filter((r) => r.cells[0]?.s === 'aTitle').map((r) => r.cells[0].v);
+  assert.deepEqual(titles.slice(0, 3), ['Réglages généraux', 'Attributs utilisateur', 'Droits d’accès par défaut']);
+  assert.ok(titles.includes('Agents'));
+  const seedRow = main.findIndex((r) => r[0] === 'Ajouter automatiquement une règle pour les propriétaires');
+  assert.equal(main[seedRow - 1][0], 'Réglage', 'premier réglage');
+  assert.ok(main.some((r) => r[0] === 'Colonnes Quotite, Derniere_connexion'));
+  const flat = texts(wb.sheets[1]);
+  const agents = flat.find((r) => r[0] === 'Agents' && r[1] === 'Quotite, Derniere_connexion');
   assert.deepEqual(agents.slice(5, 7), ['Refusé', '—']);
-  assert.ok(texts(wb.sheets[1]).some((r) => r[0] === 'user.Habilitation'));
-  const zip = await JSZip.loadAsync(rulesXlsx(access, generalSettings(access), { docName: 'Doc', date }));
-  assert.ok(zip.file('xl/tables/table1.xml'));
+  assert.equal(wb.sheets[1].table.ref.split(':')[0], 'A1');
+  const zip = await JSZip.loadAsync(accessXlsx(access, generalSettings(access), mx, { docName: 'Doc', date }));
+  assert.ok(zip.file('xl/tables/table2.xml'), 'deux tableaux Excel : règles et détail de la matrice');
 });

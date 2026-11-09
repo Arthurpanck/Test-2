@@ -2,6 +2,11 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.22.0 — Un seul export Excel des droits d'accès
+- **Export Excel de l'onglet Accès** (bouton « Exporter en Excel » de la barre d'outils) : présenté comme l'export des tables. La première feuille « Droits d'accès » a un titre, puis un bloc par sujet avec son filet bleu : réglages généraux (la règle pour les propriétaires en tête), attributs utilisateur, droits par défaut, puis chaque table avec ses groupes de colonnes. En-têtes gris et pastilles Autorisé / Refusé.
+- Les onglets suivants : « Toutes les règles » (tableau filtrable), puis « Qui peut faire quoi », « Détail par case » et « Paramètres » de la matrice. Le bouton Excel propre à la matrice est retiré.
+- **Onglets Accès et Vues** : le bouton « points d'attention » est retiré du bandeau ; les chiffres restent. Les constats sont dans l'onglet Analyse.
+
 ## 3.21.0 — Propriétaires et sous-rôles dans une même fonction
 - **Règle pour les propriétaires** : « Ajouter automatiquement une règle pour les propriétaires » passe en tête des réglages généraux. Non cochée, elle apparaît en **alerte au-dessus des réglages**, qui invite à l'activer.
 - **Nouveau constat à corriger** « Les propriétaires n'ont pas d'office tous les droits » :

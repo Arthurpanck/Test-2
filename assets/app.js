@@ -15,7 +15,7 @@ import { TABLE_COLUMNS, tableRows, NO_FORMULA } from './table-format.js';
 import { findLookups } from './lookups.js';
 import { findFormulaDeps } from './formula-deps.js';
 import { tablesXlsx } from './tables-export.js';
-import { matrixXlsx, rulesXlsx } from './rights-export.js';
+import { accessXlsx } from './rights-export.js';
 import {
   ACTIONS as MATRIX_ACTIONS,
   ACTION_LABEL,
@@ -466,12 +466,6 @@ function sectionHead(title, { count = null, hint = '', hintHtml = '' } = {}) {
 /** Badge : un état ou une nature (MAJUSCULES). kind : blocking, improve, choice, info, ok, ou rien (neutre). */
 const badge = (text, kind = '') => `<span class="badge${kind ? ` badge--${kind}` : ''}">${esc(text)}</span>`;
 
-function attentionButton(issues, area) {
-  return issues.length
-    ? `<button class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-icon-lightbulb-line" type="button" data-goto-analysis="${esc(area)}">${esc(plural(issues.length, "point d'attention", "points d'attention"))}</button>`
-    : '';
-}
-
 // ---------------------------------------------------------------------------
 // Tables
 // ---------------------------------------------------------------------------
@@ -812,14 +806,13 @@ const fileBase = () =>
     .replace(/^-|-$/g, '')
     .toLowerCase() || 'document';
 
-/** « Qui peut faire quoi ? » en classeur Excel : matrice, détail filtrable, paramètres. */
-function downloadMatrixXlsx() {
-  const mx = matrixData();
-  if (!mx?.hasRules) return;
+/** Onglet Accès en classeur Excel : droits d'accès, toutes les règles, puis « Qui peut faire quoi ? ». */
+function downloadAccessXlsx() {
+  if (!state.access?.hasRules) return;
   try {
-    const bytes = matrixXlsx(mx, { docName: state.docName, date: new Date() });
-    downloadFile(`qui-peut-faire-quoi-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    toast('Classeur Excel téléchargé.');
+    const bytes = accessXlsx(state.access, generalSettings(state.access), matrixData(), { docName: state.docName, date: new Date() });
+    downloadFile(`droits-acces-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    toast("Classeur Excel des droits d'accès téléchargé.");
   } catch (err) {
     console.error(err);
     toast(`L'export Excel n'a pas pu être produit : ${err.message || err}`, 'error');
@@ -914,8 +907,7 @@ function rightsMatrixHtml() {
           <button type="button" data-matrix-detail="tables" aria-pressed="${!showCols}">Par table</button>
           <button type="button" data-matrix-detail="columns" aria-pressed="${showCols}">Par table et par colonne</button>
         </div>
-        <button type="button" class="fr-btn fr-btn--tertiary fr-btn--icon-left fr-icon-download-line mx__export" data-matrix-xlsx="1"
-          title="Matrice, détail de chaque case (filtrable) et paramètres de lecture">Exporter en Excel</button></div>
+</div>
       <div class="mx__scroll" role="region" aria-label="Droits par rôle métier et par action" tabindex="0" style="${gridVars}">${head}${body}</div>
       <div class="mx__detail" aria-live="polite"${detail ? '' : ' hidden'}>${detail}</div>
     </div>
@@ -983,7 +975,6 @@ function renderAccess() {
     );
     return;
   }
-  const accessIssues = (state.insights?.items || []).filter((i) => i.area === 'access' && i.severity !== 'info');
   if (!a.hasRules) {
     body.innerHTML = `<div class="view">${pageHeader({
       title: "Aucune règle d'accès avancée",
@@ -1003,7 +994,6 @@ function renderAccess() {
       { value: a.attributes.length, label: a.attributes.length > 1 ? 'attributs' : 'attribut' },
       { value: a.rowRules, label: a.rowRules > 1 ? 'conditions par ligne' : 'condition par ligne' },
     ],
-    side: attentionButton(accessIssues, 'access'),
   });
 
   const settingsHtml = settingsSectionHtml(a);
@@ -1084,7 +1074,6 @@ function renderWidgets() {
     return;
   }
   const known = new Set(state.out.tables.map((t) => t.name));
-  const issues = (state.insights?.items || []).filter((i) => i.area === 'pages' && i.severity !== 'info');
   const q = state.widgetsFilter.trim().toLowerCase();
   const hit = (w) =>
     !q ||
@@ -1202,7 +1191,6 @@ function renderWidgets() {
       { value: m.views.length, label: m.views.length > 1 ? 'autres vues' : 'autre vue' },
       { value: m.tableWidgetCount, label: 'tableaux, non détaillés' },
     ],
-    side: attentionButton(issues, 'pages'),
   });
   body.innerHTML = `<div class="view">${header}${sections.join('')}</div>`;
 }
@@ -1688,12 +1676,7 @@ function bindAccessEvents() {
       renderAccess();
     }, 120),
   );
-  els['btn-access-csv'].addEventListener('click', () => {
-    if (!state.access?.hasRules) return;
-    const bytes = rulesXlsx(state.access, generalSettings(state.access), { docName: state.docName, date: new Date() });
-    downloadFile(`regles-acces-${fileBase()}.xlsx`, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    toast("Classeur Excel des règles d'accès téléchargé.");
-  });
+  els['btn-access-csv'].addEventListener('click', downloadAccessXlsx);
 }
 
 /** Onglet Tables : l'index suit le défilement. */
@@ -1928,7 +1911,6 @@ function bindMatrixKeys() {
  * document. Chaque attribut data-* déclenche son action ; en cas de plusieurs, le premier de la liste.
  */
 const CLICK_ACTIONS = [
-  ['matrixXlsx', () => downloadMatrixXlsx()],
   [
     'matrixDetail',
     (detail) => {
