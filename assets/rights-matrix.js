@@ -101,10 +101,41 @@ export function detectRole(model) {
     if (t.type === 'list') t.values.forEach(visit);
   };
   for (const g of model.resources) for (const r of g.rules) visit(r.tree);
+  // Une colonne qui ne vient jamais qu'en précision d'une autre (« Fonction == 'RH' and Grade == 'Manager' »)
+  // est un sous-rôle : le rôle est la colonne citée en premier.
+  const leading = new Set();
+  const conjuncts = (t) => (t?.type === 'and' ? [...conjuncts(t.a), ...conjuncts(t.b)] : [t]);
+  const colOf = (t) => {
+    if (t?.type !== 'compare') return null;
+    for (const p of [t.a, t.b]) {
+      const m = p?.type === 'path' && /^user\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)$/.exec(p.value);
+      if (m && !BUILTIN_USER.has(m[1])) return `${m[1]}.${m[2]}`;
+    }
+    return null;
+  };
+  const lead = (t) => {
+    if (!t || typeof t !== 'object') return;
+    if (t.type === 'and') {
+      const first = conjuncts(t).map(colOf).find(Boolean);
+      if (first) leading.add(first);
+      return;
+    }
+    if (t.type === 'compare') {
+      const c = colOf(t);
+      if (c) leading.add(c);
+      return;
+    }
+    for (const k of ['a', 'b']) lead(t[k]);
+  };
+  for (const g of model.resources) for (const r of g.rules) lead(r.tree);
   const defined = new Set(model.attributes.map((a) => a.name));
   const candidates = [...found.values()].filter((c) => defined.has(c.attr));
   if (!candidates.length) return null;
-  candidates.sort((a, b) => b.values.length - a.values.length || Number(ROLE_NAMES.test(b.col)) - Number(ROLE_NAMES.test(a.col)));
+  const isLeading = (c) => Number(leading.has(`${c.attr}.${c.col}`));
+  candidates.sort(
+    (a, b) =>
+      isLeading(b) - isLeading(a) || b.values.length - a.values.length || Number(ROLE_NAMES.test(b.col)) - Number(ROLE_NAMES.test(a.col)),
+  );
   return candidates[0];
 }
 
@@ -238,11 +269,22 @@ export function matrixGroups(model, attrData = null) {
     ).size;
     return n > 1 ? ` · ${n} ${filter.toLowerCase()}s` : '';
   };
+  /** Valeurs de la sous-colonne présentes dans les habilitations, hors de celles que citent les règles. */
+  const others = (value, sr) => [
+    ...new Set(
+      rows
+        .filter((r) => r[role.col] === value && !sr.values.includes(r[sr.col]))
+        .map((r) => r[sr.col])
+        .filter((x) => x !== null && x !== undefined && x !== ''),
+    ),
+  ];
   const groups = role.values.flatMap((value) => {
     const base = `${role.attr}.${role.col} = « ${value} »`;
     const sr = subRoles.get(value);
     if (!sr) return [{ key: value, name: value, sub: base + count((r) => r[role.col] === value), value }];
     // Rôle divisé par ses sous-rôles, puis « autre » pour les habilitations hors des valeurs citées.
+    // Habilitations lues et personne hors des valeurs citées : pas de colonne « autre ».
+    const noOther = rows.length > 0 && !rows.some((r) => r[role.col] === value && !sr.values.includes(r[sr.col]));
     return [
       ...sr.values.map((w) => ({
         key: `${value}|${w}`,
@@ -252,16 +294,22 @@ export function matrixGroups(model, attrData = null) {
         subCol: sr.col,
         subValue: w,
       })),
-      {
-        key: `${value}|*`,
-        name: `${value} · autre ${sr.col}`,
-        sub:
-          `${base}, ${sr.col} autre que ${sr.values.map((w) => `« ${w} »`).join(', ')}` +
-          count((r) => r[role.col] === value && !sr.values.includes(r[sr.col])),
-        value,
-        subCol: sr.col,
-        subValue: OTHER_VALUE,
-      },
+      ...(noOther
+        ? []
+        : [
+            {
+              key: `${value}|*`,
+              // Avec les habilitations lues : les valeurs réellement concernées (« RH · Grade Assistant »).
+              name: others(value, sr).length === 1 ? `${value} · ${sr.col} ${others(value, sr)[0]}` : `${value} · autre ${sr.col}`,
+              sub:
+                `${base}, ${sr.col} autre que ${sr.values.map((w) => `« ${w} »`).join(', ')}` +
+                (others(value, sr).length > 1 ? ` (${others(value, sr).join(', ')})` : '') +
+                count((r) => r[role.col] === value && !sr.values.includes(r[sr.col])),
+              value,
+              subCol: sr.col,
+              subValue: OTHER_VALUE,
+            },
+          ]),
     ];
   });
   groups.push({ key: '__autres', name: 'Tous les autres', sub: 'Autre rôle ou sans habilitation', value: null });

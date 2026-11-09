@@ -36,12 +36,12 @@ const habilitations = {
   Service: [1, 2, 1, 2, 3],
 };
 
-test('un rôle précisé par une deuxième colonne se divise en sous-rôles, plus « autre »', () => {
+test('un rôle précisé par une deuxième colonne se divise en sous-rôles, plus les autres valeurs lues', () => {
   const mx = buildMatrix(acl, ['Agents', 'Projets'], habilitations);
   // Ordre des rôles : celui de leur première apparition dans les règles.
   assert.deepEqual(
     mx.groups.map((g) => g.name),
-    ['RH', 'Manager · Pole RH', 'Manager · Pole Finances', 'Manager · autre Pole', 'Finances', 'Tous les autres'],
+    ['RH', 'Manager · Pole RH', 'Manager · Pole Finances', 'Manager · Pole Technique', 'Finances', 'Tous les autres'],
   );
   const line = (key) => mx.groups.map((g, gi) => `${cellText(mx.cell(key, gi, 'R'))}/${cellText(mx.cell(key, gi, 'U'))}`);
   // Salaire : le manager RH lit sans modifier ; les autres managers ne voient rien.
@@ -86,5 +86,29 @@ test('conditions composées lues en clair', () => {
     describeCondition("user.A.B == 'x' and (rec.C == 1 or rec.D == 2)").text,
     'Selon le contenu de la ligne',
     'forme non reconnue',
+  );
+});
+
+test('sous-rôles sans habilitations lues : une colonne « autre » ; fonction et grade', () => {
+  const g = (f, x) => `user.Habilitation.Fonction == '${f}' and user.Habilitation.Grade == '${x}'`;
+  const mx = buildMatrix(
+    {
+      resources: [res(1, '*', '*'), res(2, 'Agents', 'Salaire')],
+      rules: [
+        rule(1, 1, 1, '', '', ATTR),
+        rule(2, 2, 2, g('RH', 'Manager'), '+RU'),
+        rule(3, 2, 3, g('RH', 'Gestionnaire'), '+R-U'),
+        rule(4, 2, 4, '', '-RU'),
+      ],
+    },
+    ['Agents'],
+  );
+  assert.deepEqual(
+    mx.groups.map((x) => x.name),
+    ['RH · Grade Manager', 'RH · Grade Gestionnaire', 'RH · autre Grade', 'Tous les autres'],
+  );
+  assert.deepEqual(
+    [0, 1, 2].map((gi) => `${cellText(mx.cell('Agents.Salaire', gi, 'R'))}/${cellText(mx.cell('Agents.Salaire', gi, 'U'))}`),
+    ['Oui/Oui', 'Oui/Non', 'Non/Non'],
   );
 });

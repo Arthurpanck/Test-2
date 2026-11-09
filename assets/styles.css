@@ -3042,3 +3042,15 @@ button.chip:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Invitation à cocher « Ajouter automatiquement une règle pour les propriétaires » (onglet Accès) */
+.owner-invite {
+  margin-bottom: 1.5rem;
+}
+.owner-invite p + p {
+  margin-top: 0.5rem;
+}
+.owner-invite__why {
+  font-size: 0.875rem;
+  color: var(--text-mention-grey);
+}

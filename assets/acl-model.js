@@ -462,3 +462,56 @@ export function effectivePermission(access, table, col, role, bit) {
 
 /** Les éditeurs peuvent-ils modifier la structure (et écrire des formules) ? 'allow', 'deny' ou null (selon la personne). */
 export const editorsStructure = (access) => effectivePermission(access, '*', null, 'EDITOR', 'S');
+
+/**
+ * Droits des propriétaires (rôle de partage OWNER) sur chaque table protégée et chaque groupe de
+ * colonnes : les règles de la colonne, puis de la table, puis du document, comme Grist les applique.
+ * Une condition qui ne dépend pas du rôle (« Habilitation.Fonction == 'RH' ») peut viser ou non un
+ * propriétaire : si elle autorise, on poursuit (le propriétaire n'en fait peut-être pas partie) ; si
+ * elle refuse, le refus reste possible.
+ * @returns {{ gaps: Array<{ table, cols: string[]|null, bits: Array<{ bit, state: 'deny'|'unless'|'maybe' }> }>,
+ *             ownerRule: { defaults: boolean, tables: string[] } }}
+ *   state : deny (refusé), unless (refusé sauf si l'habilitation du propriétaire le permet), maybe (peut être refusé)
+ */
+export function ownerAccess(access) {
+  const decide = (groups, bit) => {
+    let uncertainAllow = false,
+      uncertainDeny = false;
+    for (const rules of groups)
+      for (const r of rules) {
+        const p = r.perms?.[bit];
+        if (!p) continue;
+        const c = conditionForRole(r.formula, 'OWNER');
+        if (c === false) continue;
+        if (c === null) {
+          if (p === 'allow') uncertainAllow = true;
+          else uncertainDeny = true;
+          continue;
+        }
+        if (p === 'deny') return uncertainAllow ? 'unless' : 'deny';
+        return uncertainDeny ? 'maybe' : 'allow';
+      }
+    return uncertainDeny ? 'maybe' : 'allow'; // règle intégrée : les propriétaires ont tout
+  };
+  const gaps = [];
+  const check = (table, cols, groups, bits) => {
+    const res = bits.map((bit) => ({ bit, state: decide(groups, bit) })).filter((x) => x.state !== 'allow');
+    if (res.length) gaps.push({ table, cols, bits: res });
+  };
+  for (const t of access.tables || []) {
+    check(t.tableId, null, [t.rules, access.defaults || []], TABLE_BITS);
+    for (const c of t.columns) check(t.tableId, c.colIds, [c.rules, t.rules, access.defaults || []], COLUMN_BITS);
+  }
+  // Une règle « tout autoriser » propre aux propriétaires (user.Access == OWNER → all)
+  const isOwnerRule = (r) =>
+    conditionForRole(r.formula, 'OWNER') === true &&
+    conditionForRole(r.formula, 'EDITOR') === false &&
+    TABLE_BITS.every((b) => r.perms?.[b] === 'allow');
+  return {
+    gaps,
+    ownerRule: {
+      defaults: (access.defaults || []).some(isOwnerRule),
+      tables: (access.tables || []).filter((t) => t.rules.some(isOwnerRule)).map((t) => t.tableId),
+    },
+  };
+}

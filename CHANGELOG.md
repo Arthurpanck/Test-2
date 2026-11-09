@@ -2,6 +2,13 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.21.0 — Propriétaires et sous-rôles dans une même fonction
+- **Règle pour les propriétaires** : « Ajouter automatiquement une règle pour les propriétaires » passe en tête des réglages généraux. Non cochée, elle apparaît en **alerte au-dessus des réglages**, qui invite à l'activer.
+- **Nouveau constat à corriger** « Les propriétaires n'ont pas d'office tous les droits » :
+  - d'abord la bonne pratique (les propriétaires gardent tous les droits), puis l'explication : cette vue lit le document avec les droits de la personne qui l'ouvre, donc là où un propriétaire n'a pas tous les droits, l'audit est incomplet ;
+  - signale la case non cochée, l'absence de toute règle « propriétaires » (ni par défaut, ni sur aucune table), et liste les tables et colonnes où un propriétaire peut perdre un droit (« Lire et modifier : refusé, sauf si leur habilitation le permet »), règles de colonne comprises.
+- **Sous-rôles dans une même fonction** (« Fonction == 'RH' and Grade == 'Manager' ») : la matrice affiche « RH · Grade Manager », « RH · Grade Gestionnaire »… Le rôle est la colonne citée en premier dans les conditions ; avec les habilitations lues, la colonne « autre » prend le nom de la valeur réelle (« RH · Grade Assistant ») ou disparaît si personne n'est concerné.
+
 ## 3.20.0 — Rapport, exports Excel et sous-rôles des droits d'accès
 - **Rapport Word** : le résumé ne renvoie plus vers des « étapes ci-dessous » absentes. Il indique où sont les étapes de correction : la partie « Analyse » si elle est cochée, sinon l'onglet « Analyse » du widget (de même dans la partie Vues).
 - **Structure modifiable par les éditeurs** : le réglage général et le constat disent maintenant la même chose. Sans règle, la case de Grist est **cochée** (réglage par défaut, avec un avertissement) ; le constat demande de la décocher.

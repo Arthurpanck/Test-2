@@ -483,11 +483,23 @@ const shot = (page, name) => page.screenshot({ path: path.join(outDir, name) });
     'accès : sections principales',
   );
   const settingIds = await frame
-    .locator('[data-setting]')
+    .locator('.settings-row[data-setting]')
     .evaluateAll((els) => els.map((e) => `${e.dataset.setting}:${e.querySelector('.settings-row__state').textContent.trim()}`));
   check(
-    settingIds.join(',') === 'acl:Activées,seed:Non,schema:Oui,access-rules:Oui' && !access.includes('Copier le document entier'),
-    `accès : permissions avancées et les trois cases de Grist seulement (${settingIds.join(', ')})`,
+    settingIds.join(',') === 'acl:Activées,schema:Oui,access-rules:Oui' && !access.includes('Copier le document entier'),
+    `accès : permissions avancées et les deux autres cases de Grist (${settingIds.join(', ')})`,
+  );
+  // Règle pour les propriétaires non cochée : une invitation à l'activer, au-dessus des réglages
+  const invite = frame.locator('.owner-invite');
+  check(
+    (await invite.count()) === 1 &&
+      (await invite.textContent()).includes('Ajouter automatiquement une règle pour les propriétaires') &&
+      (await frame.evaluate(() => {
+        const inv = document.querySelector('.owner-invite');
+        const set = document.querySelector('.settings-row');
+        return Boolean(inv.compareDocumentPosition(set) & Node.DOCUMENT_POSITION_FOLLOWING);
+      })),
+    'accès : invitation à activer la règle pour les propriétaires, avant les réglages',
   );
   check(
     (await frame.locator('.acl-table').count()) === 8 + 11,

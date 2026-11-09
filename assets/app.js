@@ -949,8 +949,19 @@ function refreshMatrix(focusSelector) {
  * « Règles d'accès » de Grist (version open source), comme elles y sont libellées.
  */
 function settingsSectionHtml(a) {
-  return `<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
-    <div class="card">${generalSettings(a)
+  const all = generalSettings(a);
+  const seed = all.find((x) => x.id === 'seed');
+  // Règle pour les propriétaires non cochée : une invitation à l'activer, au-dessus des réglages.
+  const invite =
+    a.hasRules && !seed.on
+      ? `<div class="fr-alert fr-alert--warning fr-alert--sm owner-invite" data-setting="seed">
+      <h3 class="fr-alert__title">Activez « ${esc(seed.name)} »</h3>
+      <p>Les nouvelles règles de table ne donnent pas d’office tous les droits aux propriétaires. C’est une bonne pratique de cocher cette case dans les règles spéciales de Grist : les propriétaires gardent toujours la main sur tout le document.</p>
+      <p class="owner-invite__why">Cette vue en a aussi besoin : elle lit le document avec les droits de la personne qui l’ouvre. Là où un propriétaire n’a pas tous les droits, l’audit ne voit pas toutes les données (voir le constat dans « Analyse »).</p></div>`
+      : '';
+  return `${invite}<section>${sectionHead('Réglages généraux', { hint: 'Valables pour tout le document, quelles que soient les tables.' })}
+    <div class="card">${all
+      .filter((x) => !(invite && x.id === 'seed'))
       .map(
         (x) => `<div class="settings-row" data-setting="${x.id}"><p class="settings-row__name">${esc(x.name)}</p>
       <p class="settings-row__state">${badge(x.state, SETTING_KIND[x.level])}</p><p class="settings-row__text">${esc(x.text)}</p></div>`,

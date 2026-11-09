@@ -20,6 +20,7 @@ import {
   parsePermissions,
   readAcl,
   editorsStructure,
+  ownerAccess,
 } from './acl-model.js';
 import { maskPython } from './python-text.js';
 
@@ -54,6 +55,18 @@ export function generalSettings(a) {
   const explicitAllow = a.defaults.some((r) => r.perms.S === 'allow');
   return [
     {
+      id: 'seed',
+      name: 'Ajouter automatiquement une règle pour les propriétaires',
+      on: Boolean(seed?.rules.length),
+      state: seed?.rules.length ? 'Oui' : 'Non',
+      level: seed?.rules.length ? 'success' : a.hasRules ? 'warning' : 'info',
+      text: seed?.rules.length
+        ? `Pour chaque ajout de règle pour une table, Grist ajoute d'abord une règle donnant tous les droits au groupe OWNER (${seed.rules.map((r) => r.who.text).join(' ; ')}).`
+        : a.hasRules
+          ? 'À activer : les nouvelles règles de table ne donnent pas d’office tous les droits aux propriétaires. C’est une bonne pratique, et l’audit en a besoin pour voir tout le document.'
+          : "Les nouvelles règles de table ne donnent pas d'office tous les droits aux propriétaires.",
+    },
+    {
       id: 'acl',
       name: 'Permissions avancées',
       on: a.hasRules,
@@ -62,16 +75,6 @@ export function generalSettings(a) {
       text: a.hasRules
         ? `Le document a des règles d'accès : ${a.ruleCount} condition${a.ruleCount > 1 ? 's' : ''}${a.attributes.length ? `, ${a.attributes.length} attribut${a.attributes.length > 1 ? 's' : ''} utilisateur` : ''}.`
         : 'Aucune règle : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).',
-    },
-    {
-      id: 'seed',
-      name: 'Ajouter automatiquement une règle pour les propriétaires',
-      on: Boolean(seed?.rules.length),
-      state: seed?.rules.length ? 'Oui' : 'Non',
-      level: 'info',
-      text: seed?.rules.length
-        ? `Pour chaque ajout de règle pour une table, Grist ajoute d'abord une règle donnant tous les droits au groupe OWNER (${seed.rules.map((r) => r.who.text).join(' ; ')}).`
-        : "Les nouvelles règles de table ne donnent pas d'office tous les droits aux propriétaires.",
     },
     {
       id: 'schema',
@@ -360,6 +363,53 @@ export function accessInsights(access) {
         REFRESH_STEP,
       ],
       targets: [],
+    });
+  }
+  const owners = ownerAccess(access);
+  const seedOn = generalSettings(access).find((x) => x.id === 'seed').on;
+  if (!seedOn || owners.gaps.length) {
+    const STATE = {
+      deny: 'refusé',
+      unless: 'refusé, sauf si leur habilitation le permet',
+      maybe: 'peut être refusé selon leur habilitation',
+    };
+    const noOwnerRule = !owners.ownerRule.defaults && !owners.ownerRule.tables.length;
+    push({
+      id: 'acl-owner',
+      severity: 'blocking',
+      title: 'Les propriétaires n’ont pas d’office tous les droits',
+      summary: [
+        'Bonne pratique : les propriétaires du document gardent tous les droits sur toutes les tables, pour pouvoir toujours tout voir et tout corriger.',
+        seedOn ? '' : 'La case « Ajouter automatiquement une règle pour les propriétaires » n’est pas cochée.',
+        noOwnerRule ? 'Ni les droits d’accès par défaut ni aucune table ne donnent explicitement tous les droits aux propriétaires.' : '',
+        owners.gaps.length ? 'Ci-dessous, les tables et colonnes où un propriétaire peut perdre un droit.' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      why: 'Cette vue lit le document avec les droits de la personne qui l’ouvre. Là où un propriétaire n’a pas tous les droits, il ne voit pas toutes les lignes ni toutes les colonnes : le nombre de lignes, les contrôles sur les données et les constats sont alors incomplets, sans que rien ne le signale. Un propriétaire qui s’est retiré un droit ne voit plus non plus ce qu’il a caché.',
+      steps: [
+        OPEN_RULES,
+        seedOn
+          ? ''
+          : 'Dans « Règles spéciales », cochez « Ajouter automatiquement une règle pour les propriétaires » : chaque nouvelle règle de table commencera par une règle donnant tous les droits aux propriétaires.',
+        owners.gaps.length || noOwnerRule
+          ? 'Pour chaque table ou colonne listée, ajoutez en tête de ses règles une condition « user.Access == OWNER » avec toutes les permissions (la case ne s’applique qu’aux nouvelles règles).'
+          : '',
+        REFRESH_STEP,
+      ].filter(Boolean),
+      targets: owners.gaps.map((g) => ({
+        table: g.table,
+        column: g.cols ? g.cols.join(', ') : undefined,
+        // « Lire et modifier : refusé, sauf si leur habilitation le permet »
+        note: [...new Set(g.bits.map((b) => b.state))]
+          .map((state) => [state, g.bits.filter((b) => b.state === state)])
+          .map(([state, bs]) => {
+            const names = bs.map((b) => PERMISSION_LABEL[b.bit].toLowerCase());
+            const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} et ${names.at(-1)}` : names[0];
+            return `${list.charAt(0).toUpperCase()}${list.slice(1)} : ${STATE[state]}`;
+          })
+          .join(' ; '),
+      })),
     });
   }
   const denyNoMemo = [];
