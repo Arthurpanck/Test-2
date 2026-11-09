@@ -44,8 +44,7 @@ test('constat « propriétaires » : réglage non coché, ou propriétaires priv
   assert.equal(off.targets.length, 0);
   // Réglage coché et propriétaires servis partout : pas de constat
   const on = buildAccess({ resources: [...base.resources, ...SEED], rules: [...base.rules, seedRule] });
-  assert.equal(generalSettings(on)[0].id, 'seed');
-  assert.equal(generalSettings(on)[0].state, 'Oui');
+  assert.equal(generalSettings(on).find((x) => x.id === 'seed').state, 'Oui');
   assert.ok(!accessInsights(on).some((i) => i.id === 'acl-owner'));
   // Réglage coché, mais aucune règle « propriétaires » et une table qui leur refuse la lecture
   const bad = buildAccess({

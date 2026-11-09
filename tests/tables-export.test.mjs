@@ -59,12 +59,20 @@ test('droits d’accès : présentés comme les tables, avec la matrice en ongle
   );
   const main = texts(wb.sheets[0]);
   assert.match(main[0][0], /^Droits d'accès · \d+ conditions$/);
-  // Blocs : réglages (la règle pour les propriétaires en tête), attributs, défaut, puis chaque table
+  // Blocs : réglages (dans l'ordre de Grist), attributs, défaut, puis chaque table
   const titles = wb.sheets[0].rows.filter((r) => r.cells[0]?.s === 'aTitle').map((r) => r.cells[0].v);
   assert.deepEqual(titles.slice(0, 3), ['Réglages généraux', 'Attributs utilisateur', 'Droits d’accès par défaut']);
   assert.ok(titles.includes('Agents'));
-  const seedRow = main.findIndex((r) => r[0] === 'Ajouter automatiquement une règle pour les propriétaires');
-  assert.equal(main[seedRow - 1][0], 'Réglage', 'premier réglage');
+  const first = main.findIndex((r) => r[0] === 'Réglage');
+  assert.deepEqual(
+    main.slice(first + 1, first + 5).map((r) => r[0]),
+    [
+      'Permissions avancées',
+      'Ajouter automatiquement une règle pour les propriétaires',
+      'Autoriser les éditeurs à modifier la structure',
+      'Autoriser tout le monde à voir les permissions avancées',
+    ],
+  );
   assert.ok(main.some((r) => r[0] === 'Colonnes Quotite, Derniere_connexion'));
   const flat = texts(wb.sheets[1]);
   const agents = flat.find((r) => r[0] === 'Agents' && r[1] === 'Quotite, Derniere_connexion');
@@ -72,4 +80,9 @@ test('droits d’accès : présentés comme les tables, avec la matrice en ongle
   assert.equal(wb.sheets[1].table.ref.split(':')[0], 'A1');
   const zip = await JSZip.loadAsync(accessXlsx(access, generalSettings(access), mx, { docName: 'Doc', date }));
   assert.ok(zip.file('xl/tables/table2.xml'), 'deux tableaux Excel : règles et détail de la matrice');
+  // Excel ne recalcule pas la hauteur des lignes à l'ouverture : un texte long renvoyé à la ligne a une hauteur posée.
+  const sheet = await zip.file('xl/worksheets/sheet1.xml').async('string');
+  const row = (n) => Number(new RegExp(`<row r="${n}" ht="([\\d.]+)"`).exec(sheet)?.[1] || 0);
+  const structure = main.findIndex((r) => r[0] === 'Autoriser les éditeurs à modifier la structure') + 1;
+  assert.ok(row(structure) >= 60, `ligne ${structure} : ${row(structure)}`);
 });

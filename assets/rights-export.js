@@ -387,7 +387,7 @@ export function accessWorkbook(access, settings = [], mx = null, { docName = '',
       });
   };
 
-  // Réglages généraux (la règle pour les propriétaires en tête)
+  // Réglages généraux
   block('Réglages généraux', 'Valables pour tout le document');
   head(['Réglage', 'Explication', 'État', '', '', '', '', '']);
   for (const g of settings)

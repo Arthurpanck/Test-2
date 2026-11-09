@@ -95,7 +95,41 @@ function buildStyles(named) {
 // Feuilles
 // ---------------------------------------------------------------------------
 
-function sheetXml(sheet, styleIndex, strings, tableRelId) {
+/**
+ * Hauteur d'une ligne sans hauteur donnée : Excel ne la recalcule pas à l'ouverture, un texte long
+ * renvoyé à la ligne serait coupé. Estimation : caractères par ligne selon la largeur de la colonne
+ * (fusions comprises) et la taille de police.
+ */
+function estimateHeight(row, sheet, styles, mergedWidth) {
+  let lines = 1,
+    size = 11;
+  (row.cells || []).forEach((raw, c) => {
+    const cell = raw && typeof raw === 'object' ? raw : { v: raw };
+    const text = cell.v === null || cell.v === undefined ? '' : String(cell.v);
+    if (!text) return;
+    const st = (cell.s && styles[cell.s]) || {};
+    const fs = st.font?.size || 11;
+    size = Math.max(size, fs);
+    if (!st.align?.wrap) return;
+    const width = mergedWidth(c) || sheet.cols?.[c] || 10;
+    const perLine = Math.max(4, Math.floor(((width - 1) * 11) / fs / 1.05));
+    const n = text.split('\n').reduce((k, part) => k + Math.max(1, Math.ceil(part.length / perLine)), 0);
+    lines = Math.max(lines, n);
+  });
+  return lines > 1 ? Math.ceil(lines * size * 1.32 + 4) : null;
+}
+
+function sheetXml(sheet, styleIndex, strings, tableRelId, styles = {}) {
+  // Largeur d'une cellule fusionnée horizontalement (premier élément de la fusion)
+  const merged = new Map();
+  for (const m of sheet.merges || []) {
+    const [a, b] = m.split(':');
+    const col = (ref) => [...ref.replace(/\d+/g, '')].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+    const rowOf = (ref) => Number(ref.replace(/[A-Z]+/g, '')) - 1;
+    let w = 0;
+    for (let c = col(a); c <= col(b); c++) w += sheet.cols?.[c] || 10;
+    merged.set(`${rowOf(a)}|${col(a)}`, w);
+  }
   const sst = (s) => {
     const k = typeof s === 'string' ? s : JSON.stringify(s);
     if (!strings.map.has(k)) {
@@ -120,7 +154,8 @@ function sheetXml(sheet, styleIndex, strings, tableRelId) {
           return `<c ${attrs} t="s"><v>${sst(Array.isArray(cell.v) ? cell.v : String(cell.v))}</v></c>`;
         })
         .join('');
-      const ht = row?.height ? ` ht="${row.height}" customHeight="1"` : '';
+      const height = row?.height || (row ? estimateHeight(row, sheet, styles, (c) => merged.get(`${r}|${c}`)) : null);
+      const ht = height ? ` ht="${height}" customHeight="1"` : '';
       return `<row r="${r + 1}"${ht}>${cells}</row>`;
     })
     .join('');
@@ -189,7 +224,7 @@ export function writeXlsx(book) {
 <Relationships xmlns="${NS_PKG}"><Relationship Id="rId1" Type="${REL}/table" Target="../tables/table${tableId}.xml"/></Relationships>`,
       ]);
     }
-    files.push([`xl/worksheets/sheet${n}.xml`, sheetXml(s, index, strings, relId)]);
+    files.push([`xl/worksheets/sheet${n}.xml`, sheetXml(s, index, strings, relId, book.styles || {})]);
     const quoted = `'${s.name.replace(/'/g, "''")}'`;
     const abs = (ref) =>
       ref

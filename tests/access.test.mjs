@@ -172,15 +172,15 @@ test('vu par un propriétaire sans le rôle RH : colonnes masquées signalées, 
   );
 });
 
-test('réglages généraux : la règle pour les propriétaires en tête, puis permissions avancées et les deux autres cases', async () => {
+test('réglages généraux : permissions avancées, puis la règle pour les propriétaires, puis les deux autres cases', async () => {
   const { generalSettings } = await import('../assets/access.js');
   const { access } = complexe();
   const g = generalSettings(access);
   assert.deepEqual(
     g.map((x) => `${x.id}:${x.state}`),
-    ['seed:Non', 'acl:Activées', 'schema:Oui', 'access-rules:Oui'],
+    ['acl:Activées', 'seed:Non', 'schema:Oui', 'access-rules:Oui'],
   );
-  assert.equal(g[0].level, 'warning', 'non cochée alors que le document a des règles : à activer');
+  assert.equal(g[1].level, 'warning', 'non cochée alors que le document a des règles : à activer');
   // Sans règle, la case de Grist est cochée (réglage par défaut, avec un avertissement) : le texte le dit, et l'étape
   // du constat demande de la décocher, sans contradiction.
   assert.match(g[2].text, /la case est cochée dans Grist/);
@@ -198,7 +198,7 @@ test('réglages généraux : la règle pour les propriétaires en tête, puis pe
   });
   assert.deepEqual(
     none.map((x) => x.state),
-    ['Non', 'Non activées', 'Oui', 'Non'],
+    ['Non activées', 'Non', 'Oui', 'Non'],
   );
   const locked = generalSettings({
     ...access,

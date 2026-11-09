@@ -2,6 +2,10 @@
 
 Une section par version, la plus récente en premier. Les sections décrivent l'état au moment de la version : une fonction décrite ici a pu être modifiée ou retirée depuis (voir les versions suivantes).
 
+## 3.23.0 — Réglages dans l'ordre de Grist, lignes Excel lisibles
+- **Réglages généraux** dans l'ordre : permissions avancées, règle pour les propriétaires, éditeurs et structure, permissions visibles par tous (onglet Accès, Word, Excel). L'alerte qui invite à cocher la règle pour les propriétaires reste au-dessus des réglages.
+- **Exports Excel** : chaque ligne qui contient un texte long renvoyé à la ligne reçoit une hauteur adaptée. Excel ne la recalcule pas à l'ouverture, et les explications étaient coupées.
+
 ## 3.22.0 — Un seul export Excel des droits d'accès
 - **Export Excel de l'onglet Accès** (bouton « Exporter en Excel » de la barre d'outils) : présenté comme l'export des tables. La première feuille « Droits d'accès » a un titre, puis un bloc par sujet avec son filet bleu : réglages généraux (la règle pour les propriétaires en tête), attributs utilisateur, droits par défaut, puis chaque table avec ses groupes de colonnes. En-têtes gris et pastilles Autorisé / Refusé.
 - Les onglets suivants : « Toutes les règles » (tableau filtrable), puis « Qui peut faire quoi », « Détail par case » et « Paramètres » de la matrice. Le bouton Excel propre à la matrice est retiré.

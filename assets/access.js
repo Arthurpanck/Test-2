@@ -55,6 +55,16 @@ export function generalSettings(a) {
   const explicitAllow = a.defaults.some((r) => r.perms.S === 'allow');
   return [
     {
+      id: 'acl',
+      name: 'Permissions avancées',
+      on: a.hasRules,
+      state: a.hasRules ? 'Activées' : 'Non activées',
+      level: 'info',
+      text: a.hasRules
+        ? `Le document a des règles d'accès : ${a.ruleCount} condition${a.ruleCount > 1 ? 's' : ''}${a.attributes.length ? `, ${a.attributes.length} attribut${a.attributes.length > 1 ? 's' : ''} utilisateur` : ''}.`
+        : 'Aucune règle : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).',
+    },
+    {
       id: 'seed',
       name: 'Ajouter automatiquement une règle pour les propriétaires',
       on: Boolean(seed?.rules.length),
@@ -65,16 +75,6 @@ export function generalSettings(a) {
         : a.hasRules
           ? 'À activer : les nouvelles règles de table ne donnent pas d’office tous les droits aux propriétaires. C’est une bonne pratique, et l’audit en a besoin pour voir tout le document.'
           : "Les nouvelles règles de table ne donnent pas d'office tous les droits aux propriétaires.",
-    },
-    {
-      id: 'acl',
-      name: 'Permissions avancées',
-      on: a.hasRules,
-      state: a.hasRules ? 'Activées' : 'Non activées',
-      level: 'info',
-      text: a.hasRules
-        ? `Le document a des règles d'accès : ${a.ruleCount} condition${a.ruleCount > 1 ? 's' : ''}${a.attributes.length ? `, ${a.attributes.length} attribut${a.attributes.length > 1 ? 's' : ''} utilisateur` : ''}.`
-        : 'Aucune règle : chaque personne invitée voit et modifie tout selon son rôle de partage (propriétaire, éditeur, lecteur).',
     },
     {
       id: 'schema',
